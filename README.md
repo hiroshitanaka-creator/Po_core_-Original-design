@@ -77,7 +77,7 @@ pip install -e ".[dev]"
 
 Current AI optimizes for statistical accuracy — a brilliant parrot that understands nothing. Po_core asks a different question: **what if AI reasoned from philosophy, not just data?**
 
-The differentiator: **42 philosophers** (Western, Eastern, African, Canadian) run as interacting tensors through a 10-step hexagonal pipeline. Each brings its own reasoning module. They compete, interfere, and reconcile — producing a Pareto-optimal proposal with a measurable ethical pressure signal instead of a single confident prediction. (The internal `dummy` slot is a compliance sentinel helper and must not be counted as one of the 42.)
+The differentiator: **42 philosophers** (Western, Eastern, African, Canadian) operate as **deliberation modules inside Po_core** — interacting tensors running through a 10-step hexagonal pipeline. Each brings its own reasoning module. They compete, interfere, and reconcile — producing a Pareto-optimal proposal with a measurable ethical pressure signal instead of a single confident prediction. The 42 philosophers are not the system itself; they are how Po_core's tensor kernel deliberates. (The internal `dummy` slot is a compliance sentinel helper and must not be counted as one of the 42.)
 
 No matter how many relationships we have, decisions are made alone. That's why Po_core exists — **to stand beside you when you must say "Leave it to me."**
 
@@ -87,7 +87,17 @@ Read the full story: [Manifesto](./Po_core_Manifesto_When_Pigs_Fly.md)
 
 ## Architecture
 
-**Hexagonal `run_turn` pipeline — 10 steps:**
+Po_core is a **three-layer tensor intelligence model** for processing the meaning and responsibility of speech. This is distinct from — and not to be confused with — the three-layer *safety gate* below.
+
+| Layer | Role |
+|---|---|
+| **Po_core** (tensor kernel) | Computes semantic, ethical, responsibility, and freedom-pressure tensors for each output and each decision path. Contains the 10-step `run_turn` pipeline and the 42 philosopher deliberation modules. |
+| **Po_self** (recursive self-reconstruction layer) | Observes `Po_trace`, evaluates discontinuity / responsibility pressure / ethical fluctuation, and decides whether to preserve, reconstruct, jump, reject, or re-activate prior meanings. |
+| **Viewer** (external resonance / feedback layer) | Receives the output and returns resonance, agreement, disagreement, and social feedback tensors back into Po_self. |
+
+The 42 philosophers are **not the system itself** — they are deliberation modules inside the Po_core layer.
+
+**Hexagonal `run_turn` pipeline (inside Po_core) — 10 steps:**
 
 ```
 MemoryRead → TensorCompute → SolarWill → IntentionGate → PhilosopherSelect
@@ -102,7 +112,7 @@ MemoryRead → TensorCompute → SolarWill → IntentionGate → PhilosopherSele
 | Semantic Delta | Novelty of the input vs. memory history (1.0 = never seen, 0.0 = familiar) |
 | Blocked Tensor | Constraint / harm estimation |
 
-**Safety** is three-layered: `IntentionGate` (pre-deliberation) → `PolicyPrecheck` (mid-pipeline) → `ActionGate` (post-deliberation). SafetyMode transitions NORMAL → WARN → CRITICAL based on freedom_pressure thresholds.
+**Safety** is a separate three-layer gate: `IntentionGate` (pre-deliberation) → `PolicyPrecheck` (mid-pipeline) → `ActionGate` (post-deliberation). SafetyMode transitions NORMAL → WARN → CRITICAL based on freedom_pressure thresholds.
 
 For full source layout and component detail → [Architecture docs](./02_architecture) · [CLAUDE.md](./CLAUDE.md)
 

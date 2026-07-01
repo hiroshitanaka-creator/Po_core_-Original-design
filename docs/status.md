@@ -73,6 +73,11 @@ All evidence gaps are now closed:
 
 ## Next
 
+v2 realignment (docs-only, PR-001 complete):
+
+- PR-002: introduce `SemanticProfile` / `SemanticStep` / `PoSelfDecision` / `ViewerFeedback` domain models + schemas (no pipeline wiring yet).
+- Subsequent PRs: wire `Po_self` to observe `Po_trace` and emit preserve/reconstruct/jump/reject/reactivate decisions; wire `Viewer` to return resonance/agreement/disagreement/feedback tensors back into `Po_self`.
+
 v1.1.0 publish tasks:
 
 - Record GitHub Actions workflow run URL(s) for the v1.1.0 publish run.
@@ -86,6 +91,7 @@ Stage 2 planning (after publish):
 
 ## Completed
 
+- 2026-07-01: PR-001 (v2 realignment, docs-only) — SSOT wording aligned to the three-layer tensor intelligence model. `docs/厳格固定ルール.md` ミッション now declares Po_core (tensor kernel) / Po_self (recursive self-reconstruction layer) / Viewer (external resonance/feedback layer) as the canonical architecture, with the 42 philosophers repositioned as deliberation modules inside Po_core rather than the system itself. `README.md` and `docs/spec/prd.md` updated to state this three-layer tensor intelligence model explicitly and distinguish it from the pre-existing three-layer safety gate (`IntentionGate` → `PolicyPrecheck` → `ActionGate`), which is unchanged. `CLAUDE.md` "What is Po_core?" / "Architecture" sections updated to match. No code, tests, schemas, philosopher roster, or trace contract changed; `run_turn` pipeline, philosopher registry, safety gates, Pareto aggregation, and REST API are all preserved as-is. Reason: repository was drifting toward describing itself as "42 philosophers deliberate → answer" rather than the intended tensor-kernel / self-reconstruction / resonance-feedback architecture. Impact: docs-only; no runtime behavior change. Tests performed: `pip install -e ".[dev]"` (retried with `--ignore-installed pyjwt` after the first attempt hit a pre-existing debian-installed PyJWT package conflict), then `pytest tests/test_release_readiness.py -v` → **24/24 passed**, and `pytest tests/test_run_turn_e2e.py tests/test_philosopher_bridge.py tests/test_smoke_pipeline.py -q` (pipeline-marked must-pass suite) → **82/82 passed**. `docs/spec/prd.md` and `CLAUDE.md` are not referenced by `test_release_readiness.py`; those two files were additionally reviewed manually against the PR-001 acceptance criteria. No test files were modified. Session: `claude/po-core-v2-realignment-t0jjl5`.
 - 2026-04-30: TestPyPI publish confirmed for v1.1.0. Workflow run #38 (`https://github.com/hiroshitanaka-creator/Po_core/actions/runs/25149181205`) succeeded (18m 38s, SHA `c94a390`, `main`). TestPyPI JSON API confirms upload at `2026-04-30T05:51:03 UTC`. Evidence: `docs/release/testpypi_publish_log_v1.1.0.md`. Direct `pip install` from `test-files.pythonhosted.org` blocked in this environment (`host_not_allowed`); JSON API + RC Step 6 wheel smoke serve as substitute evidence. PyPI production publish is the next step (pending decision).
 - 2026-04-30: RELEASE-CANDIDATE-VERIFY-1 complete (v1.1.0). All 6 local RC verification steps passed: version check (1.1.0), build artifacts (wheel + sdist), twine check (both PASSED), release readiness tests (24/24), dev-checkout smoke (`run_status=ok`), clean venv wheel install smoke (`dist_version=1.1.0`, all CLI entrypoints resolved from wheel). Evidence doc: `docs/release/release_candidate_verification_v1.1.0.md`. TestPyPI publish is the next step (pending workflow trigger). Template: `docs/release/templates/testpypi_publish_log_template_v1.1.0.md`.
 - 2026-04-30: Black formatting baseline restored. Ran `black .` on pre-existing formatting violations so `black --check .` passes cleanly. Formatting-only; no behavior, version, publish, tag, or release changes. This unblocks release/v1.1.0-prep without mixing formatting into the release-prep PR.

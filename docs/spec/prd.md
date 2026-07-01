@@ -10,13 +10,24 @@
 ## 1. 目的 (Purpose)
 
 Po_core は「人間が決断するとき、倫理的な軸と説明責任を一緒に持てるようにする」ための
-哲学駆動型 AI 意思決定支援システムである。
+哲学駆動型 AI 意思決定支援システムであり、その基幹は **語ることの意味と責任を構造的に処理する
+三層テンソル知性モデル**（Po_core / Po_self / Viewer）である。
+
+- **Po_core（基幹層 / tensor kernel）**: 意味・倫理・責任・自由圧テンソルを計算する。
+- **Po_self（自己循環層）**: Po_trace を監視し、不連続性・責任圧・倫理的変動を評価したうえで、
+  保持・再構成・ジャンプ・拒否・再資源化を判断する。
+- **Viewer（鏡面層）**: ユーザー・社会からの共鳴・納得・不一致・違和感を feedback tensor として
+  Po_self に返す。
+
+この「三層テンソル知性モデル」は、後述の 3 層倫理ゲート（W_Ethics Gate: IntentionGate →
+PolicyPrecheck → ActionGate）とは別の区分であり、混同しない。
 
 Po_core は正解を断言する装置ではなく、選択肢・理由・反証・不確実性・
 追加で問うべき事項を **哲学的議論を通じて** 構造化して提示する装置である。
 
-内部では 42 人（クラシック 39 + African 2 + Canadian 1; ADR-0006）の哲学者 AI ペルソナが **テンソル演算** と **多ラウンド合意形成**
-を通じて協議し、3 層の倫理ゲート（W_Ethics Gate）が出力を審査する。
+Po_core 基幹層の内部では 42 人（クラシック 39 + African 2 + Canadian 1; ADR-0006）の哲学者 AI ペルソナが
+**熟議モジュール（deliberation modules）**として **テンソル演算** と **多ラウンド合意形成**
+を通じて協議し、3 層の倫理ゲート（W_Ethics Gate）が出力を審査する。42人の哲学者はシステム全体そのものではない。
 
 > Canonical public truth: formal philosopher count = 42。内部の `dummy` slot は helper / sentinel / compliance slot であり、この42人には含めない。
 
@@ -93,18 +104,47 @@ Po_core の設計はこれらの信念に基づく：
 
 ## 6. コアアーキテクチャ概要
 
+### 6.1 三層テンソル知性モデル（システム全体）
+
+```
+Viewer feedback
+    ↓
+Po_self controller  ── Po_trace を監視し、保持/再構成/ジャンプ/拒否/再資源化を判断
+    ↓
+Po_core run_turn pipeline (tensor kernel; 6.2 参照)
+    ↓
+Po_trace / semantic_profile
+    ↓
+Po_self decision
+    ↓
+final output
+    ↓
+Viewer resonance
+```
+
+| 層 | 役割 |
+|---|---|
+| **Po_core** | 意味・倫理・責任・自由圧テンソルを計算する基幹層。42人の哲学者は、この層内部の熟議モジュール。 |
+| **Po_self** | Po_trace を監視し、不連続性・責任圧・倫理的変動を評価して保持/再構成/ジャンプ/拒否/再資源化を判断する自己循環層。 |
+| **Viewer** | ユーザー・社会からの共鳴・納得・不一致・違和感を feedback tensor として Po_self に返す鏡面層。 |
+
+この三層テンソル知性モデルは、6.2 の 3 層倫理ゲート（W_Ethics Gate）とは別区分である。
+
+### 6.2 run_turn パイプライン（Po_core 基幹層の内部実装）
+
 ```
 User Input
     │
     ▼
 ┌─────────────────────────────────────┐
 │  run_turn (10-Step Pipeline)        │
+│  (Po_core 基幹層の内部実装)          │
 │                                     │
 │  1. MemoryRead                      │
 │  2. TensorCompute  ← FP-V2, SD, BT │
 │  3. SolarWill                       │
 │  4. IntentionGate  ← W_Ethics L1   │
-│  5. PhilosopherSelect (42 人)       │
+│  5. PhilosopherSelect (42 人の熟議モジュール) │
 │  6. PartyMachine + Deliberation     │
 │  7. ParetoAggregate                 │
 │  8. ShadowPareto (A/B)              │
@@ -189,3 +229,4 @@ Structured Output (output_schema_v1.json)
 | 0.1 | 2026-02-22 | 初版作成 |
 | 0.2 | 2026-02-22 | Phase 6-7 完了を反映；アーキテクチャ概要・用語追加；仕様化マイルストーン追記 |
 | 0.3 | 2026-03-21 | release/publication の mutable truth は `docs/status.md` / `docs/release/*` を authoritative source とする旨を明記し、PRD 本文から可変な公開状態の断定を除去 |
+| 0.4 | 2026-07-01 | v2 realignment (PR-001): 三層テンソル知性モデル（Po_core/Po_self/Viewer）を目的・アーキテクチャ概要に明記し、3層倫理ゲートとの区別を明示。42人の哲学者を「Po_core 内部の熟議モジュール」として再定義（システム全体ではない）。振る舞い変更なし。 |
