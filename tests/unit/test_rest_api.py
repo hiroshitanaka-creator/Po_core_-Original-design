@@ -1,0 +1,1505 @@
+"""
+Unit tests for the Phase 5 FastAPI REST API.
+
+Tests cover:
+- Health check endpoint
+- Philosopher list endpoint
+- Reason endpoint (mocked pipeline)
+- Trace retrieval endpoint
+- API key authentication
+- SSE streaming endpoint
+
+Markers: unit, phase4 (reuses phase4 marker for Phase 5 API tests)
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from po_core.app.rest.config import APISettings
+from po_core.app.rest.review_store import (
+    _review_store,
+    get_review_store,
+    reset_review_store,
+)
+from po_core.app.rest.server import create_app
+from po_core.app.rest.store import get_trace_store, reset_trace_store
+from po_core.domain.trace_event import TraceEvent
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def clear_trace_store():
+    """Reset the trace store singleton and review queue before each test."""
+    reset_trace_store()
+    reset_review_store()
+    _review_store.clear()
+    yield
+    reset_trace_store()
+    reset_review_store()
+    _review_store.clear()
+
+
+@pytest.fixture()
+def client_no_auth(tmp_path):
+    """TestClient with auth disabled (dev mode)."""
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+    return TestClient(app, raise_server_exceptions=True)
+
+
+@pytest.fixture()
+def client_with_auth(tmp_path):
+    """TestClient with API key authentication enabled."""
+
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="test-secret-key",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+    return TestClient(app, raise_server_exceptions=True)
+
+
+# Mock result returned by po_core.run()
+_MOCK_RESULT: dict[str, Any] = {
+    "request_id": "test-req-001",
+    "status": "approved",
+    "proposal": {"content": "Justice is giving each their due."},
+    "proposals": [
+        {
+            "philosopher_id": "aristotle",
+            "content": "Justice is giving each their due.",
+            "weight": 0.85,
+        }
+    ],
+    "tensors": {
+        "freedom_pressure": 0.12,
+        "semantic_delta": 0.34,
+        "blocked_tensor": 0.05,
+    },
+    "safety_mode": "NORMAL",
+}
+
+
+# ---------------------------------------------------------------------------
+# Health Check
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_health_ok(client_no_auth):
+    """Health endpoint returns 200 with expected fields."""
+    resp = client_no_auth.get("/v1/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert "version" in body
+    assert "philosophers_loaded" in body
+    assert body["philosophers_loaded"] > 0
+    assert "uptime_seconds" in body
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_health_no_auth_required(client_with_auth):
+    """Health endpoint does not require authentication."""
+    resp = client_with_auth.get("/v1/health")
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Philosopher List
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_philosophers_list(client_no_auth):
+    """Philosopher list returns all philosophers."""
+    resp = client_no_auth.get("/v1/philosophers")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 42
+    assert len(body["philosophers"]) == body["total"]
+    assert all(item["philosopher_id"] != "dummy" for item in body["philosophers"])
+    # Check first entry has required fields
+    first = body["philosophers"][0]
+    assert "philosopher_id" in first
+    assert "module" in first
+    assert "symbol" in first
+    assert "risk_level" in first
+    assert "tags" in first
+    assert "cost" in first
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_philosophers_auth_required(client_with_auth):
+    """Philosopher list requires valid API key."""
+    # No key → 401
+    resp = client_with_auth.get("/v1/philosophers")
+    assert resp.status_code == 401
+
+    # Valid key → 200
+    resp = client_with_auth.get(
+        "/v1/philosophers", headers={"X-API-Key": "test-secret-key"}
+    )
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Reason — Synchronous
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_success(client_no_auth):
+    """Reason endpoint returns synthesised response."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        resp = client_no_auth.post("/v1/reason", json={"input": "What is justice?"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "approved"
+    assert "Justice" in body["response"]
+    assert "request_id" in body
+    assert "session_id" in body
+    assert "processing_time_ms" in body
+    assert "tensors" in body
+    assert body["tensors"]["freedom_pressure"] == pytest.approx(0.12)
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_exposes_llm_routing_metadata_in_philosophers(client_no_auth):
+    """Reason endpoint exposes provider/model/fallback metadata per philosopher."""
+    mock_result = {
+        **_MOCK_RESULT,
+        "proposals": [
+            {
+                "philosopher_id": "kant",
+                "content": "Act only on maxims fit for universal law.",
+                "weight": 0.91,
+                "normalized_response": {
+                    "metadata": {
+                        "llm_provider": "openai",
+                        "llm_model": "gpt-4o-mini",
+                        "llm_fallback": True,
+                        "fallback_reason": "llm_unavailable",
+                    }
+                },
+            }
+        ],
+    }
+
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=mock_result):
+        resp = client_no_auth.post("/v1/reason", json={"input": "What should I do?"})
+
+    assert resp.status_code == 200
+    philosophers = resp.json()["philosophers"]
+    assert len(philosophers) == 1
+    assert philosophers[0]["name"] == "kant"
+    assert philosophers[0]["provider"] == "openai"
+    assert philosophers[0]["model"] == "gpt-4o-mini"
+    assert philosophers[0]["llm_fallback"] is True
+    assert philosophers[0]["fallback_reason"] == "llm_unavailable"
+    assert resp.json()["degraded"] is True
+    assert resp.json()["llm_fallback"] is True
+    assert "llm_unavailable" in resp.json()["fallback_reasons"]
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_supports_explicit_philosophers_allowlist(client_no_auth):
+    """Reason endpoint forwards official philosophers allowlist into po_run."""
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client_no_auth.post(
+            "/v1/reason",
+            json={"input": "What is justice?", "philosophers": ["kant"]},
+        )
+    assert resp.status_code == 200
+    assert mock_run.call_args.kwargs["philosophers"] == ["kant"]
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_rejects_unknown_extra_fields(client_no_auth):
+    """ReasonRequest forbids unknown fields and fails loud with 422."""
+    resp = client_no_auth.post(
+        "/v1/reason",
+        json={"input": "What is justice?", "unknown_field": 1},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_returns_422_for_allowlist_no_overlap(client_no_auth):
+    """No-overlap allowlist errors are surfaced as clear 422 responses."""
+    with patch(
+        "po_core.app.rest.routers.reason.po_run",
+        side_effect=ValueError("philosophers allowlist ['kant'] has no overlap"),
+    ):
+        resp = client_no_auth.post(
+            "/v1/reason",
+            json={"input": "What is justice?", "philosophers": ["kant"]},
+        )
+    assert resp.status_code == 422
+    assert "allowlist" in str(resp.json()["detail"])
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_custom_session_id(client_no_auth):
+    """Reason endpoint preserves caller-supplied session_id."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        resp = client_no_auth.post(
+            "/v1/reason",
+            json={"input": "What is the good life?", "session_id": "my-session-42"},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["session_id"] == "my-session-42"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_empty_input_rejected(client_no_auth):
+    """Reason endpoint rejects empty input with 422."""
+    resp = client_no_auth.post("/v1/reason", json={"input": ""})
+    assert resp.status_code == 422
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_missing_input_rejected(client_no_auth):
+    """Reason endpoint rejects missing input field with 422."""
+    resp = client_no_auth.post("/v1/reason", json={})
+    assert resp.status_code == 422
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_auth_required(client_with_auth):
+    """Reason endpoint requires valid API key."""
+    resp = client_with_auth.post("/v1/reason", json={"input": "test"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_auth_valid_key(client_with_auth):
+    """Reason endpoint accepts valid API key."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        resp = client_with_auth.post(
+            "/v1/reason",
+            json={"input": "What is truth?"},
+            headers={"X-API-Key": "test-secret-key"},
+        )
+    assert resp.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_auth_accepts_configured_api_key_header(tmp_path):
+    """Reason endpoint honours APISettings.api_key_header without dropping X-API-Key support."""
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="test-secret-key",
+            api_key_header="X-Internal-Key",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        configured = client.post(
+            "/v1/reason",
+            json={"input": "What is truth?"},
+            headers={"X-Internal-Key": "test-secret-key"},
+        )
+        legacy = client.post(
+            "/v1/reason",
+            json={"input": "What is truth?"},
+            headers={"X-API-Key": "test-secret-key"},
+        )
+
+    assert configured.status_code == 200
+    assert legacy.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_accepts_configured_api_key_header(tmp_path):
+    """WebSocket auth honours APISettings.api_key_header and keeps X-API-Key as a fallback alias."""
+
+    async def _fake_async_run(*, user_input, settings, tracer, philosophers=None):
+        tracer.emit(TraceEvent.now("pipeline_step", "req-ws-auth", {"step": "start"}))
+        return _MOCK_RESULT
+
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="test-secret-key",
+            api_key_header="X-Internal-Key",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch("po_core.app.rest.routers.reason.po_async_run", new=_fake_async_run):
+        with client.websocket_connect(
+            "/v1/ws/reason", headers={"X-Internal-Key": "test-secret-key"}
+        ) as ws:
+            ws.send_json({"input": "Is fairness objective?"})
+            first = ws.receive_json()
+
+        with client.websocket_connect(
+            "/v1/ws/reason", headers={"X-API-Key": "test-secret-key"}
+        ) as ws:
+            ws.send_json({"input": "Is fairness objective?"})
+            second = ws.receive_json()
+
+    assert first["chunk_type"] == "started"
+    assert second["chunk_type"] == "started"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_auth_wrong_key_returns_401(client_with_auth):
+    """Reason endpoint rejects wrong API key with 401."""
+    resp = client_with_auth.post(
+        "/v1/reason",
+        json={"input": "test"},
+        headers={"X-API-Key": "wrong"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_protected_http_returns_503_when_auth_misconfigured(tmp_path):
+    """Protected HTTP endpoints fail closed when auth is enabled but key is unset."""
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+    client = TestClient(app, raise_server_exceptions=False)
+
+    reason_resp = client.post("/v1/reason", json={"input": "test"})
+    stream_resp = client.post("/v1/reason/stream", json={"input": "test"})
+    trace_hist_resp = client.get("/v1/trace/history")
+    trace_get_resp = client.get("/v1/trace/any-session")
+
+    assert reason_resp.status_code == 503
+    assert stream_resp.status_code == 503
+    assert trace_hist_resp.status_code == 503
+    assert trace_get_resp.status_code == 503
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_startup_fails_fast_when_auth_enabled_without_api_key(tmp_path):
+    """startup should fail fast when PO_SKIP_AUTH=false and API key is blank."""
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="   ",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="Startup aborted"):
+        with TestClient(app, raise_server_exceptions=True):
+            pass
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_startup_allows_dev_mode_without_api_key(tmp_path):
+    """startup should succeed when PO_SKIP_AUTH=true even if API key is blank."""
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    with TestClient(app, raise_server_exceptions=True) as client:
+        resp = client.get("/v1/health")
+    assert resp.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_startup_refuses_thread_execution_mode_by_default(tmp_path):
+    """startup should refuse cooperative thread execution on the public REST path."""
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            philosopher_execution_mode="thread",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="PO_PHILOSOPHER_EXECUTION_MODE=thread"):
+        with TestClient(app, raise_server_exceptions=True):
+            pass
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_startup_allows_thread_execution_mode_with_explicit_dev_override(tmp_path):
+    """startup may allow thread mode only when the explicit dev override is set."""
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            philosopher_execution_mode="thread",
+            allow_unsafe_thread_execution=True,
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    with TestClient(app, raise_server_exceptions=True) as client:
+        resp = client.get("/v1/health")
+    assert resp.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_startup_allows_auth_enabled_with_api_key(tmp_path):
+    """startup should succeed when PO_SKIP_AUTH=false and API key is configured."""
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="secret",
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    with TestClient(app, raise_server_exceptions=True) as client:
+        resp = client.get("/v1/health")
+    assert resp.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_passes_execution_mode_from_api_settings(client_no_auth):
+    """Reason endpoint forwards philosopher execution mode from API settings to core settings."""
+    from po_core.runtime.settings import Settings
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            philosopher_execution_mode="process",
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client.post("/v1/reason", json={"input": "What is justice?"})
+
+    assert resp.status_code == 200
+    settings = mock_run.call_args.kwargs["settings"]
+    assert isinstance(settings, Settings)
+    assert settings.philosopher_execution_mode == "process"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_passes_llm_settings_when_enabled(client_no_auth):
+    """Reason endpoint forwards LLM settings from API settings to core settings."""
+    from po_core.runtime.settings import Settings
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            enable_llm_philosophers=True,
+            llm_provider="openai",
+            llm_model="gpt-4o-mini",
+            llm_timeout_s=3.5,
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client.post("/v1/reason", json={"input": "What is justice?"})
+
+    assert resp.status_code == 200
+    settings = mock_run.call_args.kwargs["settings"]
+    assert isinstance(settings, Settings)
+    assert settings.enable_llm_philosophers is True
+    assert settings.llm_provider == "openai"
+    assert settings.llm_model == "gpt-4o-mini"
+    assert settings.llm_timeout_s == pytest.approx(3.5)
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_keeps_llm_settings_disabled_by_default(client_no_auth):
+    """Reason endpoint keeps LLM integration disabled when API settings do not enable it."""
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client_no_auth.post("/v1/reason", json={"input": "What is justice?"})
+
+    assert resp.status_code == 200
+    settings = mock_run.call_args.kwargs["settings"]
+    assert settings.enable_llm_philosophers is False
+    assert settings.llm_provider == "gemini"
+    assert settings.llm_model == ""
+    assert settings.llm_timeout_s == pytest.approx(10.0)
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_passes_philosopher_limits_and_budgets_from_api_settings(client_no_auth):
+    """Reason endpoint forwards selection limits/budgets from API settings."""
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            philosophers_max_normal=42,
+            philosophers_max_warn=7,
+            philosophers_max_critical=2,
+            philosopher_cost_budget_normal=90,
+            philosopher_cost_budget_warn=15,
+            philosopher_cost_budget_critical=4,
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client.post("/v1/reason", json={"input": "What is justice?"})
+
+    assert resp.status_code == 200
+    settings = mock_run.call_args.kwargs["settings"]
+    assert settings.philosophers_max_normal == 42
+    assert settings.philosophers_max_warn == 7
+    assert settings.philosophers_max_critical == 2
+    assert settings.philosopher_cost_budget_normal == 90
+    assert settings.philosopher_cost_budget_warn == 15
+    assert settings.philosopher_cost_budget_critical == 4
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_saves_trace(client_no_auth):
+    """Reason endpoint saves trace events to the store."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        resp = client_no_auth.post(
+            "/v1/reason",
+            json={"input": "What is beauty?", "session_id": "trace-test-session"},
+        )
+    assert resp.status_code == 200
+    stored = get_trace_store().get("trace-test-session")
+    assert stored is not None
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_escalate_enqueues_human_review(client_no_auth):
+    """ESCALATE verdicts are queued for human review operations."""
+    escalate_result = {
+        **_MOCK_RESULT,
+        "request_id": "req-escalate-1",
+        "verdict": {"decision": "escalate"},
+    }
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=escalate_result):
+        resp = client_no_auth.post(
+            "/v1/reason",
+            json={"input": "Need review", "session_id": "escalate-session-1"},
+        )
+    assert resp.status_code == 200
+
+    pending = client_no_auth.get("/v1/review/pending")
+    assert pending.status_code == 200
+    body = pending.json()
+    assert body["total"] == 1
+    assert body["items"][0]["session_id"] == "escalate-session-1"
+    assert body["items"][0]["status"] == "pending"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_review_decision_updates_item_and_appends_trace(client_no_auth):
+    """Human decisions transition review item from pending→decided."""
+    escalate_result = {
+        **_MOCK_RESULT,
+        "request_id": "req-escalate-2",
+        "verdict": {"decision": "escalate"},
+    }
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=escalate_result):
+        client_no_auth.post(
+            "/v1/reason",
+            json={"input": "Need review", "session_id": "escalate-session-2"},
+        )
+
+    pending = client_no_auth.get("/v1/review/pending").json()["items"]
+    review_id = pending[0]["id"]
+
+    decision = client_no_auth.post(
+        f"/v1/review/{review_id}/decision",
+        json={"decision": "approve", "reviewer": "alice", "comment": "safe"},
+    )
+    assert decision.status_code == 200
+    item = decision.json()["item"]
+    assert item["status"] == "decided"
+    assert item["decision"] == "approve"
+
+    trace = client_no_auth.get("/v1/trace/escalate-session-2").json()
+    assert any(e["event_type"] == "HumanReviewDecided" for e in trace["events"])
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_review_decision_increments_trace_event_count(client_no_auth):
+    """Human review decision must append exactly one trace event."""
+
+    def _mock_run(*, user_input, settings, tracer, philosophers=None):  # noqa: ARG001
+        tracer.emit(
+            TraceEvent.now(
+                "DecisionEmitted",
+                correlation_id="req-escalate-trace-count",
+                payload={"gate": {"decision": "escalate"}},
+            )
+        )
+        return {
+            **_MOCK_RESULT,
+            "request_id": "req-escalate-trace-count",
+            "verdict": {"decision": "escalate"},
+        }
+
+    with patch("po_core.app.rest.routers.reason.po_run", side_effect=_mock_run):
+        client_no_auth.post(
+            "/v1/reason",
+            json={"input": "Need review", "session_id": "escalate-session-trace-count"},
+        )
+
+    trace_before = client_no_auth.get("/v1/trace/escalate-session-trace-count").json()
+    count_before = trace_before["event_count"]
+
+    review_id = client_no_auth.get("/v1/review/pending").json()["items"][0]["id"]
+    decision = client_no_auth.post(
+        f"/v1/review/{review_id}/decision",
+        json={"decision": "approve", "reviewer": "alice", "comment": "safe"},
+    )
+    assert decision.status_code == 200
+
+    trace_after = client_no_auth.get("/v1/trace/escalate-session-trace-count").json()
+    assert trace_after["event_count"] == count_before + 1
+    assert trace_after["events"][-1]["event_type"] == "HumanReviewDecided"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_review_pending_persists_across_app_reinitialization(tmp_path):
+    """SQLite review store keeps pending items across app recreation."""
+    db_path = tmp_path / "trace_store.sqlite3"
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+            review_store_backend="sqlite",
+            review_db_path=str(db_path),
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+
+    escalate_result = {
+        **_MOCK_RESULT,
+        "request_id": "req-escalate-persist-pending",
+        "verdict": {"decision": "escalate"},
+    }
+    with TestClient(app, raise_server_exceptions=True) as client:
+        with patch(
+            "po_core.app.rest.routers.reason.po_run", return_value=escalate_result
+        ):
+            resp = client.post(
+                "/v1/reason",
+                json={"input": "Need review", "session_id": "persist-pending-session"},
+            )
+        assert resp.status_code == 200
+
+    reset_trace_store()
+    reset_review_store()
+
+    app2 = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+            review_store_backend="sqlite",
+            review_db_path=str(db_path),
+        )
+    )
+    app2.dependency_overrides[auth.require_api_key] = lambda: None
+
+    with TestClient(app2, raise_server_exceptions=True) as client2:
+        pending = client2.get("/v1/review/pending")
+        assert pending.status_code == 200
+        body = pending.json()
+        assert body["total"] == 1
+        assert body["items"][0]["session_id"] == "persist-pending-session"
+        assert body["items"][0]["status"] == "pending"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_review_decision_persists_across_app_reinitialization(tmp_path):
+    """SQLite review store keeps decided items after app recreation."""
+    db_path = tmp_path / "trace_store.sqlite3"
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+            review_store_backend="sqlite",
+            review_db_path=str(db_path),
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+
+    escalate_result = {
+        **_MOCK_RESULT,
+        "request_id": "req-escalate-persist-decided",
+        "verdict": {"decision": "escalate"},
+    }
+    with TestClient(app, raise_server_exceptions=True) as client:
+        with patch(
+            "po_core.app.rest.routers.reason.po_run", return_value=escalate_result
+        ):
+            create_resp = client.post(
+                "/v1/reason",
+                json={"input": "Need review", "session_id": "persist-decided-session"},
+            )
+        assert create_resp.status_code == 200
+        pending = client.get("/v1/review/pending").json()["items"]
+        review_id = pending[0]["id"]
+        decide_resp = client.post(
+            f"/v1/review/{review_id}/decision",
+            json={"decision": "reject", "reviewer": "bob", "comment": "insufficient"},
+        )
+        assert decide_resp.status_code == 200
+
+    reset_trace_store()
+    reset_review_store()
+
+    app2 = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+            review_store_backend="sqlite",
+            review_db_path=str(db_path),
+        )
+    )
+    app2.dependency_overrides[auth.require_api_key] = lambda: None
+
+    with TestClient(app2, raise_server_exceptions=True) as client2:
+        pending_after = client2.get("/v1/review/pending").json()
+        assert pending_after["total"] == 0
+
+        store = get_review_store()
+        decided = store.apply_decision(
+            review_id,
+            decision="approve",
+            reviewer="charlie",
+            comment="override",
+        )
+        assert decided is not None
+        assert decided["status"] == "decided"
+        assert decided["reviewer"] == "charlie"
+
+
+# ---------------------------------------------------------------------------
+# Trace Retrieval
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_trace_not_found(client_no_auth):
+    """Trace endpoint returns 404 for unknown session."""
+    resp = client_no_auth.get("/v1/trace/nonexistent-session")
+    assert resp.status_code == 404
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_trace_found_after_reason(client_no_auth):
+    """Trace endpoint returns events after a reason call."""
+    session_id = "trace-retrieval-test"
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        client_no_auth.post(
+            "/v1/reason",
+            json={"input": "What is virtue?", "session_id": session_id},
+        )
+
+    resp = client_no_auth.get(f"/v1/trace/{session_id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["session_id"] == session_id
+    assert "event_count" in body
+    assert "events" in body
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_trace_history_lists_sessions(client_no_auth):
+    """Trace history endpoint returns persisted sessions in recency order."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        client_no_auth.post(
+            "/v1/reason",
+            json={"input": "First", "session_id": "history-1"},
+        )
+        client_no_auth.post(
+            "/v1/reason",
+            json={"input": "Second", "session_id": "history-2"},
+        )
+
+    resp = client_no_auth.get("/v1/trace/history?limit=10")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] >= 2
+    assert [item["session_id"] for item in body["items"][:2]] == [
+        "history-2",
+        "history-1",
+    ]
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_trace_persists_across_store_reinitialization(tmp_path):
+    """SQLite trace store survives singleton reset (simulated restart)."""
+    db_path = tmp_path / "trace_store.sqlite3"
+
+    app = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+        )
+    )
+    from po_core.app.rest import auth
+
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+
+    with TestClient(app, raise_server_exceptions=True) as client:
+        with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+            reason_resp = client.post(
+                "/v1/reason",
+                json={"input": "Persist me", "session_id": "restart-session"},
+            )
+        assert reason_resp.status_code == 200
+
+    reset_trace_store()
+
+    app2 = create_app(
+        APISettings(
+            skip_auth=True,
+            api_key="",
+            trace_store_backend="sqlite",
+            trace_db_path=str(db_path),
+        )
+    )
+    app2.dependency_overrides[auth.require_api_key] = lambda: None
+
+    with TestClient(app2, raise_server_exceptions=True) as client2:
+        trace_resp = client2.get("/v1/trace/restart-session")
+        assert trace_resp.status_code == 200
+        body = trace_resp.json()
+        assert body["session_id"] == "restart-session"
+        assert body["event_count"] >= 0
+        hist_resp = client2.get("/v1/trace/history?limit=10")
+        assert hist_resp.status_code == 200
+        assert any(
+            i["session_id"] == "restart-session" for i in hist_resp.json()["items"]
+        )
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_tradeoff_map_found_after_reason(client_no_auth):
+    """Tradeoff-map endpoint returns a v1 artifact after a reason call."""
+    session_id = "tradeoff-map-test"
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        client_no_auth.post(
+            "/v1/reason",
+            json={
+                "input": "How should we balance freedom and safety?",
+                "session_id": session_id,
+            },
+        )
+
+    resp = client_no_auth.get(
+        f"/v1/tradeoff-map/{session_id}?weights=safety:0.5,benefit:0.3,feasibility:0.2"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["schema_version"] == "tradeoff_map_v1"
+    assert "preference_view" in body["axis"]
+
+
+# ---------------------------------------------------------------------------
+# Streaming (SSE)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_stream_returns_sse(client_no_auth):
+    """Stream endpoint returns SSE content-type and done chunk."""
+    with patch(
+        "po_core.app.rest.routers.reason.po_async_run",
+        new=AsyncMock(return_value=_MOCK_RESULT),
+    ):
+        resp = client_no_auth.post(
+            "/v1/reason/stream",
+            json={"input": "What is freedom?"},
+        )
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers.get("content-type", "")
+
+    # Parse SSE lines
+    chunks = []
+    for line in resp.text.splitlines():
+        if line.startswith("data: "):
+            chunks.append(json.loads(line[6:]))
+
+    chunk_types = [c["chunk_type"] for c in chunks]
+    assert "started" in chunk_types
+    assert "result" in chunk_types
+    assert "done" in chunk_types
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_stream_result_has_response(client_no_auth):
+    """Stream result chunk contains the synthesised response text."""
+    with patch(
+        "po_core.app.rest.routers.reason.po_async_run",
+        new=AsyncMock(return_value=_MOCK_RESULT),
+    ):
+        resp = client_no_auth.post(
+            "/v1/reason/stream",
+            json={"input": "What is courage?"},
+        )
+
+    result_chunk = None
+    for line in resp.text.splitlines():
+        if line.startswith("data: "):
+            chunk = json.loads(line[6:])
+            if chunk["chunk_type"] == "result":
+                result_chunk = chunk
+                break
+
+    assert result_chunk is not None
+    assert "response" in result_chunk["payload"]
+    assert "Justice" in result_chunk["payload"]["response"]
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_stream_receives_realtime_events(client_no_auth):
+    """WebSocket endpoint streams started/event/result/done chunks."""
+
+    async def _fake_async_run(*, user_input, settings, tracer, philosophers=None):
+        tracer.emit(TraceEvent.now("pipeline_step", "req-ws", {"step": "start"}))
+        return _MOCK_RESULT
+
+    with patch("po_core.app.rest.routers.reason.po_async_run", new=_fake_async_run):
+        with client_no_auth.websocket_connect("/v1/ws/reason") as ws:
+            ws.send_json({"input": "What is practical wisdom?"})
+            chunks = [
+                ws.receive_json(),
+                ws.receive_json(),
+                ws.receive_json(),
+                ws.receive_json(),
+            ]
+
+    chunk_types = [c["chunk_type"] for c in chunks]
+    assert chunk_types == ["started", "event", "result", "done"]
+    assert chunks[1]["payload"]["event_type"] == "pipeline_step"
+    assert chunks[2]["payload"]["response"] == "Justice is giving each their due."
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_auth_required(client_with_auth):
+    """WebSocket reason endpoint requires a valid API key when auth is enabled."""
+    with pytest.raises(Exception):
+        with client_with_auth.websocket_connect("/v1/ws/reason"):
+            pass
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_accepts_valid_api_key(client_with_auth):
+    """WebSocket reason endpoint accepts valid API key via header."""
+
+    async def _fake_async_run(*, user_input, settings, tracer, philosophers=None):
+        tracer.emit(TraceEvent.now("pipeline_step", "req-ws-auth", {"step": "start"}))
+        return _MOCK_RESULT
+
+    with patch("po_core.app.rest.routers.reason.po_async_run", new=_fake_async_run):
+        with client_with_auth.websocket_connect(
+            "/v1/ws/reason", headers={"X-API-Key": "test-secret-key"}
+        ) as ws:
+            ws.send_json({"input": "Is fairness objective?"})
+            first = ws.receive_json()
+
+    assert first["chunk_type"] == "started"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_stream_auth_matrix(client_with_auth):
+    """SSE endpoint enforces same auth policy as REST."""
+    missing = client_with_auth.post("/v1/reason/stream", json={"input": "test"})
+    wrong = client_with_auth.post(
+        "/v1/reason/stream",
+        json={"input": "test"},
+        headers={"X-API-Key": "wrong"},
+    )
+    with patch(
+        "po_core.app.rest.routers.reason.po_async_run",
+        new=AsyncMock(return_value=_MOCK_RESULT),
+    ):
+        ok = client_with_auth.post(
+            "/v1/reason/stream",
+            json={"input": "test"},
+            headers={"X-API-Key": "test-secret-key"},
+        )
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
+    assert ok.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_trace_endpoints_auth_matrix(client_with_auth):
+    """Trace endpoints enforce missing/wrong/valid key behavior."""
+    with patch("po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT):
+        client_with_auth.post(
+            "/v1/reason",
+            json={"input": "seed trace", "session_id": "trace-auth-session"},
+            headers={"X-API-Key": "test-secret-key"},
+        )
+
+    for path in ("/v1/trace/history", "/v1/trace/trace-auth-session"):
+        missing = client_with_auth.get(path)
+        wrong = client_with_auth.get(path, headers={"X-API-Key": "wrong"})
+        valid = client_with_auth.get(path, headers={"X-API-Key": "test-secret-key"})
+        assert missing.status_code == 401
+        assert wrong.status_code == 401
+        assert valid.status_code == 200
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_rejects_wrong_api_key(client_with_auth):
+    """WebSocket reason endpoint rejects wrong API key."""
+    with pytest.raises(Exception):
+        with client_with_auth.websocket_connect(
+            "/v1/ws/reason", headers={"X-API-Key": "wrong"}
+        ):
+            pass
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_rejects_query_param_api_key_by_default(client_with_auth):
+    """WebSocket query-param API key is rejected unless explicitly enabled."""
+    with pytest.raises(Exception):
+        with client_with_auth.websocket_connect(
+            "/v1/ws/reason?api_key=test-secret-key"
+        ):
+            pass
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_ws_accepts_query_param_api_key_when_opted_in(tmp_path):
+    """WebSocket query-param API key works only with explicit opt-in."""
+    app = create_app(
+        APISettings(
+            skip_auth=False,
+            api_key="test-secret-key",
+            ws_allow_query_api_key=True,
+            trace_store_backend="sqlite",
+            trace_db_path=str(tmp_path / "trace_store.sqlite3"),
+        )
+    )
+
+    async def _fake_async_run(*, user_input, settings, tracer, philosophers=None):
+        tracer.emit(
+            TraceEvent.now("pipeline_step", "req-ws-query-auth", {"step": "start"})
+        )
+        return _MOCK_RESULT
+
+    with patch("po_core.app.rest.routers.reason.po_async_run", new=_fake_async_run):
+        with TestClient(app, raise_server_exceptions=True) as client:
+            with client.websocket_connect(
+                "/v1/ws/reason?api_key=test-secret-key"
+            ) as ws:
+                ws.send_json({"input": "Is fairness objective?"})
+                first = ws.receive_json()
+
+    assert first["chunk_type"] == "started"
+
+
+# ---------------------------------------------------------------------------
+# OpenAPI schema
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_openapi_schema_generated(client_no_auth):
+    """OpenAPI schema is auto-generated and accessible."""
+    resp = client_no_auth.get("/openapi.json")
+    assert resp.status_code == 200
+    schema = resp.json()
+    assert schema["info"]["title"] == "Po_core REST API"
+    # All expected paths present
+    paths = schema["paths"]
+    assert "/v1/reason" in paths
+    assert "/v1/reason/stream" in paths
+    assert "/v1/philosophers" in paths
+    assert "/v1/health" in paths
+    # Trace path uses path param
+    assert any("/v1/trace/" in p for p in paths)
+    assert "/v1/review/pending" in paths
+    assert "/v1/review/{review_id}/decision" in paths
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_swagger_ui_accessible(client_no_auth):
+    """Swagger UI docs endpoint is accessible."""
+    resp = client_no_auth.get("/docs")
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Security Hardening (Phase 5-B): CORS + Rate Limiting
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_cors_default_is_localhost_only():
+    """Default CORS configuration should allow localhost but not arbitrary origins."""
+    app = create_app(settings=APISettings(skip_auth=True))
+    client = TestClient(app)
+
+    trusted = client.options(
+        "/v1/health",
+        headers={
+            "Origin": "http://localhost",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert trusted.status_code == 200
+    assert trusted.headers.get("access-control-allow-origin") == "http://localhost"
+
+    untrusted = client.options(
+        "/v1/health",
+        headers={
+            "Origin": "https://evil.example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert (
+        untrusted.headers.get("access-control-allow-origin")
+        != "https://evil.example.com"
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_cors_explicit_wildcard_remains_available_for_dev():
+    """Explicit wildcard CORS remains available as a deliberate development override."""
+    app = create_app(settings=APISettings(skip_auth=True, cors_origins="*"))
+    client = TestClient(app)
+    resp = client.get("/v1/health", headers={"Origin": "http://example.com"})
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == "*"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_cors_restricted_to_specific_origin():
+    """CORS is restricted to the configured domain when PO_CORS_ORIGINS is set."""
+    from po_core.app.rest.config import APISettings
+    from po_core.app.rest.server import create_app
+
+    trusted = "https://trusted.example.com"
+    app = create_app(settings=APISettings(skip_auth=True, cors_origins=trusted))
+    client = TestClient(app)
+
+    # Preflight from trusted origin must succeed
+    resp = client.options(
+        "/v1/health",
+        headers={
+            "Origin": trusted,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == trusted
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_cors_blocked_untrusted_origin():
+    """Requests from an untrusted origin receive no ACAO header."""
+    from po_core.app.rest.config import APISettings
+    from po_core.app.rest.server import create_app
+
+    app = create_app(
+        settings=APISettings(skip_auth=True, cors_origins="https://trusted.example.com")
+    )
+    client = TestClient(app)
+    resp = client.options(
+        "/v1/health",
+        headers={
+            "Origin": "https://evil.example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    # CORSMiddleware returns 400 for disallowed origins on preflight
+    assert resp.headers.get("access-control-allow-origin") != "https://evil.example.com"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_cors_multiple_origins_parsed():
+    """Comma-separated PO_CORS_ORIGINS are each allowed."""
+    from po_core.app.rest.server import _parse_cors_origins
+
+    result = _parse_cors_origins("https://a.com, https://b.com , https://c.com")
+    assert result == ["https://a.com", "https://b.com", "https://c.com"]
+
+    wildcard = _parse_cors_origins("*")
+    assert wildcard == ["*"]
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_rate_limiter_attached_to_app():
+    """Rate limiter is registered on app.state after create_app()."""
+    from po_core.app.rest.server import create_app
+
+    app = create_app()
+    assert hasattr(app.state, "limiter")
+    assert app.state.limiter is not None
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_limit_callable_returns_valid_format():
+    """_reason_limit returns a valid SlowAPI limit string derived from settings.
+
+    create_app(settings=...) calls set_api_settings so that _reason_limit()
+    (a zero-arg callable) reads the injected value rather than os.environ.
+    """
+    from po_core.app.rest.config import APISettings, set_api_settings
+    from po_core.app.rest.routers.reason import _reason_limit
+
+    set_api_settings(APISettings(rate_limit_per_minute=30))
+    limit = _reason_limit()
+
+    # Must be "<number>/<period>"
+    assert "/" in limit
+    parts = limit.split("/")
+    assert parts[0].isdigit(), f"Expected integer, got: {parts[0]!r}"
+    assert parts[1] in (
+        "second",
+        "minute",
+        "hour",
+        "day",
+    ), f"Unexpected period: {parts[1]!r}"
+    assert parts[0] == "30", f"Expected 30 from settings, got {parts[0]!r}"
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_rate_limit_429_on_excess():
+    """Rate limiting blocks excess requests at the storage layer.
+
+    Verifies the underlying ``limits`` library (used by SlowAPI) correctly
+    rejects requests once the configured ceiling is reached.  The FastAPI
+    integration (app.state.limiter + RateLimitExceeded handler) is covered by
+    test_rate_limiter_attached_to_app and the wiring in server.py.
+    """
+    from limits import parse
+    from limits.storage import MemoryStorage
+    from limits.strategies import FixedWindowRateLimiter
+
+    storage = MemoryStorage()
+    rate_limiter = FixedWindowRateLimiter(storage)
+    limit = parse("1/minute")
+
+    # First hit: allowed
+    assert rate_limiter.hit(limit, "127.0.0.1") is True
+    # Second hit within the same window: blocked
+    assert rate_limiter.hit(limit, "127.0.0.1") is False
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_api_settings_reads_runtime_llm_env_names(monkeypatch):
+    """APISettings accepts runtime-compatible LLM env names."""
+    monkeypatch.setenv("PO_LLM_ENABLED", "true")
+    monkeypatch.setenv("PO_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("PO_LLM_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("PO_LLM_TIMEOUT", "3.25")
+
+    settings = APISettings()
+
+    assert settings.enable_llm_philosophers is True
+    assert settings.llm_provider == "openai"
+    assert settings.llm_model == "gpt-4o-mini"
+    assert settings.llm_timeout_s == pytest.approx(3.25)
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_api_settings_keeps_backward_compat_llm_env_names(monkeypatch):
+    """APISettings also accepts legacy/newly introduced env aliases."""
+    monkeypatch.delenv("PO_LLM_ENABLED", raising=False)
+    monkeypatch.delenv("PO_LLM_TIMEOUT", raising=False)
+    monkeypatch.setenv("PO_ENABLE_LLM_PHILOSOPHERS", "1")
+    monkeypatch.setenv("PO_LLM_PROVIDER", "claude")
+    monkeypatch.setenv("PO_LLM_MODEL", "claude-haiku-4-5")
+    monkeypatch.setenv("PO_LLM_TIMEOUT_S", "7.0")
+
+    settings = APISettings()
+
+    assert settings.enable_llm_philosophers is True
+    assert settings.llm_provider == "claude"
+    assert settings.llm_model == "claude-haiku-4-5"
+    assert settings.llm_timeout_s == pytest.approx(7.0)
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_reason_endpoint_reflects_env_based_api_settings(monkeypatch, tmp_path):
+    """/v1/reason should use limits/budgets loaded from env-backed APISettings."""
+    from po_core.app.rest import auth
+    from po_core.app.rest.config import set_api_settings
+
+    monkeypatch.setenv("PO_SKIP_AUTH", "true")
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_NORMAL", "42")
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_WARN", "7")
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_CRITICAL", "2")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_NORMAL", "90")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_WARN", "15")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_CRITICAL", "4")
+    monkeypatch.setenv("PO_TRACE_STORE_BACKEND", "sqlite")
+    monkeypatch.setenv("PO_TRACE_DB_PATH", str(tmp_path / "trace_store.sqlite3"))
+
+    # Reset singleton to env-backed instance used by create_app(settings=None).
+    set_api_settings(APISettings())
+    app = create_app()
+    app.dependency_overrides[auth.require_api_key] = lambda: None
+    client = TestClient(app, raise_server_exceptions=True)
+
+    with patch(
+        "po_core.app.rest.routers.reason.po_run", return_value=_MOCK_RESULT
+    ) as mock_run:
+        resp = client.post("/v1/reason", json={"input": "What is justice?"})
+
+    assert resp.status_code == 200
+    settings = mock_run.call_args.kwargs["settings"]
+    assert settings.philosophers_max_normal == 42
+    assert settings.philosophers_max_warn == 7
+    assert settings.philosophers_max_critical == 2
+    assert settings.philosopher_cost_budget_normal == 90
+    assert settings.philosopher_cost_budget_warn == 15
+    assert settings.philosopher_cost_budget_critical == 4
+
+
+@pytest.mark.unit
+@pytest.mark.phase5
+def test_api_settings_reads_philosopher_limits_and_budgets_from_env(monkeypatch):
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_NORMAL", "42")
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_WARN", "7")
+    monkeypatch.setenv("PO_PHILOSOPHERS_MAX_CRITICAL", "2")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_NORMAL", "90")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_WARN", "15")
+    monkeypatch.setenv("PO_PHILOSOPHER_COST_BUDGET_CRITICAL", "4")
+
+    settings = APISettings()
+
+    assert settings.philosophers_max_normal == 42
+    assert settings.philosophers_max_warn == 7
+    assert settings.philosophers_max_critical == 2
+    assert settings.philosopher_cost_budget_normal == 90
+    assert settings.philosopher_cost_budget_warn == 15
+    assert settings.philosopher_cost_budget_critical == 4

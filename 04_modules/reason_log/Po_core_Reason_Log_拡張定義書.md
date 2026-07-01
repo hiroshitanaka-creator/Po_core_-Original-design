@@ -1,0 +1,59 @@
+# **Po\_core Reason Log 拡張定義書（コード付き）**
+
+## **1\. 概要**
+
+本ドキュメントは、Po\_coreにおける手動操作記録（interference\_log.reason）に対して、より高精度な分類・影響度制御・意味圧反映を可能とするための拡張仕様を定義する。分類コード、評価レベル、確信度を追加することで、Po\_self進化制御やGUIの操作ログ可視化に活用できる。
+
+## **2\. 拡張フィールドと説明**
+
+| フィールド名 | 例 | 型 | 説明 |
+| :---- | :---- | :---- | :---- |
+| category | resonance | string | 理由の分類カテゴリ（意味、倫理、感情など） |
+| label | 共鳴不足 | string | 人間向けの表示ラベル |
+| code | R03 | string | 分類コード。API・分析に活用 |
+| description | 出力が共感に欠けたため修正を促した | string | 理由の詳細説明 |
+| user\_feedback\_level | 2 | integer | 1=軽微、2=中程度、3=重大な理由と感じた |
+| reason\_confidence | 0.84 | float | その理由へのユーザー自身の確信度（0〜1） |
+
+## **3\. 拡張構造の記録例（JSON形式）**
+
+***{***
+  ***"manual\_override": true,***
+  ***"reason": {***
+    ***"category": "resonance",***
+    ***"label": "共鳴不足",***
+    ***"code": "R03",***
+    ***"description": "出力が人間的な共感や納得感に欠けたため、修正を促した",***
+    ***"user\_feedback\_level": 2,***
+    ***"reason\_confidence": 0.84***
+  ***},***
+  ***"timestamp": "2025-07-14T18:00:00Z"***
+***}***
+
+## **4\. Po\_self優先度補正ロジック（擬似コード）**
+
+***def adjust\_priority\_by\_reason(entry):***
+    ***level\_weight \= {1: 0.05, 2: 0.15, 3: 0.30}***
+    ***category\_base \= {***
+        ***"meaning": 0.2,***
+        ***"resonance": 0.1,***
+        ***"ethics": 0.25,***
+        ***"factual": 0.3,***
+        ***"emotion": 0.15,***
+        ***"structure": 0.1***
+    ***}***
+
+    ***reason \= entry\["reason"\]***
+    ***level \= reason.get("user\_feedback\_level", 2\)***
+    ***confidence \= reason.get("reason\_confidence", 1.0)***
+    ***category\_weight \= category\_base.get(reason\["category"\], 0.1)***
+
+    ***adjustment \= category\_weight \* level\_weight\[level\] \* confidence***
+    ***entry\["priority\_score"\] \*= (1 \+ adjustment)***
+
+## **5\. 表示・活用例（Po\_traceカード）**
+
+Viewerカード表示例：
+🟡 操作理由: R03 共鳴不足（level 2 / confidence 0.84）→ 再構成圧: 中程度
+
+→ Po\_selfへの圧力：priority\_scoreに対して \+12.6% 補正適用

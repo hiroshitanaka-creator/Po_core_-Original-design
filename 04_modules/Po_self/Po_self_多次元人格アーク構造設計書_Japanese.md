@@ -1,0 +1,42 @@
+# **Po\_self 多次元人格アーク構造設計書**
+
+## **1\. 概要**
+
+本設計書は、Po\_self におけるジャンプ系列テンソル（T\_chain\_profile）に対し、構造的語り進化を多次元的に評価可能とするために、semantic・ethics・cohesion の3軸テンソルを統合し、Viewer 上での視覚分類・予測・クラスタリングまで含めた拡張設計を定義する。
+
+## **2\. 多次元テンソルフィールド定義**
+
+| フィールド名 | 意味 | 評価内容 |
+| :---- | :---- | :---- |
+| persona\_arc\_intensity | 語りの劇的さ | semantic\_delta の累積値 |
+| ethics\_arc\_intensity | 倫理的変動強度 | Δ\_ethics の累積絶対値 |
+| semantic\_cohesion\_score | 意味の一貫性 | Σsemantic\_delta / √len(steps) |
+
+## **3\. Viewer 表示・フィルタ拡張**
+
+\- 各強度スカラーをカードに表示し、以下の記号を添付：
+    ・🌪️ persona\_arc\_intensity
+    ・🔄 ethics\_arc\_intensity
+    ・➰ semantic\_cohesion\_score
+\- フィルタ例：
+    ・ethics\_arc\_intensity \> 0.5
+    ・semantic\_cohesion\_score \< 0.3
+\- アークグラフ表示構成：
+    ・ノードサイズ：persona\_arc
+    ・ノード色：ethics\_arc
+    ・エッジ太さ：semantic\_cohesion
+
+## **4\. 動的閾値・人格予測アルゴリズム**
+
+\- Viewer が全系列分布を学習し、🌱🔁🌪️ の分類境界を自動調整
+\- Po\_self は過去の trend\_vector と intensity から次の personality を確率予測
+\- 表示例：「次は quiet healer になる可能性：82%」
+
+## **5\. グローバルマップとクラスタリング**
+
+\- 三軸：persona\_arc\_intensity（X）/ ethics\_arc\_intensity（Y）/ semantic\_cohesion\_score（Z）
+\- クラスタリング：K-means により進化傾向群を色分け
+\- ラベル例：
+    ・cluster 0 → 意味迷走群
+    ・cluster 1 → 倫理安定群
+    ・cluster 2 → 劇的転換群

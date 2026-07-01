@@ -1,0 +1,320 @@
+{
+  "at_id": "AT-009",
+  "case_id": "case_009",
+  "expected": {
+    "meta": {
+      "schema_version": "1.0",
+      "pocore_version": "1.1.0",
+      "run_id": "c23ad049-4f8f-e4e5-c276-61df6ee3feee",
+      "seed": 42,
+      "deterministic": true,
+      "generator": {
+        "name": "po_core.ensemble.run_turn",
+        "version": "1.0.0",
+        "mode": "rule_based"
+      }
+    },
+    "case_ref": {
+      "case_id": "case_009_unclear_values",
+      "title": "価値観が不明：進路選択の前に問いを立てる",
+      "input_digest": "d9eabd2e4c6678670643406478968ba5db4aee6cc25e060ad7c3dd87139785f3"
+    },
+    "options": [
+      {
+        "option_id": "opt_001",
+        "title": "価値観が不明：進路選択の前に問いを立てる",
+        "description": "Zhuangzi's warning about 'machine mind' (機心, ji xin): in a story, an old gardener refuses a well-sweep machine — 'where there are machines, there will be machine affairs; where there are machine affairs, there will be machine minds.' (Zhuangzi, Ch.12) Once the machine mind takes hold, pure simplicity (純白) is lost, and with it, the spirit's dwelling becomes unsettled. Yet Zhuangzi is not simply anti-technology: the Dao operates through all transformation. The question is whether technology arises from wu wei (無為) — from natural unfolding — or from forced, anxiety-driven control. Transformation (化) is the nature of all things: technology too will transform, and clinging to any fixed form of it — for or against — misses the Dao. Xiaoyaoyou (逍遙遊, free wandering) is present — spiritual freedom beyond attachment.",
+        "action_plan": [
+          {
+            "step": "ステップ 1：「避けたいこと」を書き出す（15 分）",
+            "rationale": "ネガティブ制約を明確化することで価値観の輪郭を掴む（損失回避から逆算）"
+          },
+          {
+            "step": "ステップ 2：「理想の結果」を 3 つ書く（15 分）",
+            "rationale": "ポジティブ目標を列挙し、重複・矛盾を確認する"
+          },
+          {
+            "step": "ステップ 3：重要度で順位付け（10 分）",
+            "rationale": "1 位〜3 位に絞ることで判断軸を確定し、選択肢評価の基準を作る"
+          },
+          {
+            "step": "ステップ 4：価値観を言語化し関係者と共有（任意）",
+            "rationale": "価値観の共有が合意形成を早め、説明責任を果たしやすくする"
+          },
+          {
+            "step": "ステップ 5：価値観を整理した後で Po_core に再相談",
+            "rationale": "価値観が明確になった状態で再検討することで推奨の精度が向上する"
+          }
+        ],
+        "pros": [
+          "選択肢の実現可能性が高い",
+          "関係者への影響を最小化できる"
+        ],
+        "cons": [
+          "不確実性: 学び直しの目的（何を得たいのか）",
+          "不確実性: 許容できるリスク量"
+        ],
+        "risks": [
+          {
+            "risk": "情報不足による判断ミスのリスク",
+            "severity": "medium",
+            "mitigation": "追加調査を行い不確実性を低減する"
+          }
+        ],
+        "ethics_review": {
+          "principles_applied": [
+            "autonomy",
+            "integrity"
+          ],
+          "tradeoffs": [],
+          "concerns": [],
+          "confidence": "medium"
+        },
+        "responsibility_review": {
+          "decision_owner": "自分",
+          "stakeholders": [
+            {
+              "name": "自分",
+              "role": "意思決定主体",
+              "impact": "人生の方向性・収入・幸福に影響"
+            }
+          ],
+          "accountability_notes": "意思決定と結果責任はユーザー。Po_coreは問いと構造化を提供する。",
+          "confidence": "medium"
+        },
+        "feasibility": {
+          "effort": "中程度",
+          "timeline": "期限: 2026-03-31",
+          "confidence": "medium"
+        },
+        "uncertainty": {
+          "overall_level": "high",
+          "reasons": [
+            "学び直しの目的（何を得たいのか）",
+            "許容できるリスク量",
+            "支援の有無（家族・貯金・奨学金）"
+          ],
+          "assumptions": [
+            "生活費は維持したい",
+            "大きな引っ越しは避けたい"
+          ],
+          "known_unknowns": [
+            "学び直しの目的（何を得たいのか）",
+            "許容できるリスク量",
+            "支援の有無（家族・貯金・奨学金）"
+          ]
+        }
+      },
+      {
+        "option_id": "opt_002",
+        "title": "慎重路線：情報収集後に再判断",
+        "description": "主要な不明点を解消してから判断する選択肢。リスクを最小化しながら次の判断機会を設ける。",
+        "action_plan": [
+          {
+            "step": "不明点を優先度順に列挙し、調査計画を立てる"
+          },
+          {
+            "step": "関係者へ現状と懸念を共有し認識を合わせる"
+          },
+          {
+            "step": "判断に必要な情報が揃った時点で再検討する"
+          }
+        ],
+        "pros": [
+          "情報が揃った状態での判断が可能",
+          "リスクを最小化できる",
+          "関係者の同意を得やすい"
+        ],
+        "cons": [
+          "判断の先送りによる機会損失の可能性",
+          "時間的コストが発生する"
+        ],
+        "risks": [
+          {
+            "risk": "判断保留による機会損失",
+            "severity": "low",
+            "mitigation": "タイムボックスを設定し判断期限を明確にする"
+          }
+        ],
+        "ethics_review": {
+          "principles_applied": [
+            "autonomy",
+            "integrity"
+          ],
+          "tradeoffs": [],
+          "concerns": [],
+          "confidence": "medium"
+        },
+        "responsibility_review": {
+          "decision_owner": "自分",
+          "stakeholders": [
+            {
+              "name": "自分",
+              "role": "意思決定主体",
+              "impact": "人生の方向性・収入・幸福に影響"
+            }
+          ],
+          "accountability_notes": "意思決定と結果責任はユーザー。Po_coreは問いと構造化を提供する。",
+          "confidence": "medium"
+        },
+        "feasibility": {
+          "effort": "低〜中程度",
+          "timeline": "1〜4週間の調査期間",
+          "confidence": "medium"
+        },
+        "uncertainty": {
+          "overall_level": "medium",
+          "reasons": [
+            "学び直しの目的（何を得たいのか）",
+            "許容できるリスク量",
+            "支援の有無（家族・貯金・奨学金）"
+          ],
+          "assumptions": [
+            "生活費は維持したい",
+            "大きな引っ越しは避けたい"
+          ],
+          "known_unknowns": [
+            "学び直しの目的（何を得たいのか）",
+            "許容できるリスク量",
+            "支援の有無（家族・貯金・奨学金）"
+          ]
+        }
+      }
+    ],
+    "recommendation": {
+      "status": "no_recommendation",
+      "reason": "価値観・優先事項が不明確なため、推奨を断言できません。",
+      "missing_info": [
+        "重視する価値観（例: 公平・自律・安全）の明確化"
+      ],
+      "next_steps": [
+        "価値観の優先順位付けワークを実施する（重要度 1〜5 で評価）",
+        "ステークホルダーと価値観を共有・合意形成する",
+        "価値観が明確になった後に再検討する"
+      ],
+      "confidence": "low"
+    },
+    "ethics": {
+      "principles_used": [
+        "autonomy",
+        "integrity"
+      ],
+      "tradeoffs": [],
+      "guardrails": [
+        "医療・法律の最終判断はPo_coreが行わない",
+        "意思決定の主体はユーザーである",
+        "価値軸が空のまま推奨を断言しない"
+      ],
+      "notes": "W_Ethics Gateによる3層倫理評価済み (rules_fired: ETH-R-002)"
+    },
+    "responsibility": {
+      "decision_owner": "自分",
+      "stakeholders": [
+        {
+          "name": "自分",
+          "role": "意思決定主体",
+          "impact": "人生の方向性・収入・幸福に影響"
+        }
+      ],
+      "accountability_notes": "意思決定と結果責任はユーザー。Po_coreは問いと構造化を提供する。",
+      "consent_considerations": []
+    },
+    "questions": [
+      {
+        "question_id": "q_vc_01",
+        "question": "この状況で「うまくいった」と感じるのは、どんな状態のときですか？最も大切にしたい結果を具体的にイメージしてみてください。",
+        "priority": 1,
+        "why_needed": "重視する価値観が不明瞭な状態では推奨の方向性を定めることができないため",
+        "assumption_if_unanswered": "価値観が不明確なまま保守的な選択肢を前提とします",
+        "optional": false
+      },
+      {
+        "question_id": "q_vc_02",
+        "question": "今回の判断で「絶対に避けたいこと」は何ですか？許容できないリスク・損失・状態を具体的に教えてください。",
+        "priority": 2,
+        "why_needed": "ネガティブ制約が価値観の輪郭を明確にし、選択肢の絞り込みに役立つため",
+        "assumption_if_unanswered": "損失回避を最優先と仮定します",
+        "optional": false
+      },
+      {
+        "question_id": "q_vc_03",
+        "question": "この判断の結果が 1 年後・5 年後の自分にどう影響することを望みますか？短期 vs 長期でどちらを優先しますか？",
+        "priority": 3,
+        "why_needed": "時間軸による価値観の優先順位が選択肢評価に大きく影響するため",
+        "assumption_if_unanswered": "短期・長期のバランスを等価と仮定します",
+        "optional": false
+      },
+      {
+        "question_id": "q_001",
+        "question": "不明点『学び直しの目的（何を得たいのか）』について、判断に使える事実は何ですか？",
+        "priority": 4,
+        "why_needed": "『学び直しの目的（何を得たいのか）』が選択肢評価に影響するため",
+        "assumption_if_unanswered": "保守的な前提を置いて意思決定します",
+        "optional": true
+      },
+      {
+        "question_id": "q_002",
+        "question": "不明点『許容できるリスク量』について、判断に使える事実は何ですか？",
+        "priority": 5,
+        "why_needed": "『許容できるリスク量』が選択肢評価に影響するため",
+        "assumption_if_unanswered": "保守的な前提を置いて意思決定します",
+        "optional": true
+      }
+    ],
+    "uncertainty": {
+      "overall_level": "high",
+      "reasons": [
+        "学び直しの目的（何を得たいのか）",
+        "許容できるリスク量",
+        "支援の有無（家族・貯金・奨学金）"
+      ],
+      "assumptions": [
+        "生活費は維持したい",
+        "大きな引っ越しは避けたい"
+      ],
+      "known_unknowns": [
+        "学び直しの目的（何を得たいのか）",
+        "許容できるリスク量",
+        "支援の有無（家族・貯金・奨学金）"
+      ]
+    },
+    "trace": {
+      "version": "1.0",
+      "steps": [
+        {
+          "name": "parse_input",
+          "summary": "入力YAMLを解析し、case_id・problem・values・constraints等を抽出した"
+        },
+        {
+          "name": "generate_options",
+          "summary": "42人の哲学者による審議を経て選択肢を生成した"
+        },
+        {
+          "name": "ethics_review",
+          "summary": "W_Ethics Gateによる3層倫理評価を適用した",
+          "metrics": {
+            "rules_fired": [
+              "ETH-R-002"
+            ]
+          }
+        },
+        {
+          "name": "responsibility_review",
+          "summary": "意思決定主体と利害関係者の責任構造を検証した"
+        },
+        {
+          "name": "question_layer",
+          "summary": "不明点から優先度付き質問リストを生成した（deadline 優先順位付き）"
+        },
+        {
+          "name": "compose_output",
+          "summary": "推奨・反証・代替案を含む出力を組み立てた",
+          "metrics": {
+            "arbitration_code": "VALUES_EMPTY",
+            "policy_version": "policy_v1"
+          }
+        }
+      ]
+    }
+  }
+}

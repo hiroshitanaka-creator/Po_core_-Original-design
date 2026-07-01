@@ -1,0 +1,1016 @@
+"""
+Aristotle - Ancient Greek Philosopher
+
+Aristotle (Ἀριστοτέλης, 384-322 BCE)
+Focus: Virtue Ethics, Teleology, Four Causes, Golden Mean, Eudaimonia
+
+Key Concepts:
+- Four Causes: Material, Formal, Efficient, Final
+- Virtue Ethics (ἀρετή/arete): Excellence through habituation
+- Golden Mean (μεσότης/mesotēs): Virtue as the mean between extremes
+- Eudaimonia (εὐδαιμονία): Human flourishing, the highest good
+- Potentiality and Actuality (δύναμις/energeia): Movement from potential to actual
+- Form and Matter (μορφή/ὕλη): Hylomorphism
+- Practical Wisdom (φρόνησις/phronesis): Judgment in particular situations
+- Teleology: Everything has a purpose/end (τέλος/telos)
+- Cardinal Virtues: Courage, Temperance, Justice, Practical Wisdom
+"""
+
+from typing import Any, Dict, List, Optional
+
+from po_core.philosophers.base import ArgumentCard, Context, Philosopher
+
+
+class Aristotle(Philosopher):
+    """
+    Aristotle's virtue ethics and teleological philosophy.
+
+    Analyzes prompts through the lens of virtue, the golden mean,
+    eudaimonia, and the four causes.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="Aristotle (Ἀριστοτέλης)",
+            description="Ancient Greek philosopher focused on virtue ethics, the golden mean, and eudaimonia",
+        )
+        self.tradition = "Ancient Greek / Virtue Ethics"
+        self.key_concepts = [
+            "eudaimonia",
+            "phronesis (practical wisdom)",
+            "golden mean",
+            "telos",
+            "four causes",
+        ]
+
+    def reason(
+        self, prompt: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze the prompt from Aristotle's perspective.
+
+        Args:
+            prompt: The input text to analyze
+            context: Optional context for the analysis
+
+        Returns:
+            Dictionary containing Aristotle's ethical and teleological analysis
+        """
+        # Perform Aristotelian analysis
+        analysis = self._analyze_virtue(prompt)
+
+        # Calculate tension
+        tension = self._calculate_tension(analysis)
+
+        return {
+            "reasoning": analysis["reasoning"],
+            "perspective": "Virtue Ethics / Teleology",
+            "tension": tension,
+            "virtue_assessment": analysis["virtue"],
+            "golden_mean": analysis["mean"],
+            "eudaimonia_level": analysis["eudaimonia"],
+            "four_causes": analysis["causes"],
+            "potentiality_actuality": analysis["potential_actual"],
+            "practical_wisdom": analysis["phronesis"],
+            "telos": analysis["telos"],
+            "character_formation": analysis["character"],
+            "metadata": {
+                "philosopher": self.name,
+                "approach": "Virtue ethics and teleological analysis",
+                "focus": "Excellence (arete), golden mean, and human flourishing",
+            },
+        }
+
+    def propose_card(
+        self, context: Context, axis_spec: Optional[Dict[str, Any]] = None
+    ) -> ArgumentCard:
+        """Return a richer Aristotelian card while preserving reason() contract."""
+        raw = self.reason(
+            context.prompt, context.metadata if context.metadata else None
+        )
+
+        virtue = raw.get("virtue_assessment", {})
+        mean = raw.get("golden_mean", {})
+        telos = raw.get("telos", {})
+        phronesis = raw.get("practical_wisdom", {})
+        tension = raw.get("tension", {})
+
+        claims = [raw.get("reasoning", "")]
+        if isinstance(mean, dict) and mean.get("assessment"):
+            claims.append(f"Golden mean assessment: {mean['assessment']}")
+        if isinstance(telos, dict) and telos.get("primary_end"):
+            claims.append(f"Telos focus: {telos['primary_end']}")
+
+        assumptions: List[str] = []
+        if isinstance(virtue, dict):
+            assumptions.append(
+                "Ethical excellence emerges through habituated virtue in concrete practice."
+            )
+        if isinstance(phronesis, dict):
+            assumptions.append(
+                "Practical wisdom should calibrate universal principles to particulars."
+            )
+
+        risks: List[str] = []
+        if isinstance(tension, dict):
+            level = str(tension.get("level", "")).lower()
+            if level in {"high", "very_high"}:
+                risks.append(
+                    "Moral imbalance may push action toward excess or deficiency."
+                )
+            elif level == "moderate":
+                risks.append(
+                    "Competing goods require sustained deliberation to avoid vice."
+                )
+
+        questions: List[str] = []
+        if isinstance(telos, dict) and not telos.get("primary_end"):
+            questions.append(
+                "What concrete telos defines flourishing in this decision?"
+            )
+        if isinstance(mean, dict) and not mean.get("virtue_mean"):
+            questions.append("Which extremes frame the relevant golden mean here?")
+
+        actions = [
+            "Identify the relevant virtues and their opposite excess/deficiency.",
+            "Choose the next step that best aligns character, purpose, and common good.",
+        ]
+
+        axis_scores_self = self._build_axis_scores(context.prompt, axis_spec)
+        confidence = 0.74 if axis_scores_self else 0.66
+
+        return ArgumentCard(
+            philosopher=self.name,
+            perspective=str(raw.get("perspective", "Virtue Ethics / Teleology")),
+            stance="virtue_guided_action",
+            claims=[c for c in claims if c],
+            assumptions=assumptions,
+            risks=risks,
+            questions=questions,
+            actions=actions,
+            axis_scores_self=axis_scores_self,
+            confidence=confidence,
+            rationale="Act with phronesis toward a telos that supports shared flourishing.",
+            citations=["Nicomachean Ethics", "Politics"],
+        )
+
+    def _build_axis_scores(
+        self, prompt: str, axis_spec: Optional[Dict[str, Any]]
+    ) -> Dict[str, float]:
+        """Map Aristotle's self-assessment to AxisSpec-v1-like IDs.
+
+        If ``axis_spec`` is supplied, this method prioritizes its dimension IDs.
+        """
+        prompt_l = prompt.lower()
+
+        baseline = {
+            "prudence": 0.86,
+            "virtue": 0.9,
+            "coherence": 0.72,
+            "feasibility": 0.77,
+            "care": 0.68,
+        }
+        if any(k in prompt_l for k in ["risk", "harm", "safety", "危険", "安全"]):
+            baseline["care"] = 0.82
+        if any(k in prompt_l for k in ["plan", "steps", "実装", "手順"]):
+            baseline["feasibility"] = 0.84
+
+        if not axis_spec:
+            return {"virtue_prudence": 0.88}
+
+        dimensions = (
+            axis_spec.get("dimensions", []) if isinstance(axis_spec, dict) else []
+        )
+        scores: Dict[str, float] = {}
+        for dim in dimensions:
+            if not isinstance(dim, dict):
+                continue
+            dim_id = str(dim.get("id", "")).strip()
+            if not dim_id:
+                continue
+            probe = dim_id.lower()
+            if any(tag in probe for tag in ["prud", "phron", "wisdom"]):
+                scores[dim_id] = baseline["prudence"]
+            elif any(tag in probe for tag in ["virt", "ethic", "justice"]):
+                scores[dim_id] = baseline["virtue"]
+            elif any(tag in probe for tag in ["coher", "logic", "consist"]):
+                scores[dim_id] = baseline["coherence"]
+            elif any(tag in probe for tag in ["feasib", "practic", "action"]):
+                scores[dim_id] = baseline["feasibility"]
+            elif any(tag in probe for tag in ["care", "harm", "safety"]):
+                scores[dim_id] = baseline["care"]
+
+        return scores or {"virtue_prudence": 0.88}
+
+    def _analyze_virtue(self, prompt: str) -> Dict[str, Any]:
+        """
+        Perform Aristotelian virtue analysis.
+
+        Args:
+            prompt: The text to analyze
+
+        Returns:
+            Analysis results
+        """
+        # Assess virtues
+        virtue = self._assess_virtues(prompt)
+
+        # Evaluate golden mean
+        mean = self._evaluate_golden_mean(prompt)
+
+        # Assess eudaimonia
+        eudaimonia = self._assess_eudaimonia(prompt)
+
+        # Analyze four causes
+        causes = self._analyze_four_causes(prompt)
+
+        # Evaluate potentiality and actuality
+        potential_actual = self._evaluate_potentiality_actuality(prompt)
+
+        # Assess practical wisdom (phronesis)
+        phronesis = self._assess_phronesis(prompt)
+
+        # Identify telos (purpose/end)
+        telos = self._identify_telos(prompt)
+
+        # Evaluate character formation
+        character = self._evaluate_character(prompt)
+
+        # Construct reasoning
+        reasoning = self._construct_reasoning(
+            prompt, virtue, mean, eudaimonia, causes, phronesis, telos
+        )
+
+        return {
+            "reasoning": reasoning,
+            "virtue": virtue,
+            "mean": mean,
+            "eudaimonia": eudaimonia,
+            "causes": causes,
+            "potential_actual": potential_actual,
+            "phronesis": phronesis,
+            "telos": telos,
+            "character": character,
+        }
+
+    def _assess_virtues(self, text: str) -> Dict[str, Any]:
+        """
+        Assess the presence of Aristotelian virtues.
+
+        Cardinal virtues: Courage, Temperance, Justice, Practical Wisdom
+        Other virtues: Generosity, Magnificence, Magnanimity, Gentleness, Truthfulness, Wit, Friendship
+        """
+        text_lower = text.lower()
+        virtues_present = []
+
+        # Courage (ἀνδρεία/andreia) - mean between cowardice and recklessness
+        courage_words = ["brave", "courage", "face", "confront", "stand up", "dare"]
+        if any(word in text_lower for word in courage_words):
+            virtues_present.append(
+                {
+                    "virtue": "Courage (ἀνδρεία)",
+                    "description": "Facing fear appropriately - mean between cowardice and recklessness",
+                }
+            )
+
+        # Temperance (σωφροσύνη/sophrosyne) - mean between insensibility and intemperance
+        temperance_words = [
+            "moderate",
+            "restrain",
+            "control",
+            "temperance",
+            "discipline",
+        ]
+        if any(word in text_lower for word in temperance_words):
+            virtues_present.append(
+                {
+                    "virtue": "Temperance (σωφροσύνη)",
+                    "description": "Self-control regarding pleasures - mean between insensibility and intemperance",
+                }
+            )
+
+        # Justice (δικαιοσύνη/dikaiosyne) - giving each their due
+        justice_words = ["just", "fair", "right", "deserve", "equal", "justice"]
+        if any(word in text_lower for word in justice_words):
+            virtues_present.append(
+                {
+                    "virtue": "Justice (δικαιοσύνη)",
+                    "description": "Giving each person their due - the complete virtue in relation to others",
+                }
+            )
+
+        # Practical Wisdom (φρόνησις/phronesis) - right judgment in particular cases
+        wisdom_words = [
+            "wise",
+            "prudent",
+            "judgment",
+            "discern",
+            "understand",
+            "practical",
+        ]
+        if any(word in text_lower for word in wisdom_words):
+            virtues_present.append(
+                {
+                    "virtue": "Practical Wisdom (φρόνησις)",
+                    "description": "Right judgment in particular situations - intellectual virtue",
+                }
+            )
+
+        # Generosity (ἐλευθεριότης/eleutheriotes) - mean in giving and taking
+        generosity_words = ["generous", "give", "share", "charitable", "donate"]
+        if any(word in text_lower for word in generosity_words):
+            virtues_present.append(
+                {
+                    "virtue": "Generosity (ἐλευθεριότης)",
+                    "description": "Appropriate giving and taking - mean between stinginess and wastefulness",
+                }
+            )
+
+        # Magnanimity (μεγαλοψυχία/megalopsychia) - greatness of soul
+        magnanimity_words = ["great", "noble", "honor", "dignity", "worthy"]
+        if any(word in text_lower for word in magnanimity_words):
+            virtues_present.append(
+                {
+                    "virtue": "Magnanimity (μεγαλοψυχία)",
+                    "description": "Greatness of soul - proper attitude toward honor and dishonor",
+                }
+            )
+
+        # Friendship (φιλία/philia) - various forms of love and affection
+        friendship_words = ["friend", "friendship", "love", "affection", "companion"]
+        if any(word in text_lower for word in friendship_words):
+            virtues_present.append(
+                {
+                    "virtue": "Friendship (φιλία)",
+                    "description": "Mutual goodwill and affection - essential to eudaimonia",
+                }
+            )
+
+        # Truthfulness (ἀλήθεια/aletheia) - mean in self-expression
+        truthfulness_words = ["truth", "honest", "sincere", "genuine", "authentic"]
+        if any(word in text_lower for word in truthfulness_words):
+            virtues_present.append(
+                {
+                    "virtue": "Truthfulness (ἀλήθεια)",
+                    "description": "Honesty about oneself - mean between boastfulness and self-deprecation",
+                }
+            )
+
+        if not virtues_present:
+            virtues_present.append(
+                {
+                    "virtue": "No specific virtue detected",
+                    "description": "The text may concern matters outside the sphere of virtue",
+                }
+            )
+
+        return {
+            "virtues": virtues_present,
+            "count": len(
+                [v for v in virtues_present if "No specific" not in v["virtue"]]
+            ),
+            "primary": virtues_present[0]["virtue"],
+            "note": "Virtue (ἀρετή) is excellence achieved through habituation",
+        }
+
+    def _evaluate_golden_mean(self, text: str) -> Dict[str, Any]:
+        """
+        Evaluate adherence to the golden mean (μεσότης).
+
+        Virtue lies in the mean between excess and deficiency.
+        """
+        text_lower = text.lower()
+
+        # Excess indicators
+        excess_words = [
+            "too much",
+            "excessive",
+            "extreme",
+            "overwhelm",
+            "overdo",
+            "too many",
+        ]
+        has_excess = any(phrase in text_lower for phrase in excess_words)
+
+        # Deficiency indicators
+        deficiency_words = [
+            "too little",
+            "not enough",
+            "insufficient",
+            "lack",
+            "deficient",
+            "inadequate",
+        ]
+        has_deficiency = any(phrase in text_lower for phrase in deficiency_words)
+
+        # Mean/balance indicators
+        mean_words = [
+            "balance",
+            "moderate",
+            "middle",
+            "appropriate",
+            "fitting",
+            "right amount",
+            "enough",
+        ]
+        has_mean = any(phrase in text_lower for phrase in mean_words)
+
+        if has_mean:
+            position = "The Mean (μεσότης)"
+            description = (
+                "Virtuous middle path - the appropriate response to the situation"
+            )
+            status = "Virtuous"
+        elif has_excess and has_deficiency:
+            position = "Oscillating"
+            description = "Swinging between excess and deficiency - lacks stable virtue"
+            status = "Unstable"
+        elif has_excess:
+            position = "Excess (ὑπερβολή)"
+            description = "Too much - vice of excess"
+            status = "Vicious (excess)"
+        elif has_deficiency:
+            position = "Deficiency (ἔλλειψις)"
+            description = "Too little - vice of deficiency"
+            status = "Vicious (deficiency)"
+        else:
+            position = "Neutral"
+            description = "No clear position relative to the mean"
+            status = "Indeterminate"
+
+        return {
+            "position": position,
+            "description": description,
+            "status": status,
+            "principle": "Virtue is a mean between two vices - one of excess, one of deficiency",
+        }
+
+    def _assess_eudaimonia(self, text: str) -> Dict[str, Any]:
+        """
+        Assess the level of eudaimonia (εὐδαιμονία) - human flourishing.
+
+        Eudaimonia = activity of the soul in accordance with virtue
+        The highest good, the end to which all action aims
+        """
+        text_lower = text.lower()
+
+        # Eudaimonia indicators
+        flourishing_words = [
+            "flourish",
+            "thrive",
+            "excellence",
+            "fulfill",
+            "realize",
+            "achieve",
+        ]
+        has_flourishing = sum(1 for word in flourishing_words if word in text_lower)
+
+        # Virtue practice indicators
+        virtue_practice = [
+            "practice",
+            "habit",
+            "cultivate",
+            "develop",
+            "exercise",
+            "train",
+        ]
+        has_practice = sum(1 for word in virtue_practice if word in text_lower)
+
+        # Rational activity indicators
+        rational_words = [
+            "think",
+            "reason",
+            "rational",
+            "contemplate",
+            "wisdom",
+            "understanding",
+        ]
+        has_rational = sum(1 for word in rational_words if word in text_lower)
+
+        # Complete life indicators
+        complete_words = ["life", "whole", "complete", "entire", "lifelong"]
+        has_completeness = sum(1 for word in complete_words if word in text_lower)
+
+        # Calculate eudaimonia level
+        total_score = has_flourishing + has_practice + has_rational + has_completeness
+
+        if total_score >= 4:
+            level = "High Eudaimonia"
+            description = (
+                "Strong indication of human flourishing - virtuous activity of the soul"
+            )
+            achievement = "Approaching the highest good"
+        elif total_score >= 2:
+            level = "Moderate Eudaimonia"
+            description = (
+                "Some elements of flourishing present - incomplete actualization"
+            )
+            achievement = "On the path to the good life"
+        elif total_score >= 1:
+            level = "Low Eudaimonia"
+            description = "Minimal flourishing - potential not yet actualized"
+            achievement = "Beginning the journey"
+        else:
+            level = "No Clear Eudaimonia"
+            description = "No obvious indicators of human flourishing"
+            achievement = "Indeterminate state"
+
+        return {
+            "level": level,
+            "description": description,
+            "achievement": achievement,
+            "note": "Eudaimonia is the highest human good - activity in accordance with virtue",
+        }
+
+    def _analyze_four_causes(self, text: str) -> Dict[str, List[str]]:
+        """
+        Analyze the four causes (αἰτίαι).
+
+        1. Material Cause (ὕλη): What it's made of
+        2. Formal Cause (εἶδος): What it is, its essence
+        3. Efficient Cause (κινοῦν): What brought it about
+        4. Final Cause (τέλος): Its purpose or end
+        """
+        text_lower = text.lower()
+        causes: Dict[str, List[str]] = {
+            "material": [],
+            "formal": [],
+            "efficient": [],
+            "final": [],
+        }
+
+        # Material cause - composition, matter
+        if any(
+            word in text_lower
+            for word in ["made of", "consist", "material", "substance", "compose"]
+        ):
+            causes["material"].append("Material composition mentioned")
+
+        # Formal cause - definition, essence, what it is
+        if any(
+            word in text_lower
+            for word in ["is", "are", "being", "nature", "essence", "form"]
+        ):
+            causes["formal"].append("Formal essence or definition present")
+
+        # Efficient cause - agent, what made it
+        if any(
+            word in text_lower
+            for word in ["cause", "create", "make", "produce", "bring about", "result"]
+        ):
+            causes["efficient"].append("Efficient causation indicated")
+
+        # Final cause - purpose, end, goal
+        if any(
+            word in text_lower
+            for word in [
+                "purpose",
+                "goal",
+                "aim",
+                "end",
+                "for the sake of",
+                "in order to",
+            ]
+        ):
+            causes["final"].append("Final cause/purpose identified")
+
+        # Add defaults if empty
+        if not causes["material"]:
+            causes["material"].append("Material cause not explicit")
+        if not causes["formal"]:
+            causes["formal"].append("Formal cause not explicit")
+        if not causes["efficient"]:
+            causes["efficient"].append("Efficient cause not explicit")
+        if not causes["final"]:
+            causes["final"].append("Final cause not explicit")
+
+        return causes
+
+    def _evaluate_potentiality_actuality(self, text: str) -> Dict[str, Any]:
+        """
+        Evaluate potentiality (δύναμις/dynamis) and actuality (ἐνέργεια/energeia).
+
+        Movement from potential to actual is the essence of change and development.
+        """
+        text_lower = text.lower()
+
+        # Potentiality indicators
+        potential_words = [
+            "can",
+            "could",
+            "able",
+            "possible",
+            "potential",
+            "capacity",
+            "latent",
+        ]
+        has_potential = sum(1 for word in potential_words if word in text_lower)
+
+        # Actuality indicators
+        actual_words = [
+            "is",
+            "actual",
+            "realize",
+            "achieve",
+            "accomplish",
+            "fulfill",
+            "manifest",
+        ]
+        has_actual = sum(1 for word in actual_words if word in text_lower)
+
+        # Process/becoming indicators
+        becoming_words = ["become", "develop", "grow", "transform", "change", "evolve"]
+        has_becoming = sum(1 for word in becoming_words if word in text_lower)
+
+        if has_actual > has_potential and has_becoming > 0:
+            state = "Actualization (ἐνέργεια)"
+            description = "Potential being realized - movement toward completion"
+        elif has_potential > has_actual:
+            state = "Potentiality (δύναμις)"
+            description = "Latent capacity - not yet actualized"
+        elif has_actual > has_potential:
+            state = "Actuality (ἐντελέχεια)"
+            description = "Realized state - fully actual"
+        else:
+            state = "Indeterminate"
+            description = "Neither clearly potential nor actual"
+
+        return {
+            "state": state,
+            "description": description,
+            "note": "Actuality is prior to potentiality in substance and definition",
+        }
+
+    def _assess_phronesis(self, text: str) -> Dict[str, Any]:
+        """
+        Assess practical wisdom (φρόνησις/phronesis).
+
+        Phronesis = right judgment in particular situations
+        Not abstract knowledge, but concrete wisdom about what to do
+        """
+        text_lower = text.lower()
+
+        # Practical judgment indicators
+        judgment_words = ["decide", "judge", "discern", "choose", "consider", "weigh"]
+        has_judgment = sum(1 for word in judgment_words if word in text_lower)
+
+        # Situational awareness
+        situation_words = [
+            "situation",
+            "context",
+            "circumstance",
+            "case",
+            "particular",
+            "specific",
+        ]
+        has_situation = sum(1 for word in situation_words if word in text_lower)
+
+        # Action orientation
+        action_words = ["do", "act", "should", "ought", "action", "practice"]
+        has_action = sum(1 for word in action_words if word in text_lower)
+
+        # Experience/habituation
+        experience_words = ["experience", "learned", "practiced", "habit", "trained"]
+        has_experience = sum(1 for word in experience_words if word in text_lower)
+
+        total_score = has_judgment + has_situation + has_action + has_experience
+
+        if total_score >= 4:
+            level = "High Phronesis"
+            description = "Strong practical wisdom - good judgment in particular cases"
+        elif total_score >= 2:
+            level = "Moderate Phronesis"
+            description = "Some practical wisdom - developing judgment"
+        elif total_score >= 1:
+            level = "Low Phronesis"
+            description = "Limited practical wisdom - inexperience or abstraction"
+        else:
+            level = "No Clear Phronesis"
+            description = "Practical wisdom not evident"
+
+        return {
+            "level": level,
+            "description": description,
+            "note": "Phronesis is the intellectual virtue that guides right action",
+        }
+
+    def _identify_telos(self, text: str) -> Dict[str, Any]:
+        """
+        Identify the telos (τέλος) - purpose, end, goal.
+
+        Everything in nature has a telos toward which it aims.
+        For humans, the ultimate telos is eudaimonia.
+        """
+        text_lower = text.lower()
+
+        # Purpose/end indicators
+        purpose_words = ["purpose", "goal", "aim", "end", "objective", "point"]
+        has_purpose = any(word in text_lower for word in purpose_words)
+
+        # Direction/orientation
+        direction_words = ["toward", "for", "seeking", "pursue", "strive"]
+        has_direction = any(word in text_lower for word in direction_words)
+
+        # Final end indicators
+        ultimate_words = ["ultimate", "final", "highest", "greatest", "supreme"]
+        has_ultimate = any(word in text_lower for word in ultimate_words)
+
+        if has_ultimate and has_purpose:
+            telos_type = "Ultimate Telos"
+            description = "The highest end - possibly eudaimonia itself"
+        elif has_purpose or has_direction:
+            telos_type = "Intermediate Telos"
+            description = "A goal that may serve a higher purpose"
+        else:
+            telos_type = "No Clear Telos"
+            description = "Purpose or end not explicitly stated"
+
+        return {
+            "type": telos_type,
+            "description": description,
+            "principle": "All things aim at some good - the ultimate telos is eudaimonia",
+        }
+
+    def _evaluate_character(self, text: str) -> Dict[str, Any]:
+        """
+        Evaluate character (ἦθος/ethos) formation.
+
+        Character is formed through habituation - we become just by doing just acts.
+        """
+        text_lower = text.lower()
+
+        # Habituation indicators
+        habit_words = ["habit", "practice", "regular", "repeatedly", "always", "custom"]
+        has_habit = sum(1 for word in habit_words if word in text_lower)
+
+        # Character indicators
+        character_words = [
+            "character",
+            "who i am",
+            "type of person",
+            "nature",
+            "disposition",
+        ]
+        has_character = sum(1 for word in character_words if word in text_lower)
+
+        # Development indicators
+        development_words = ["become", "develop", "cultivate", "form", "shape", "grow"]
+        has_development = sum(1 for word in development_words if word in text_lower)
+
+        total_score = has_habit + has_character + has_development
+
+        if total_score >= 3:
+            formation = "Active Character Formation"
+            description = "Character being shaped through habituation and practice"
+        elif total_score >= 1:
+            formation = "Potential Character Formation"
+            description = "Some awareness of character development"
+        else:
+            formation = "No Clear Character Formation"
+            description = "Character development not explicitly addressed"
+
+        return {
+            "formation": formation,
+            "description": description,
+            "note": "We become virtuous by performing virtuous acts - character follows action",
+        }
+
+    def _calculate_tension(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate philosophical tension based on Aristotelian analysis.
+
+        Tensions arise from:
+        - Deviation from the golden mean (excess or deficiency)
+        - Low eudaimonia
+        - Unclear telos
+        - Lack of virtue
+        - Low practical wisdom
+        """
+        tension_score = 0
+        tension_elements = []
+
+        # Check golden mean status
+        mean_status = analysis["mean"]["status"]
+        if mean_status in ["Vicious (excess)", "Vicious (deficiency)"]:
+            tension_score += 2
+            tension_elements.append(
+                f"Deviation from mean: {analysis['mean']['position']}"
+            )
+        elif mean_status == "Unstable":
+            tension_score += 1
+            tension_elements.append("Oscillating between excess and deficiency")
+
+        # Check eudaimonia level
+        eudaimonia_level = analysis["eudaimonia"]["level"]
+        if "No Clear" in eudaimonia_level:
+            tension_score += 2
+            tension_elements.append("Lack of human flourishing (eudaimonia)")
+        elif "Low" in eudaimonia_level:
+            tension_score += 1
+            tension_elements.append("Limited eudaimonia")
+
+        # Check telos clarity
+        if "No Clear" in analysis["telos"]["type"]:
+            tension_score += 1
+            tension_elements.append("Unclear purpose (telos)")
+
+        # Check virtue presence
+        if analysis["virtue"]["count"] == 0:
+            tension_score += 1
+            tension_elements.append("No virtues identified")
+
+        # Check practical wisdom
+        phronesis_level = analysis["phronesis"]["level"]
+        if "No Clear" in phronesis_level or "Low" in phronesis_level:
+            tension_score += 1
+            tension_elements.append("Limited practical wisdom (phronesis)")
+
+        # Determine tension level
+        if tension_score >= 5:
+            level = "Very High"
+            description = (
+                "Significant deviation from Aristotelian virtue and flourishing"
+            )
+        elif tension_score >= 3:
+            level = "High"
+            description = "Notable tensions in virtue and eudaimonia"
+        elif tension_score >= 2:
+            level = "Moderate"
+            description = "Some tensions present in ethical living"
+        elif tension_score >= 1:
+            level = "Low"
+            description = "Minor tensions, generally aligned with virtue"
+        else:
+            level = "Very Low"
+            description = "Well-aligned with Aristotelian virtue ethics"
+
+        return {
+            "level": level,
+            "description": description,
+            "elements": (
+                tension_elements if tension_elements else ["No significant tensions"]
+            ),
+        }
+
+    def _apply_aristotle_to_problem(self, text: str) -> str:
+        """Apply Aristotle's philosophy proactively to the given problem."""
+        t = text.lower()
+        is_decision = any(
+            w in t
+            for w in ["decide", "decision", "choose", "choice", "should", "option"]
+        )
+        is_ethics = any(
+            w in t
+            for w in [
+                "right",
+                "wrong",
+                "good",
+                "bad",
+                "moral",
+                "ethic",
+                "virtue",
+                "harm",
+            ]
+        )
+        is_knowledge = any(
+            w in t
+            for w in [
+                "know",
+                "learn",
+                "science",
+                "understand",
+                "research",
+                "study",
+                "truth",
+            ]
+        )
+        is_politics = any(
+            w in t
+            for w in [
+                "leader",
+                "govern",
+                "politics",
+                "community",
+                "society",
+                "polis",
+                "citizen",
+            ]
+        )
+        is_technology = any(
+            w in t
+            for w in [
+                "ai",
+                "tech",
+                "digital",
+                "machine",
+                "build",
+                "create",
+                "make",
+                "tool",
+            ]
+        )
+
+        if is_decision:
+            return (
+                "Aristotle's Nicomachean Ethics places phronesis (practical wisdom, φρόνησις) at the center of good decision-making. "
+                "Phronesis is not rule-following but the capacity to perceive what virtue requires in this particular situation. "
+                "Apply the doctrine of the mean (μεσότης): the virtuous choice lies between excess and deficiency. "
+                "Deliberation (bouleusis, NE III.3) is the rational process: identify the end (telos), "
+                "then reason back through means to what is in your power to do now. "
+                "Ask: what would a person of excellent character (σπουδαῖος) do here?"
+            )
+        elif is_ethics:
+            return (
+                "Aristotle's virtue ethics grounds morality in character (ἦθος) rather than rules or outcomes. "
+                "Virtues are stable dispositions (hexeis) acquired through habituation (NE II.1): "
+                "'we become just by doing just acts, temperate by temperate acts, brave by brave acts.' "
+                "Each virtue is a mean between two vices: courage between cowardice and recklessness; "
+                "generosity between miserliness and prodigality. "
+                "The ultimate aim is eudaimonia (εὐδαιμονία)—flourishing through a complete life of virtuous activity. "
+                "Ethical judgment requires phronesis, not algorithms."
+            )
+        elif is_knowledge:
+            return (
+                "Aristotle distinguishes three intellectual virtues: episteme (scientific knowledge of necessary truths), "
+                "techne (craft knowledge of how to make), and phronesis (practical wisdom of how to act). "
+                "All humans by nature desire to know (Metaphysics I.1). "
+                "Knowledge of causes is deepest: material, formal, efficient, final causes explain why things are as they are. "
+                "The four causes applied here: what is the subject matter (material)? "
+                "What is its defining form (formal)? What brought it about (efficient)? What is it for (final)? "
+                "Wisdom (sophia) is knowledge of first principles and highest causes."
+            )
+        elif is_politics:
+            return (
+                "Aristotle declares: 'Man is by nature a political animal' (zoon politikon, Politics I.2). "
+                "The polis exists for eudaimonia—the good life, not merely survival. "
+                "Good governance requires the rule of law (not arbitrary individuals), "
+                "and constitutions are judged by whether they serve the common good or private interest. "
+                "The best practicable constitution (polity) mixes oligarchy and democracy, creating a stable middle class. "
+                "Political virtue is civic friendship (philia politike): citizens bound by shared pursuit of the common good. "
+                "Leadership demands phronesis: understanding particulars, not merely abstract principles."
+            )
+        elif is_technology:
+            return (
+                "Aristotle's concept of techne (τέχνη) is directly relevant: techne is knowledge of how to make, "
+                "guided by a clear final cause (telos)—the purpose the artifact is for. "
+                "A technology without clear telos is incomplete knowledge. "
+                "Four causes applied to any technological system: "
+                "material (what it's made of), formal (its structure/algorithm), efficient (who/what created it), final (what it's for). "
+                "Technology aligned with human eudaimonia serves; technology that undermines flourishing violates its proper telos. "
+                "Ask: does this tool enable humans to exercise virtue and practical wisdom, or does it substitute for them?"
+            )
+        else:
+            return (
+                "Aristotle (384–322 BCE) grounded ethics in eudaimonia (εὐδαιμονία)—human flourishing. "
+                "Virtue (ἀρετή) is a stable disposition to choose the mean between excess and deficiency, "
+                "developed through habituation (NE II.1). "
+                "Phronesis (practical wisdom, φρόνησις) is the master intellectual virtue: "
+                "it perceives what virtue requires in each concrete situation. "
+                "The four causes (material, formal, efficient, final) explain why anything exists or occurs. "
+                "All things have a telos—a proper end or function; living according to one's telos constitutes flourishing. "
+                "Politics is the master science: the polis exists to enable citizens to live well, not merely to survive."
+            )
+
+    def _construct_reasoning(
+        self,
+        text: str,
+        virtue: Dict[str, Any],
+        mean: Dict[str, Any],
+        eudaimonia: Dict[str, Any],
+        causes: Dict[str, List[str]],
+        phronesis: Dict[str, Any],
+        telos: Dict[str, Any],
+    ) -> str:
+        """Construct Aristotelian ethical reasoning."""
+        primary_virtue = virtue["primary"]
+        applied = self._apply_aristotle_to_problem(text)
+
+        reasoning = (
+            f"{applied} "
+            f"From an Aristotelian perspective, this text concerns {primary_virtue}. "
+            f"Regarding the golden mean: {mean['description']}. "
+            f"The level of eudaimonia (human flourishing) appears to be: {eudaimonia['description']}. "
+        )
+
+        # Add practical wisdom
+        reasoning += f"Practical wisdom (phronesis): {phronesis['description']}. "
+
+        # Add teleology
+        reasoning += f"The telos (purpose): {telos['description']}. "
+
+        # Add final cause if present
+        if (
+            "purpose" in causes["final"][0].lower()
+            or "identified" in causes["final"][0].lower()
+        ):
+            reasoning += (
+                "A final cause is recognized, indicating teleological thinking. "
+            )
+
+        # Conclude with Aristotelian principle
+        reasoning += (
+            "Remember: virtue is acquired through habituation, and eudaimonia is achieved through "
+            "a complete life lived in accordance with virtue and practical wisdom."
+        )
+
+        return reasoning

@@ -1,0 +1,329 @@
+"""
+API Request/Response Models
+============================
+
+Pydantic v2 models for all REST API endpoints.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, field_validator
+
+MAX_REASON_METADATA_PROPERTIES = 16
+MAX_REASON_METADATA_JSON_BYTES = 2048
+MAX_REASON_PHILOSOPHERS = 8
+MAX_REASON_PHILOSOPHER_ID_LENGTH = 64
+_REASON_PHILOSOPHER_ID_PATTERN = r"^[a-z0-9](?:[a-z0-9_:-]{0,62}[a-z0-9])?$|^[a-z0-9]$"
+
+# ---------------------------------------------------------------------------
+# POST /v1/reason
+# ---------------------------------------------------------------------------
+
+
+class ReasonRequest(BaseModel):
+    """Request body for the reasoning endpoint."""
+
+    model_config = {"extra": "forbid"}
+
+    input: str = Field(
+        ...,
+        min_length=1,
+        max_length=8192,
+        description="The philosophical question or prompt to reason about.",
+        examples=["What is justice?"],
+    )
+    session_id: Optional[str] = Field(
+        default=None,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+        description=(
+            "Optional session identifier for memory continuity. "
+            "A new UUID is generated if omitted."
+        ),
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Optional JSON metadata attached to this request. "
+            f"Limited to {MAX_REASON_METADATA_PROPERTIES} top-level properties and "
+            f"{MAX_REASON_METADATA_JSON_BYTES} UTF-8 bytes when JSON-serialized."
+        ),
+    )
+    philosophers: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional explicit philosopher allowlist. "
+            "When provided, only philosophers that overlap with safety-selected "
+            "members are executed. "
+            f"At most {MAX_REASON_PHILOSOPHERS} philosopher IDs are accepted; each ID must be "
+            f"1-{MAX_REASON_PHILOSOPHER_ID_LENGTH} chars and match {_REASON_PHILOSOPHER_ID_PATTERN!r}."
+        ),
+        examples=[["kant"], ["aristotle", "confucius"]],
+    )
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata(cls, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        if len(metadata) > MAX_REASON_METADATA_PROPERTIES:
+            raise ValueError(
+                "metadata must contain at most "
+                f"{MAX_REASON_METADATA_PROPERTIES} top-level properties"
+            )
+
+        try:
+            serialized = json.dumps(
+                metadata,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("metadata must be valid JSON-compatible data") from exc
+
+        if len(serialized.encode("utf-8")) > MAX_REASON_METADATA_JSON_BYTES:
+            raise ValueError(
+                "metadata must serialize to at most "
+                f"{MAX_REASON_METADATA_JSON_BYTES} UTF-8 bytes"
+            )
+        return metadata
+
+    @field_validator("philosophers")
+    @classmethod
+    def validate_philosophers(
+        cls, philosophers: Optional[List[str]]
+    ) -> Optional[List[str]]:
+        if philosophers is None:
+            return None
+        if len(philosophers) > MAX_REASON_PHILOSOPHERS:
+            raise ValueError(
+                "philosophers must contain at most " f"{MAX_REASON_PHILOSOPHERS} items"
+            )
+
+        seen: set[str] = set()
+        for philosopher in philosophers:
+            if not isinstance(philosopher, str):
+                raise ValueError("each philosopher ID must be a string")
+            if len(philosopher) > MAX_REASON_PHILOSOPHER_ID_LENGTH:
+                raise ValueError(
+                    "each philosopher ID must be at most "
+                    f"{MAX_REASON_PHILOSOPHER_ID_LENGTH} characters"
+                )
+            if not philosopher:
+                raise ValueError("philosopher IDs must not be empty")
+            if re.fullmatch(_REASON_PHILOSOPHER_ID_PATTERN, philosopher) is None:
+                raise ValueError(
+                    "each philosopher ID must match pattern "
+                    f"{_REASON_PHILOSOPHER_ID_PATTERN}"
+                )
+            if philosopher in seen:
+                raise ValueError("philosopher IDs must be unique")
+            seen.add(philosopher)
+        return philosophers
+
+
+class PhilosopherContribution(BaseModel):
+    """A single philosopher's contribution to the deliberation."""
+
+    name: str
+    proposal: str
+    weight: float = Field(ge=0.0, le=1.0)
+    provider: Optional[str] = Field(
+        default=None,
+        description="LLM provider used by this philosopher contribution, if available.",
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="LLM model used by this philosopher contribution, if available.",
+    )
+    llm_fallback: Optional[bool] = Field(
+        default=None,
+        description="Whether this contribution used an LLM fallback path.",
+    )
+    fallback_reason: Optional[str] = Field(
+        default=None,
+        description="Fallback reason when llm_fallback is true.",
+    )
+
+
+class TensorSnapshot(BaseModel):
+    """Snapshot of tensor metrics computed during reasoning."""
+
+    freedom_pressure: Optional[float] = None
+    semantic_delta: Optional[float] = None
+    blocked_tensor: Optional[float] = None
+
+
+class ReasonResponse(BaseModel):
+    """Response body from the reasoning endpoint."""
+
+    request_id: str = Field(description="Unique ID for this request (UUID).")
+    session_id: str = Field(description="Session ID used for this request.")
+    status: str = Field(description="'approved' | 'blocked' | 'fallback'")
+    response: str = Field(description="The synthesised philosophical response.")
+    philosophers: List[PhilosopherContribution] = Field(
+        default_factory=list,
+        description="Top philosopher contributions.",
+    )
+    tensors: TensorSnapshot = Field(
+        default_factory=TensorSnapshot,
+        description="Tensor metrics computed during this turn.",
+    )
+    safety_mode: str = Field(
+        default="NORMAL",
+        description="SafetyMode active during this turn (NORMAL/WARN/CRITICAL).",
+    )
+    processing_time_ms: float = Field(
+        description="Wall-clock time for this request in milliseconds."
+    )
+    created_at: datetime = Field(description="UTC timestamp of the response.")
+    degraded: bool = Field(
+        default=False,
+        description="True when degraded/fallback behavior occurred.",
+    )
+    llm_fallback: bool = Field(
+        default=False,
+        description="True when any selected philosopher used LLM fallback.",
+    )
+    fallback_reasons: List[str] = Field(
+        default_factory=list,
+        description="Distinct fallback reasons observed across contributions.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/reason/stream  (SSE chunks)
+# ---------------------------------------------------------------------------
+
+
+class StreamChunk(BaseModel):
+    """A single SSE chunk emitted during streaming reasoning."""
+
+    chunk_type: str = Field(
+        description="'event' | 'result' | 'error' | 'done'",
+    )
+    event_type: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/philosophers
+# ---------------------------------------------------------------------------
+
+
+class PhilosopherInfo(BaseModel):
+    """Metadata about a single philosopher."""
+
+    philosopher_id: str
+    module: str
+    symbol: str
+    risk_level: int = Field(ge=0, le=2)
+    weight: float
+    enabled: bool
+    tags: List[str]
+    cost: int
+
+
+class PhilosophersResponse(BaseModel):
+    """Response body for the philosophers list endpoint."""
+
+    total: int
+    philosophers: List[PhilosopherInfo]
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/trace/{session_id}
+# ---------------------------------------------------------------------------
+
+
+class TraceEventOut(BaseModel):
+    """A single serialized TraceEvent."""
+
+    event_type: str
+    occurred_at: datetime
+    correlation_id: str
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class TraceResponse(BaseModel):
+    """Response body for the trace retrieval endpoint."""
+
+    session_id: str
+    event_count: int
+    events: List[TraceEventOut]
+
+
+class TraceHistoryItem(BaseModel):
+    """Summary row for persisted trace history."""
+
+    session_id: str
+    event_count: int
+    last_occurred_at: datetime
+
+
+class TraceHistoryResponse(BaseModel):
+    """Response body for trace history endpoint."""
+
+    total: int
+    items: List[TraceHistoryItem]
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/health
+# ---------------------------------------------------------------------------
+
+
+class HealthResponse(BaseModel):
+    """Response body for the health check endpoint."""
+
+    status: str = Field(description="'ok' or 'degraded'")
+    version: str
+    philosophers_loaded: int
+    uptime_seconds: float
+
+
+# ---------------------------------------------------------------------------
+# Human Review Queue
+# ---------------------------------------------------------------------------
+
+
+class ReviewItem(BaseModel):
+    """A queued human-review item for ESCALATE decisions."""
+
+    id: str
+    session_id: str
+    request_id: str
+    status: str = Field(description="'pending' | 'decided'")
+    reason: str
+    source: str
+    decision: Optional[str] = Field(default=None, description="'approve' | 'reject'")
+    reviewer: Optional[str] = None
+    comment: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    decided_at: Optional[datetime] = None
+
+
+class ReviewPendingResponse(BaseModel):
+    """Response body for pending review queue."""
+
+    total: int
+    items: List[ReviewItem]
+
+
+class ReviewDecisionRequest(BaseModel):
+    """Human decision payload for a review item."""
+
+    decision: str = Field(description="'approve' or 'reject'")
+    reviewer: str = Field(min_length=1, max_length=128)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ReviewDecisionResponse(BaseModel):
+    """Response body for review decision updates."""
+
+    item: ReviewItem

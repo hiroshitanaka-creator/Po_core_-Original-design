@@ -1,0 +1,5 @@
+# Po_core source-checkout convenience requirements
+# Repo-local only: this file assumes you already cloned this repository.
+# For third-party consumption, use package metadata (`pip install po-core-flyingpig`) instead.
+
+-e .

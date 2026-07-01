@@ -1,0 +1,76 @@
+name: TypeScript SDK
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+    paths:
+      - 'clients/typescript/**'
+      - 'docs/openapi/po_core.openapi.json'
+      - 'scripts/export_openapi.py'
+      - 'scripts/generate_ts_openapi_types.py'
+      - '.github/workflows/typescript-sdk.yml'
+  pull_request:
+    paths:
+      - 'clients/typescript/**'
+      - 'docs/openapi/po_core.openapi.json'
+      - 'scripts/export_openapi.py'
+      - 'scripts/generate_ts_openapi_types.py'
+      - '.github/workflows/typescript-sdk.yml'
+  workflow_dispatch:
+
+jobs:
+  sdk-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4
+        with:
+          node-version: '22'
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install -e . --quiet
+
+      - name: Refresh OpenAPI + TS types
+        run: |
+          PYTHONPATH=src python scripts/export_openapi.py
+          python scripts/generate_ts_openapi_types.py
+
+      - name: Install Node dependencies
+        working-directory: clients/typescript
+        run: npm install
+
+      - name: Build and test SDK
+        working-directory: clients/typescript
+        run: |
+          npm run build
+          npm run test
+
+  npm-publish-dry-run:
+    runs-on: ubuntu-latest
+    needs: sdk-build-test
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: pip install -e . --quiet
+      - name: Prepare package
+        run: |
+          PYTHONPATH=src python scripts/export_openapi.py
+          python scripts/generate_ts_openapi_types.py
+          cd clients/typescript
+          npm install
+          npm pack
