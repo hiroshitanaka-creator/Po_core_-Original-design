@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- docs(governance): Original Design concept-preservation governance layer — `docs/STRICT_CORE_RULES.md`, `docs/AI_AGENT_INITIALIZATION_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, `docs/CONCEPT_DRIFT_GUARD.md`, `docs/GOVERNANCE.md`, `docs/ROADMAP.md`, `docs/GLOSSARY.md`, `docs/STATUS.md`, `docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`, `docs/prompts/CODING_AGENT_PR_PROMPT.md`. These are additive companions to the existing `docs/厳格固定ルール.md` (SSOT) and `docs/status.md` (release SSOT) — neither existing file was replaced. `docs/STATUS.md` honestly distinguishes the already-implemented, PyPI-published Po_core tensor kernel (Layer 1: `run_turn` pipeline, tensors, 42 philosopher deliberation modules, safety gates, Pareto aggregation) from the still-unimplemented Po_self recursive self-reconstruction controller and Viewer feedback-tensor loop (Layers 2–3) — noting that the current `po_self.py`/`viewer/` modules are an API wrapper and an observability dashboard, not those two layers.
+- docs(governance): `.github/PULL_REQUEST_TEMPLATE.md` gains a `Concept Preservation` checklist and `Change Type` section; all pre-existing SSOT/traceability/Policy Change Protocol/Determinism sections are unchanged.
+- docs: `README.md` gains links to the new governance docs (no existing content removed).
+
 ### Changed
 - docs: define the three-layer tensor intelligence model (Po_core / Po_self / Viewer) as the canonical Po_core architecture in `docs/厳格固定ルール.md`, `README.md`, `docs/spec/prd.md`, and `CLAUDE.md`. Po_core is the tensor kernel (semantic/ethical/responsibility/freedom-pressure tensors); Po_self is the recursive self-reconstruction layer (observes Po_trace, decides preserve/reconstruct/jump/reject/reactivate); Viewer is the external resonance/feedback layer (returns resonance/agreement/disagreement/feedback tensors to Po_self). The 42 philosophers are repositioned as deliberation modules inside Po_core, not the system itself. This model is explicitly distinguished from the pre-existing three-layer safety gate (`IntentionGate` → `PolicyPrecheck` → `ActionGate`), which is unchanged. Docs-only realignment (PR-001 of the v2 realignment plan): no code, tests, schemas, philosopher roster, or trace contract changes.
 
