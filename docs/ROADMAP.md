@@ -11,18 +11,18 @@
 - Concept Drift Guard（`docs/CONCEPT_DRIFT_GUARD.md`）
 - PR テンプレートへの Concept Preservation 節統合
 
-## Phase 1: Domain Contracts — 未着手（計画中）
+## Phase 1: Domain Contracts — ✅ PR-002で完了（スキーマ／設計契約のみ）
 
-- `semantic_profile`
-- `semantic_step`
-- `viewer_feedback`
-- `po_self_decision`
-- trace event schemas（`Po_trace` 用の上記に対応するイベント型）
+- `semantic_profile` — `schemas/semantic_profile_v1.schema.json`
+- `semantic_step` — `schemas/semantic_step_v1.schema.json`
+- `viewer_feedback` — `schemas/viewer_feedback_v1.schema.json`
+- `po_self_decision` — `schemas/po_self_decision_v1.schema.json`
+- trace event schemas — `schemas/po_trace_event_v1.schema.json`
 
-備考：既存 `docs/status.md` の "Next" 節に記載された
-「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
-domain models + schemas（no pipeline wiring yet）」が、このPhase 1に相当する。
-新規に計画するのではなく、既存計画と合流させること。
+詳細は `docs/contracts/CONTRACT_OVERVIEW.md` を参照。既存 `docs/status.md` の "Next" 節に
+記載された「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision /
+ViewerFeedback domain models + schemas（no pipeline wiring yet）」を充足する。
+**パイプライン配線・runtime実装は行っていない**（Phase 2以降で対応）。
 
 ## Phase 2: Po_core Kernel MVP — 実質的にほぼ充足済み
 

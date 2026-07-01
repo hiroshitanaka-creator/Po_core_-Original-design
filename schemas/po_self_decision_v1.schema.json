@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/po_self_decision_v1.schema.json",
+  "title": "Po_core po_self_decision v1",
+  "description": "PR-002 design contract (schema only, no runtime wiring). Represents Po_self's (Layer 2) decision after reading Po_trace, semantic_profile, and optional Viewer feedback. A po_self_decision is a control decision, not a final answer. 'jump', 'reject', and 'reactivate' may remain conceptual in early runtime; 'preserve' and 'reconstruct' may be the first implemented decision types. See docs/contracts/PO_SELF_DECISION_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "request_id",
+    "decision_type",
+    "target_step_ids",
+    "trigger",
+    "priority_summary",
+    "action_plan",
+    "max_self_cycles",
+    "self_cycle_index",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "po_self_decision_v1"
+    },
+    "decision_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "decision_type": {
+      "type": "string",
+      "enum": ["preserve", "reconstruct", "jump", "reject", "reactivate"]
+    },
+    "target_step_ids": {
+      "type": "array",
+      "description": "For preserve, this may be empty. For reconstruct/jump/reject/reactivate, this should normally identify affected semantic_step IDs.",
+      "minItems": 0,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger_type", "reason"],
+      "properties": {
+        "trigger_type": {
+          "type": "string",
+          "enum": [
+            "priority_threshold",
+            "ethics_delta",
+            "responsibility_pressure",
+            "viewer_feedback",
+            "trace_discontinuity",
+            "blocked_trace_reactivation",
+            "manual_override",
+            "none"
+          ]
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "priority_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_priority_score", "mean_priority_score", "critical_count"],
+      "properties": {
+        "max_priority_score": { "type": "number", "minimum": 0, "maximum": 10 },
+        "mean_priority_score": { "type": "number", "minimum": 0, "maximum": 10 },
+        "critical_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "action_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "explanation"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "no_change",
+            "revise_steps",
+            "regenerate_path",
+            "suppress_output",
+            "reactivate_trace"
+          ]
+        },
+        "explanation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "max_self_cycles": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "self_cycle_index": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Must be <= max_self_cycles. JSON Schema Draft 2020-12 cannot express a field-to-field comparison constraint directly; this invariant is documented here and MUST be enforced by future runtime validation and/or a schema-level $comment-driven check in scripts/validate_contracts.py."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "viewer_feedback_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "reconstruction_constraints": {
+      "type": "object",
+      "description": "Optional, open-ended constraints applied to a reconstruction attempt. Left intentionally unconstrained pending Phase 3 (Po_self Controller MVP) design."
+    },
+    "human_review_required": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
