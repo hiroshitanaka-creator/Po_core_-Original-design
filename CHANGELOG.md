@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(po_self): PR-004 — Po_self Controller Seed, the first activation of trace-based self-reconstruction (`src/po_core_original/self_controller/`). Po_self reads the `SemanticProfileComputed` Po_trace emitted by the Po_core kernel, analyses semantic pressure, and emits a `PoSelfDecisionMade` event carrying a `preserve` or `reconstruct` control decision. This is the first executable seed of the Po_self layer — not a mini Po_core and not full self-evolution.
+- Po_self Controller Seed that reads SemanticProfileComputed trace events (`PoSelfController.evaluate(kernel_result)` → `PoSelfResult`).
+- PoSelfDecision v1 runtime dataclasses (`PoSelfTrigger`, `PoSelfPrioritySummary`, `PoSelfActionPlan`, `PoSelfDecision`, `PoSelfResult`) and a deterministic decision engine (`normalized_priority = min(max_priority_score / 10, 1.0)`; `>= 0.75` → reconstruct, else preserve).
+- PoSelfDecisionMade Po_trace event emission (summary-level payload; full decision available on `PoSelfResult`).
+- Cycle guard for `max_self_cycles` (1..10, default 1) preventing unbounded / fake self-evolution.
+- Tests validating PoSelfDecision and PoSelfDecisionMade against v1 schemas (`tests/test_po_self_controller.py`, 18 tests, jsonschema-backed) and `examples/po_self_controller_demo.py`.
+- Behaviorally implemented only `preserve` / `reconstruct`; `jump` / `reject` / `reactivate` remain in the schema and docs as reserved concepts (honestly not-yet-grown). PR-004 marks steps for future reconstruction but does not rewrite content; no Viewer feedback, no philosopher deliberation, no LLM/ML dependency added.
+
+### Changed
+- feat(kernel): recalibrate `semantic_profile_engine` priority weights so `priority_score` occupies the schema's full 0..10 band (was 0..2.5), making the Po_self normalized-priority threshold meaningful; ethical/responsibility axes weighted to saturate faster (Po_core's mission), `priority_score` clamped to <= 10.0. Only `priority_score` changes — axis values, `ethics_delta`, and the pressure fields are unchanged, so existing PR-003 kernel tests still pass unmodified.
+
+### Added
 - feat(kernel): PR-003 — first executable seed of the Po_core tensor kernel (`src/po_core_original/`). This is the first runtime activation point of the full three-layer architecture (not a reduced product): Po_core (Layer 1) decomposes raw text into semantic steps, computes a deterministic `semantic_profile` per step, and emits one `SemanticProfileComputed` Po_trace event; Po_self (Layer 2) will later read that trace and Viewer (Layer 3) will later return feedback tensors. `PoCoreKernel.process(text)` returns a `KernelResult` (`request_id`, `input_text`, `semantic_steps`, `trace_events`, `to_dict()`).
 - PoCoreKernel MVP for deterministic input decomposition and semantic_profile generation.
 - SemanticProfileComputed Po_trace event emission.

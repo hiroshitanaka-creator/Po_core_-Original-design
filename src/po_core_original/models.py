@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional
 SEMANTIC_PROFILE_SCHEMA_VERSION = "semantic_profile_v1"
 SEMANTIC_STEP_SCHEMA_VERSION = "semantic_step_v1"
 PO_TRACE_EVENT_SCHEMA_VERSION = "po_trace_event_v1"
+PO_SELF_DECISION_SCHEMA_VERSION = "po_self_decision_v1"
 
 
 @dataclass(frozen=True)
@@ -225,5 +226,132 @@ class KernelResult:
             "request_id": self.request_id,
             "input_text": self.input_text,
             "semantic_steps": [s.to_dict() for s in self.semantic_steps],
+            "trace_events": [e.to_dict() for e in self.trace_events],
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Po_self (Layer 2) models — added in PR-004.
+#
+# These mirror ``schemas/po_self_decision_v1.schema.json``. Po_self reads the
+# Po_trace emitted by Po_core (Layer 1), analyses semantic pressure, and records
+# a *control decision* (not a final answer). PR-004 behaviorally emits only
+# ``preserve`` and ``reconstruct``; ``jump`` / ``reject`` / ``reactivate`` stay
+# in the enums and docs as reserved concepts, honestly not-yet-grown.
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class PoSelfTrigger:
+    """What caused Po_self to act (``po_self_decision`` -> trigger).
+
+    PR-004 behaviorally uses only ``priority_threshold`` and ``none``; the other
+    enum values are reserved for later phases (Viewer feedback, trace
+    discontinuity, blocked-trace reactivation, manual override, ...).
+    """
+
+    trigger_type: str
+    reason: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"trigger_type": self.trigger_type, "reason": self.reason}
+
+
+@dataclass(frozen=True)
+class PoSelfPrioritySummary:
+    """Aggregate semantic pressure across the evaluated semantic steps."""
+
+    max_priority_score: float
+    mean_priority_score: float
+    critical_count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "max_priority_score": self.max_priority_score,
+            "mean_priority_score": self.mean_priority_score,
+            "critical_count": self.critical_count,
+        }
+
+
+@dataclass(frozen=True)
+class PoSelfActionPlan:
+    """What Po_self proposes should happen to the output path.
+
+    PR-004 behaviorally uses only ``no_change`` and ``revise_steps``. Crucially,
+    ``revise_steps`` in PR-004 only *marks* steps for future reconstruction — it
+    does not rewrite any content. ``regenerate_path`` / ``suppress_output`` /
+    ``reactivate_trace`` are reserved for later phases.
+    """
+
+    action: str
+    explanation: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"action": self.action, "explanation": self.explanation}
+
+
+@dataclass(frozen=True)
+class PoSelfDecision:
+    """Po_self's control decision (mirrors ``po_self_decision_v1``).
+
+    A decision is a *control decision, not a final answer*. Every decision is
+    traceable (emitted as a ``PoSelfDecisionMade`` Po_trace event).
+    """
+
+    schema_version: str
+    decision_id: str
+    request_id: str
+    decision_type: str
+    target_step_ids: List[str]
+    trigger: PoSelfTrigger
+    priority_summary: PoSelfPrioritySummary
+    action_plan: PoSelfActionPlan
+    max_self_cycles: int
+    self_cycle_index: int
+    created_at: str
+    viewer_feedback_refs: List[str] = field(default_factory=list)
+    trace_refs: List[str] = field(default_factory=list)
+    reconstruction_constraints: Dict[str, Any] = field(default_factory=dict)
+    human_review_required: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "decision_id": self.decision_id,
+            "request_id": self.request_id,
+            "decision_type": self.decision_type,
+            "target_step_ids": list(self.target_step_ids),
+            "trigger": self.trigger.to_dict(),
+            "priority_summary": self.priority_summary.to_dict(),
+            "action_plan": self.action_plan.to_dict(),
+            "max_self_cycles": self.max_self_cycles,
+            "self_cycle_index": self.self_cycle_index,
+            "created_at": self.created_at,
+            "viewer_feedback_refs": list(self.viewer_feedback_refs),
+            "trace_refs": list(self.trace_refs),
+            "reconstruction_constraints": dict(self.reconstruction_constraints),
+            "human_review_required": self.human_review_required,
+        }
+
+
+@dataclass
+class PoSelfResult:
+    """Result of one ``PoSelfController.evaluate()`` call.
+
+    Po_self does not produce a final natural-language answer in PR-004 — it
+    decides what should happen to the output path. ``trace_events`` carries the
+    original kernel trace events plus the new ``PoSelfDecisionMade`` event.
+    """
+
+    request_id: str
+    kernel_result: KernelResult
+    decision: PoSelfDecision
+    trace_events: List[PoTraceEvent] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "kernel_result": self.kernel_result.to_dict(),
+            "decision": self.decision.to_dict(),
             "trace_events": [e.to_dict() for e in self.trace_events],
         }

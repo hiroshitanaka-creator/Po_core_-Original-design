@@ -35,14 +35,23 @@ _INCREMENT = 0.2
 
 # Axis weights used to turn a normalized alert score into an action-ordering
 # priority score. Ethical / responsibility axes weigh most (Po_core's mission
-# is meaning + responsibility, not generic helpfulness).
+# is the meaning and responsibility of speech, not generic helpfulness).
+#
+# Calibration note (PR-004): the weights are scaled so priority_score occupies
+# the schema's full 0..10 band (schemas/semantic_profile_v1: priority_score
+# 0..10) instead of the previous 0..2.5 sub-range. This makes the Po_self
+# controller's normalized-priority threshold (PR-004: max_priority_score / 10)
+# meaningful: strong ethical / responsibility pressure saturates priority_score
+# toward 10 faster than factual/emotional pressure, matching Po_core's mission.
+# priority_score is clamped to <= 10.0 in profile_step().
+_PRIORITY_CEILING = 10.0
 _WEIGHTS = {
-    "factual_axis": 2.0,
-    "causal_axis": 1.7,
-    "emotional_axis": 1.2,
-    "ethical_axis": 2.5,
-    "responsibility_axis": 2.3,
-    "mixed": 2.0,
+    "factual_axis": 10.0,
+    "causal_axis": 9.0,
+    "emotional_axis": 7.0,
+    "ethical_axis": 15.0,
+    "responsibility_axis": 14.0,
+    "mixed": 12.0,
 }
 
 # Keyword tables. Japanese entries are matched as-is; English entries are
@@ -198,7 +207,9 @@ class SemanticProfileEngine:
             )
 
         # --- derived pressures ----------------------------------------------
-        priority_score = round(alert_score * _WEIGHTS[primary_axis], 4)
+        priority_score = round(
+            min(alert_score * _WEIGHTS[primary_axis], _PRIORITY_CEILING), 4
+        )
         ethics_delta = round(_clamp(axes["ethical_axis"] - _BASE_AXIS, -1.0, 1.0), 4)
         responsibility_pressure = round(axes["responsibility_axis"], 4)
         freedom_pressure = round(

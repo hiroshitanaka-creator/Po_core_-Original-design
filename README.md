@@ -59,28 +59,44 @@ pip install -e ".[dev]"
 
 ---
 
-## Po_core tensor-kernel seed (Original Design, PR-003)
+## Current executable seeds (Original Design)
 
-> **Kernel seed only — not the full Po_self / Viewer / philosopher runtime.**
-> This is the first runtime activation point of the intended three-layer
-> architecture (not a reduced product): Po_core computes semantic profiles and
-> emits Po_trace; Po_self will later read that trace; Viewer will later return
-> feedback tensors. The semantic-profile scoring here is a transparent
-> deterministic seed, not the final tensor computation.
+> **Seeds only — not a reduced product.** These are the first running cells of
+> the intended three-layer architecture, grown one layer at a time and
+> structurally aligned with the final model. The semantic-profile scoring is a
+> transparent deterministic seed, not the final tensor computation.
+
+- **`PoCoreKernel`** (PR-003) — decomposes input into semantic steps, computes a
+  deterministic `semantic_profile` per step, and emits a `SemanticProfileComputed`
+  Po_trace event.
+- **`PoSelfController`** (PR-004) — reads `SemanticProfileComputed` trace,
+  analyses semantic pressure, and emits a `PoSelfDecisionMade` event carrying a
+  `preserve` or `reconstruct` control decision, bounded by `max_self_cycles`.
+
+**Not yet implemented (preserved as concepts, honestly labeled):**
+
+- Viewer feedback loop (Layer 3)
+- philosopher deliberation modules
+- actual reconstruction application (PR-004 only *marks* steps)
+- `jump` / `reject` / `reactivate` decision behavior
+- LLM / ML scoring
 
 ```python
-from po_core_original import PoCoreKernel
+from po_core_original import PoCoreKernel, PoSelfController
 
 kernel = PoCoreKernel()
-result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
-print(result.to_dict())
+kernel_result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
+
+po_self = PoSelfController()
+po_self_result = po_self.evaluate(kernel_result)
+print(po_self_result.decision.decision_type)   # "preserve" or "reconstruct"
+print(po_self_result.to_dict())
 ```
 
-`result` exposes `request_id`, `input_text`, `semantic_steps`, `trace_events`,
-and `to_dict()`. It decomposes the input into semantic steps, computes a
-deterministic `semantic_profile` for each, and emits one
-`SemanticProfileComputed` Po_trace event conforming to the PR-002 v1 schemas.
-See `docs/ROADMAP.md` (Phase 2) and `docs/STATUS.md`.
+`PoSelfResult` exposes `request_id`, `kernel_result`, `decision`, `trace_events`,
+and `to_dict()`. The `PoSelfDecision` and `PoSelfDecisionMade` trace event
+conform to the PR-002 v1 schemas. See `docs/ROADMAP.md` (Phases 2–3) and
+`docs/STATUS.md`.
 
 ---
 

@@ -7,7 +7,20 @@
 
 ## 現フェーズ
 
-**Phase 2: Po_core Kernel MVP（PR-003）— 開始（Po_core カーネルの最初の実行可能な種）。**
+**Phase 3: Po_self Controller Seed（PR-004）— 開始（Po_self 層の最初の起動）。**
+本PR（PR-004）にて、Po_self を「将来の概念」から「最初の実行可能な種」へと起動した。
+これは Po_core のミニ版でも自己進化の完成でもなく、**trace ベース自己再構成の最初の起動点**
+である。`PoSelfController.evaluate(kernel_result)` が Po_core（Layer 1）の emit した
+`SemanticProfileComputed` trace を読み、意味的圧力（semantic pressure）を分析し、
+`preserve` / `reconstruct` の制御判定を生成して `PoSelfDecisionMade` trace イベントを発行する。
+すべての判定は trace として記録される（監査ログではなく、将来の再構成のための基盤）。
+`max_self_cycles`（1..10、既定 1）で無制限再帰を防止する。
+
+本PRで実際に振る舞いとして実装したのは `preserve` / `reconstruct` のみ。
+`jump` / `reject` / `reactivate` はスキーマ・ドキュメント上の概念として保存し、振る舞いは未実装。
+実際のコンテンツ書き換え・Viewer フィードバック・哲学者熟議・LLM・ML は未実装（概念保存）。
+
+**Phase 2: Po_core Kernel Seed（PR-003）— 開始（Po_core カーネルの最初の実行可能な種）。**
 `docs/ROADMAP.md` Phase 0（PR-001）・Phase 1（PR-002）は完了済み。本PR（PR-003）にて、
 PR-002 の設計契約を実行可能なコードへ橋渡しする最初のランタイム点を追加した
 （`src/po_core_original/`）。これは Po_core の縮小版・ミニ版ではなく、**完全な三層
@@ -97,7 +110,27 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-003（本エントリ）**: Phase 2 Po_core Kernel MVP 開始。`src/po_core_original/`
+- **PR-004（本エントリ）**: Phase 3 Po_self Controller Seed 開始 — Po_self 層の最初の起動。
+  `src/po_core_original/self_controller/`（`controller.py` / `trace_reader.py` /
+  `decision_engine.py` / `cycle_guard.py` / `__init__.py`）を新規追加。Po_self が
+  `SemanticProfileComputed` trace を読み、`PoSelfDecisionMade` を発行する。
+  実装した振る舞い：**preserve / reconstruct のみ**。判定ルール（決定論）：
+  `normalized_priority = min(max_priority_score / 10, 1.0)`、`>= 0.75` で reconstruct
+  （該当 step を将来の再構成対象としてマーク、コンテンツ書き換えは行わない）、それ以外は preserve。
+  未実装（概念保存）：jump / reject / reactivate の振る舞い、実際のコンテンツ再構成、
+  Viewer フィードバック、哲学者熟議、LLM、ML。`models.py` に `PoSelfTrigger` /
+  `PoSelfPrioritySummary` / `PoSelfActionPlan` / `PoSelfDecision` / `PoSelfResult` を追加
+  （全て `to_dict()` を持ち、`schemas/po_self_decision_v1` に準拠）。`SelfCycleGuard` が
+  `max_self_cycles`（1..10、既定 1）で再帰を制限。`tests/test_po_self_controller.py`
+  （18テスト、jsonschema 検証込み）→ 全パス。`examples/po_self_controller_demo.py` を追加。
+  **キャリブレーション注記**：PR-003 の `semantic_profile_engine._WEIGHTS` を再スケールし、
+  `priority_score` がスキーマの 0..10 帯域を使うようにした（従来は 0..2.5 に留まり、
+  PR-004 の `/10` 正規化しきい値が無意味だった）。ethical / responsibility 軸を高く重み付けし
+  （Po_core のミッション：語ることの意味と責任）、`priority_score` は 10.0 で clamp。
+  この変更は `priority_score` のみに影響し、軸値・`ethics_delta`・各 pressure は不変のため、
+  既存 PR-003 テスト（決定論性・primary_axis・neutral 軸=0.1 を検証）は無変更で全パス。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・trace contract・スキーマは無変更。
+- **PR-003**: Phase 2 Po_core Kernel Seed 開始。`src/po_core_original/`
   （`__init__.py` / `kernel.py` / `step_decomposer.py` / `semantic_profile_engine.py` /
   `trace.py` / `models.py`）を新規追加し、PR-002 の設計契約を実行可能なコードへ橋渡しする
   最初のランタイム点（first executable seed）を実装。`PoCoreKernel.process(text)` は

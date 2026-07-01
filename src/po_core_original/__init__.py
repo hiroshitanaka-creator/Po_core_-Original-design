@@ -1,25 +1,31 @@
-"""po_core_original — first executable seed of the Po_core tensor kernel (PR-003).
+"""po_core_original — executable seed of the Po_core three-layer architecture.
 
-This is **not** a mini or reduced version of Po_core. It is the first runtime
-activation point of the full intended three-layer architecture — the first
-living cell of the complete system. It is structurally aligned with the final
-model on purpose:
+This is **not** a mini or reduced version of Po_core. It is the running seed of
+the full intended three-layer architecture — the first living cells of the
+complete system — grown one layer at a time and structurally aligned with the
+final model on purpose:
 
-    * Po_core (Layer 1) computes semantic profiles and emits Po_trace.
-    * Po_self (Layer 2) will later *read* that trace.
+    * Po_core (Layer 1) computes semantic profiles and emits Po_trace (PR-003).
+    * Po_self (Layer 2) reads that trace and decides preserve / reconstruct
+      (first activation, PR-004).
     * Viewer (Layer 3) will later *return* feedback tensors.
 
-This seed activates the Po_core (Layer 1) side: deterministic step
-decomposition, deterministic semantic-profile scoring, and a
-``SemanticProfileComputed`` Po_trace emission. It is a real slice of the
-architecture, not a generic text evaluator.
+Activated so far:
 
-Honestly scoped (docs/STRICT_CORE_RULES.md): the Po_self recursion (Layer 2),
-the Viewer feedback loop (Layer 3), philosopher deliberation, safety-gate
-runtime, LLM integration, and ML tensor scoring are **not yet grown** — the
-current scoring is a transparent deterministic seed, not the final tensor
-computation. Those concepts are preserved in docs/ and remain the next stages
-of growth, not discarded simplifications.
+    * ``PoCoreKernel`` (PR-003) — deterministic step decomposition,
+      deterministic semantic-profile scoring, ``SemanticProfileComputed`` trace.
+    * ``PoSelfController`` (PR-004) — reads ``SemanticProfileComputed`` trace,
+      analyses semantic pressure, emits a ``PoSelfDecisionMade`` event carrying
+      a ``preserve`` or ``reconstruct`` control decision, bounded by
+      ``max_self_cycles``.
+
+Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
+transparent deterministic seed, not the final tensor computation; Po_self's
+``jump`` / ``reject`` / ``reactivate`` decisions, actual content
+reconstruction, the Viewer feedback loop (Layer 3), philosopher deliberation,
+safety-gate runtime, LLM integration, and ML scoring are **not yet grown**.
+Those concepts are preserved in docs/ and remain the next stages of growth,
+not discarded simplifications.
 
 Public usage::
 
@@ -37,16 +43,23 @@ from .models import (
     AlertLevel,
     ImpactFieldTensor,
     KernelResult,
+    PoSelfActionPlan,
+    PoSelfDecision,
+    PoSelfPrioritySummary,
+    PoSelfResult,
+    PoSelfTrigger,
     PoTraceEvent,
     SemanticProfile,
     SemanticStep,
     SemanticStepSource,
 )
+from .self_controller import PoSelfController
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 __all__ = [
     "PoCoreKernel",
+    "PoSelfController",
     "ImpactFieldTensor",
     "AlertLevel",
     "SemanticProfile",
@@ -54,5 +67,10 @@ __all__ = [
     "SemanticStep",
     "PoTraceEvent",
     "KernelResult",
+    "PoSelfTrigger",
+    "PoSelfPrioritySummary",
+    "PoSelfActionPlan",
+    "PoSelfDecision",
+    "PoSelfResult",
     "__version__",
 ]
