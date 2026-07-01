@@ -204,6 +204,10 @@ jobs:
           pip install bandit pip-audit build twine
       - name: Run must-pass release blockers
         shell: bash
+        # HF_HUB_OFFLINE pins the golden-era tfidf embedding backend; see the
+        # must-pass-tests job in ci.yml for the full rationale.
+        env:
+          HF_HUB_OFFLINE: "1"
         run: |
           set -euo pipefail
 
