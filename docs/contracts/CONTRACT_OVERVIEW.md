@@ -96,3 +96,7 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
 - `scripts/validate_contracts.py` — standalone script performing the same validation
   (including the `self_cycle_index <= max_self_cycles` invariant that JSON Schema cannot
   express), runnable without pytest: `python scripts/validate_contracts.py`.
+- `tests/test_kernel_semantic_profile_trace.py` (PR-003) and
+  `tests/test_po_self_controller.py` (PR-004) additionally validate that the *runtime-generated*
+  `semantic_profile` / `semantic_step` / `po_self_decision` / `po_trace_event` dicts produced by
+  `src/po_core_original/` conform to these same schemas — not just the static example fixtures.

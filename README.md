@@ -119,23 +119,28 @@ For full source layout and component detail → [Architecture docs](./02_archite
 
 ---
 
-## Original Design: Kernel MVP (Experimental)
+## Original Design: Kernel + Po_self Seed (Experimental)
 
-> **Kernel MVP only — not full Po_self / Viewer / philosopher runtime.** `po_core_original` is a
-> separate, minimal experimental package (PR-003) that bridges the [PR-002 domain contracts](./docs/contracts/CONTRACT_OVERVIEW.md)
-> to executable code: deterministic sentence decomposition, a keyword-rule-based
-> `semantic_profile` stub (not ML/LLM), and `SemanticProfileComputed` trace emission. It does not
-> modify or replace the `po_core` runtime above.
+> **Kernel MVP + Po_self seed only — not full Viewer / philosopher runtime, and not a mini
+> Po_core.** `po_core_original` is a separate, minimal experimental package
+> ([PR-003](./docs/contracts/CONTRACT_OVERVIEW.md), PR-004) that bridges the PR-002 domain
+> contracts to executable code: deterministic sentence decomposition, a keyword-rule-based
+> `semantic_profile` stub (not ML/LLM), `SemanticProfileComputed` trace emission, and now the
+> first executable seed of Po_self — `PoSelfController` reads that trace event and decides
+> `preserve` or `reconstruct` only (`jump`/`reject`/`reactivate` remain schema-declared, not yet
+> behaviorally implemented), enforcing `max_self_cycles` to prevent unbounded recursion. It does
+> not modify or replace the `po_core` runtime above.
 
 ```python
-from po_core_original import PoCoreKernel
+from po_core_original import PoCoreKernel, PoSelfController
 
-kernel = PoCoreKernel()
-result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
-print(result.to_dict())
+kernel_result = PoCoreKernel().process("火星には酸素が豊富にある。だから人間はすぐ住める。")
+po_self_result = PoSelfController().evaluate(kernel_result)
+print(po_self_result.decision.decision_type)  # "preserve" or "reconstruct"
+print(po_self_result.to_dict())
 ```
 
-See `docs/STATUS.md` for what this MVP does and does not implement.
+See `docs/STATUS.md` for what this seed does and does not implement.
 
 ---
 

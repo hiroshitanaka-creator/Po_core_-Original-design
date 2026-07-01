@@ -1,7 +1,9 @@
 # po_trace_event v1 — Design Contract
 
-> PR-002 domain contract. Schema/design only — no runtime wiring yet.
-> See `docs/contracts/CONTRACT_OVERVIEW.md` for how this fits with the other four contracts.
+> Originally a PR-002 schema-only contract. As of PR-003/PR-004, `SemanticProfileComputed`,
+> `PoSelfDecisionMade`, and `PoSelfCycleLimitReached` are emitted by
+> `src/po_core_original/` — see `docs/contracts/CONTRACT_OVERVIEW.md` and `docs/STATUS.md` for
+> what is and is not wired up.
 
 ## 1. Purpose
 
@@ -53,19 +55,19 @@ Optional: `correlation_id`, `parent_event_id`, `trace_refs`.
 
 | `event_type` | Expected `payload` shape |
 |---|---|
-| `SemanticProfileComputed` | `{ "semantic_step": <semantic_step_v1> }` |
+| `SemanticProfileComputed` | **(PR-003, implemented)** `{ "output_id": str, "proposal_id": str, "step_count": int, "steps": [{ "step_id", "profile_id", "primary_axis", "priority_score", "alert_level", "ethics_delta", "responsibility_pressure" }, ...] }` — a per-step summary, not a full nested `semantic_step_v1` (see "Future implementation notes"). |
 | `ViewerFeedbackReceived` | `{ "viewer_feedback": <viewer_feedback_v1> }` |
 | `ViewerFeedbackApplied` | open — to be defined when Phase 4 (`docs/ROADMAP.md`) is implemented |
-| `PoSelfDecisionMade` | `{ "po_self_decision": <po_self_decision_v1> }` |
-| `PoSelfReconstructionPlanned` | open — to be defined when Phase 3 is implemented |
-| `PoSelfReconstructionApplied` | open — to be defined when Phase 3 is implemented |
-| `PoSelfCycleLimitReached` | open — should include `max_self_cycles`/`self_cycle_index` at minimum |
+| `PoSelfDecisionMade` | **(PR-004, implemented)** `{ "po_self_decision": <po_self_decision_v1> }` |
+| `PoSelfReconstructionPlanned` | open — to be defined when a real `reconstruct` execution is implemented (PR-004 only *decides* reconstruct; it does not apply it) |
+| `PoSelfReconstructionApplied` | open — to be defined when a real `reconstruct` execution is implemented |
+| `PoSelfCycleLimitReached` | **(PR-004, implemented)** `{ "decision_id": str, "max_self_cycles": int, "self_cycle_index": int, "original_trigger_type": str }` — emitted only when a reconstruct trigger fires at the cycle limit and is downgraded to preserve |
 | `ConceptDriftGuardEvaluated` | open — should include the 7 Concept Drift Guard check answers |
 
 `payload` is intentionally `additionalProperties: true` at the envelope level because its shape
-depends on `event_type`; it must validate against the corresponding contract-specific schema
-when one exists (columns marked "open" above have no schema yet and are placeholders for
-future PRs).
+depends on `event_type`; it must validate against the corresponding contract-specific shape
+described above. Rows marked "open" have no implementation yet and are placeholders for future
+PRs.
 
 ## 6. Invariants
 
@@ -81,13 +83,20 @@ future PRs).
 
 ## 8. What this contract does NOT implement yet
 
-- No runtime code emits any of the 8 `event_type` values in this contract.
+- `SemanticProfileComputed` (PR-003) and `PoSelfDecisionMade` / `PoSelfCycleLimitReached`
+  (PR-004) are emitted by `src/po_core_original/`. `ViewerFeedbackReceived`,
+  `ViewerFeedbackApplied`, `PoSelfReconstructionPlanned`, `PoSelfReconstructionApplied`, and
+  `ConceptDriftGuardEvaluated` are still not emitted by any runtime code — they are declared in
+  the `event_type` enum only, per the honesty requirement in `docs/STRICT_CORE_RULES.md` (label
+  unimplemented concepts, do not delete them).
 - This envelope is not wired into `src/po_core/trace/` or the existing `TraceEvent` dataclass /
-  `InMemoryTracer`.
-- `ViewerFeedbackApplied`, `PoSelfReconstructionPlanned`, `PoSelfReconstructionApplied`, and
-  `PoSelfCycleLimitReached` have no example payload yet — they are declared in the `event_type`
-  enum only, per the honesty requirement in `docs/STRICT_CORE_RULES.md` (label unimplemented
-  concepts, do not delete them).
+  `InMemoryTracer` (the mature, separate `po_core` package's trace system).
+- `PoSelfReconstructionPlanned`/`PoSelfReconstructionApplied` remain unimplemented because
+  PR-004's `PoSelfController` only *decides* `reconstruct` (records which steps should be
+  revised and why) — it does not regenerate or otherwise change any step's content.
+- `jump` / `reject` / `reactivate` `po_self_decision` values are still never produced (see
+  `docs/contracts/PO_SELF_DECISION_V1.md`); `PoSelfCycleLimitReached` currently only fires as a
+  safety downgrade of a would-be `reconstruct`, not for any other decision type.
 
 ## 9. Future implementation notes
 
@@ -95,6 +104,14 @@ future PRs).
   `docs/ENGINE_TRACE_CONTRACT.md` event stream: as a parallel stream, an extension of the
   existing `TraceEvent` payload union, or a superseding schema. This decision should be recorded
   as an ADR per `docs/GOVERNANCE.md`.
+- `SemanticProfileComputed`'s payload carries a per-step *summary* (`step_id`, `profile_id`,
+  `primary_axis`, `priority_score`, `alert_level`, `ethics_delta`, `responsibility_pressure`)
+  rather than the full nested `semantic_step_v1` object originally sketched in PR-002. This was
+  a deliberate PR-003 implementation choice so `PoSelfController` (PR-004) can read everything
+  it needs directly from the trace event payload without reaching back into `KernelResult
+  .semantic_steps` — consistent with "`Po_trace` is the substrate Po_self reads." A future PR
+  should decide whether to keep this summary shape or switch to embedding full
+  `semantic_step_v1` objects, and record that as an ADR if it is a breaking change.
 - `ConceptDriftGuardEvaluated` is the first trace event type in this contract set that records a
   governance-layer check rather than a tensor computation; its payload schema should be designed
   alongside whatever future tooling automates the Concept Drift Guard checklist.

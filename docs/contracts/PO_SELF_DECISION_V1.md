@@ -1,7 +1,10 @@
 # po_self_decision v1 — Design Contract
 
-> PR-002 domain contract. Schema/design only — no runtime wiring yet.
-> See `docs/contracts/CONTRACT_OVERVIEW.md` for how this fits with the other four contracts.
+> Originally a PR-002 schema-only contract. As of PR-004,
+> `src/po_core_original/po_self_controller.py` + `po_self_decision_engine.py` produce and emit
+> this structure for the `preserve` and `reconstruct` decision types only. `jump`, `reject`, and
+> `reactivate` remain schema-valid, conceptual-only decision types — see section 8 below and
+> `docs/contracts/CONTRACT_OVERVIEW.md`.
 
 ## 1. Purpose
 
@@ -72,17 +75,39 @@ Optional fields: `viewer_feedback_refs`, `trace_refs`, `reconstruction_constrain
 
 ## 8. What this contract does NOT implement yet
 
-- No `PoSelf` recursive controller exists that reads `Po_trace`/`semantic_profile` and emits
-  this structure. The current `src/po_core/po_self.py` `PoSelf` class is a `run_turn` pipeline
-  API wrapper (`PoSelf.generate()` → `PoSelfResponse`) — it does not decide preserve /
-  reconstruct / jump / reject / reactivate, and does not read `Po_trace` as an input signal.
-- `jump`, `reject`, and `reactivate` are documented as conceptual-only for v1 per the invariants
-  above; no runtime code should claim to implement them yet.
-- No `max_self_cycles` recursion-limiting loop exists in any runtime code.
+- **(PR-004, implemented)** `src/po_core_original/po_self_controller.py`
+  (`PoSelfController.evaluate()`) reads the `SemanticProfileComputed` `Po_trace` event emitted by
+  `PoCoreKernel.process()` (PR-003), computes `priority_summary` from its step summaries, and
+  emits a `PoSelfDecisionMade` event carrying this `po_self_decision` structure. This is the
+  first executable seed of Po_self — not the complete recursive self-reconstruction layer.
+- **Still not implemented:** `jump`, `reject`, and `reactivate` are documented as conceptual-only
+  per the invariants above; `po_self_decision_engine.py` never produces them, and the schema
+  enum still declares all five values (not narrowed).
+- **Still not implemented:** actually *applying* a `reconstruct` decision (regenerating or
+  revising any step's content) — PR-004 only records the decision and target steps.
+- **Still not implemented:** `viewer_feedback` as a decision input (`trigger_type:
+  "viewer_feedback"` is declared but never selected, since no Viewer feedback exists yet); the
+  existing `src/po_core/po_self.py` `PoSelf` class remains a separate, unrelated `run_turn`
+  pipeline API wrapper (`PoSelf.generate()` → `PoSelfResponse`), not this controller.
+- **Now implemented:** `max_self_cycles` / `self_cycle_index` are enforced by
+  `po_self_decision_engine.py` (raises `ValueError` outside 1..10 or when
+  `self_cycle_index > max_self_cycles`; downgrades a would-be `reconstruct` to `preserve` and
+  sets `human_review_required=True` when `self_cycle_index >= max_self_cycles`, additionally
+  emitting a `PoSelfCycleLimitReached` trace event) — preventing unbounded recursion even though
+  no actual reconstruction-and-retry loop exists yet to be bounded.
 
 ## 9. Future implementation notes
 
-- Phase 3 of `docs/ROADMAP.md` ("Po_self Controller MVP") should implement `preserve` and
-  `reconstruct` first, per the invariant above, before attempting `jump`/`reject`/`reactivate`.
-- `reconstruction_constraints` is intentionally left unconstrained in the schema; its shape
-  should be designed alongside the first `reconstruct` implementation, not speculatively now.
+- A future PR should implement an actual reconstruction execution step (regenerating/revising
+  the targeted `semantic_step`s) and feed the result back through `PoCoreKernel` for a next
+  cycle, respecting `max_self_cycles` — this is what would give `self_cycle_index` real meaning
+  as a multi-cycle loop counter rather than a single-call parameter.
+- `jump`/`reject`/`reactivate` should be implemented only after `reconstruct` actually executes,
+  per the original Phase 3 ordering in `docs/ROADMAP.md`.
+- `reconstruction_constraints` remains intentionally unconstrained in the schema and unused by
+  `po_self_decision_engine.py`; its shape should be designed alongside the first real
+  `reconstruct` execution, not speculatively now.
+- Deciding how `po_self_decision_engine.py`'s deterministic keyword/threshold rules relate to
+  (or should be replaced by) real semantic-pressure computation is left open; the thresholds
+  (`ETHICS_DELTA_RECONSTRUCT_THRESHOLD`, `RESPONSIBILITY_PRESSURE_RECONSTRUCT_THRESHOLD`,
+  `PRIORITY_SCORE_RECONSTRUCT_THRESHOLD`) are documented in code, not tuned against any corpus.

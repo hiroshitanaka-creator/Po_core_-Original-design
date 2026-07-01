@@ -79,6 +79,13 @@ class PoCoreKernel:
                     "primary_axis": profile.primary_axis,
                     "priority_score": profile.priority_score,
                     "alert_level": profile.alert_level.level,
+                    # ethics_delta / responsibility_pressure (PR-004): included so
+                    # PoSelfController can evaluate reconstruct triggers by reading
+                    # this trace event's payload alone, without reaching back into
+                    # semantic_steps -- Po_trace is the substrate Po_self reads
+                    # (docs/contracts/PO_TRACE_EVENT_V1.md).
+                    "ethics_delta": profile.ethics_delta,
+                    "responsibility_pressure": profile.responsibility_pressure,
                 }
             )
 

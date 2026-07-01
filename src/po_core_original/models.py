@@ -1,11 +1,20 @@
 """
-PR-003 Po_core Kernel MVP — dataclass models.
+PR-003/PR-004 Po_core Kernel + Po_self Controller — dataclass models.
 
 These models mirror the PR-002 design contracts (schemas/*.schema.json,
 docs/contracts/*.md). They are the first runtime types that produce
-dictionaries validating against those schemas -- this module does not
-implement Po_self recursion, Viewer feedback, philosopher deliberation,
-safety gates, or any ML scoring. See docs/contracts/CONTRACT_OVERVIEW.md.
+dictionaries validating against those schemas.
+
+PR-004 adds the first executable Po_self decision types: PoSelfDecision
+only ever sets decision_type to "preserve" or "reconstruct" in this
+codebase (see po_self_decision_engine.py). "jump", "reject", and
+"reactivate" remain declared in schemas/po_self_decision_v1.schema.json and
+docs/contracts/PO_SELF_DECISION_V1.md as conceptual/planned -- this module
+does not implement, narrow, or remove them.
+
+This module still does not implement Viewer feedback, philosopher
+deliberation, safety gates, or any ML/LLM scoring. See
+docs/contracts/CONTRACT_OVERVIEW.md.
 """
 
 from __future__ import annotations
@@ -16,6 +25,7 @@ from typing import Any, Dict, List, Optional
 SEMANTIC_PROFILE_SCHEMA_VERSION = "semantic_profile_v1"
 SEMANTIC_STEP_SCHEMA_VERSION = "semantic_step_v1"
 PO_TRACE_EVENT_SCHEMA_VERSION = "po_trace_event_v1"
+PO_SELF_DECISION_SCHEMA_VERSION = "po_self_decision_v1"
 
 
 @dataclass(frozen=True)
@@ -187,5 +197,117 @@ class KernelResult:
             "request_id": self.request_id,
             "input_text": self.input_text,
             "semantic_steps": [s.to_dict() for s in self.semantic_steps],
+            "trace_events": [e.to_dict() for e in self.trace_events],
+        }
+
+
+@dataclass(frozen=True)
+class PoSelfTrigger:
+    """Mirrors po_self_decision_v1's `trigger` object."""
+
+    trigger_type: str
+    reason: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"trigger_type": self.trigger_type, "reason": self.reason}
+
+
+@dataclass(frozen=True)
+class PoSelfPrioritySummary:
+    """Mirrors po_self_decision_v1's `priority_summary` object."""
+
+    max_priority_score: float
+    mean_priority_score: float
+    critical_count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "max_priority_score": self.max_priority_score,
+            "mean_priority_score": self.mean_priority_score,
+            "critical_count": self.critical_count,
+        }
+
+
+@dataclass(frozen=True)
+class PoSelfActionPlan:
+    """Mirrors po_self_decision_v1's `action_plan` object."""
+
+    action: str
+    explanation: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"action": self.action, "explanation": self.explanation}
+
+
+@dataclass(frozen=True)
+class PoSelfDecision:
+    """
+    Mirrors schemas/po_self_decision_v1.schema.json.
+
+    PR-004 only ever constructs this with decision_type in
+    {"preserve", "reconstruct"} -- see po_self_decision_engine.py. "jump",
+    "reject", and "reactivate" remain valid per the schema enum and
+    docs/contracts/PO_SELF_DECISION_V1.md, but this codebase does not
+    produce them yet.
+    """
+
+    decision_id: str
+    request_id: str
+    decision_type: str
+    target_step_ids: List[str]
+    trigger: PoSelfTrigger
+    priority_summary: PoSelfPrioritySummary
+    action_plan: PoSelfActionPlan
+    max_self_cycles: int
+    self_cycle_index: int
+    created_at: str
+    schema_version: str = PO_SELF_DECISION_SCHEMA_VERSION
+    viewer_feedback_refs: Optional[List[str]] = None
+    trace_refs: Optional[List[str]] = None
+    reconstruction_constraints: Optional[Dict[str, Any]] = None
+    human_review_required: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        result: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "decision_id": self.decision_id,
+            "request_id": self.request_id,
+            "decision_type": self.decision_type,
+            "target_step_ids": list(self.target_step_ids),
+            "trigger": self.trigger.to_dict(),
+            "priority_summary": self.priority_summary.to_dict(),
+            "action_plan": self.action_plan.to_dict(),
+            "max_self_cycles": self.max_self_cycles,
+            "self_cycle_index": self.self_cycle_index,
+            "created_at": self.created_at,
+            "human_review_required": self.human_review_required,
+        }
+        if self.viewer_feedback_refs is not None:
+            result["viewer_feedback_refs"] = list(self.viewer_feedback_refs)
+        if self.trace_refs is not None:
+            result["trace_refs"] = list(self.trace_refs)
+        if self.reconstruction_constraints is not None:
+            result["reconstruction_constraints"] = dict(self.reconstruction_constraints)
+        return result
+
+
+@dataclass
+class PoSelfResult:
+    """
+    Output of PoSelfController.evaluate().
+
+    Not the full Po_self recursive layer -- the first executable seed of
+    it, covering only the preserve/reconstruct decision types
+    (docs/ROADMAP.md Phase 3, docs/STATUS.md).
+    """
+
+    request_id: str
+    decision: PoSelfDecision
+    trace_events: List[PoTraceEvent]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "decision": self.decision.to_dict(),
             "trace_events": [e.to_dict() for e in self.trace_events],
         }
