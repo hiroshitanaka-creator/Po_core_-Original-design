@@ -7,12 +7,21 @@
 
 ## 現フェーズ
 
+**Phase 2: Po_core Kernel MVP（PR-003）— 開始（Po_core カーネルの最初の実行可能な種）。**
+`docs/ROADMAP.md` Phase 0（PR-001）・Phase 1（PR-002）は完了済み。本PR（PR-003）にて、
+PR-002 の設計契約を実行可能なコードへ橋渡しする最初のランタイム点を追加した
+（`src/po_core_original/`）。これは Po_core の縮小版・ミニ版ではなく、**完全な三層
+アーキテクチャの最初の起動点（first living cell）** である。構造上、最終形と整合している：
+Po_core（Layer 1）が semantic_profile を計算し Po_trace を発行、Po_self（Layer 2）が後で
+その trace を読み、Viewer（Layer 3）が後でフィードバックテンソルを返す。
+
+本PRで実際に動くのは Layer 1 側のみ：決定論的なステップ分解、決定論的な semantic_profile
+スコアリング（＝最終的なテンソル計算ではなく、その席に座る透明な決定論的「種」）、
+`SemanticProfileComputed` Po_trace イベントの発行。**汎用評価器ではない。**
+
 **Phase 1: Domain Contracts（PR-002）— スキーマ／設計契約のみ、完了。**
-`docs/ROADMAP.md` Phase 0（Governance Bootstrap, PR-001）は完了済み。本PR（PR-002）にて、
-`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
-`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを新規追加した。
-**ランタイム挙動の変更は一切なし**（`run_turn` パイプライン・`PoSelf`・`viewer/`・
-哲学者モジュール・安全ゲートは無変更）。
+PR-002 にて、`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
+`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを追加した。
 
 ## 正典ミッション（Canonical Mission）
 
@@ -88,7 +97,20 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-002（本エントリ）**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
+- **PR-003（本エントリ）**: Phase 2 Po_core Kernel MVP 開始。`src/po_core_original/`
+  （`__init__.py` / `kernel.py` / `step_decomposer.py` / `semantic_profile_engine.py` /
+  `trace.py` / `models.py`）を新規追加し、PR-002 の設計契約を実行可能なコードへ橋渡しする
+  最初のランタイム点（first executable seed）を実装。`PoCoreKernel.process(text)` は
+  raw text → SemanticStep[] → SemanticProfile[] → `SemanticProfileComputed` Po_trace
+  イベント → `KernelResult` を返す。全モデルは標準ライブラリの dataclass で `to_dict()` を持ち、
+  生成物は PR-002 の v1 スキーマ（`schemas/semantic_profile_v1` / `semantic_step_v1` /
+  `po_trace_event_v1`）に対して検証される。`tests/test_kernel_semantic_profile_trace.py`
+  （17テスト、jsonschema 検証）→ 全パス。`scripts/run_kernel_demo.py` を追加。
+  **正直な区分**：semantic_profile スコアリングは決定論的な「種」であり最終テンソル計算ではない。
+  Po_self 再帰（Layer 2）・Viewer フィードバック（Layer 3）・哲学者熟議・安全ゲート runtime・
+  LLM・ML は本PRでは未実装（概念として保存、次段階で成長）。既存 `src/po_core/` ランタイム・
+  既存テスト・哲学者ロスター・trace contract は無変更。
+- **PR-002**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
   JSON Schema Draft 2020-12）、`docs/contracts/*.md`（6件）、`examples/contracts/*.json`
   （8件）、`tests/test_contract_schemas.py`（26テスト）、`scripts/validate_contracts.py`
   を新規追加。`python scripts/validate_contracts.py` → 5 schemas / 8 examples 全て有効。

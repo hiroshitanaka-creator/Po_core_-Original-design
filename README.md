@@ -59,6 +59,31 @@ pip install -e ".[dev]"
 
 ---
 
+## Po_core tensor-kernel seed (Original Design, PR-003)
+
+> **Kernel seed only — not the full Po_self / Viewer / philosopher runtime.**
+> This is the first runtime activation point of the intended three-layer
+> architecture (not a reduced product): Po_core computes semantic profiles and
+> emits Po_trace; Po_self will later read that trace; Viewer will later return
+> feedback tensors. The semantic-profile scoring here is a transparent
+> deterministic seed, not the final tensor computation.
+
+```python
+from po_core_original import PoCoreKernel
+
+kernel = PoCoreKernel()
+result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
+print(result.to_dict())
+```
+
+`result` exposes `request_id`, `input_text`, `semantic_steps`, `trace_events`,
+and `to_dict()`. It decomposes the input into semantic steps, computes a
+deterministic `semantic_profile` for each, and emits one
+`SemanticProfileComputed` Po_trace event conforming to the PR-002 v1 schemas.
+See `docs/ROADMAP.md` (Phase 2) and `docs/STATUS.md`.
+
+---
+
 ## Key Links
 
 | | |

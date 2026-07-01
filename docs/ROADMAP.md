@@ -24,17 +24,21 @@
 ViewerFeedback domain models + schemas（no pipeline wiring yet）」を充足する。
 **パイプライン配線・runtime実装は行っていない**（Phase 2以降で対応）。
 
-## Phase 2: Po_core Kernel MVP — 実質的にほぼ充足済み
+## Phase 2: Po_core Kernel MVP — 🟡 着手（PR-003で最初の実行可能な種を実装）
 
-- input
-- step decomposition
-- tensor scoring
-- trace emission
+- input ✅
+- step decomposition ✅（`src/po_core_original/step_decomposer.py`）
+- tensor scoring 🟡（決定論的な「種」スコアリング。最終テンソル計算は未成長）
+- trace emission ✅（`SemanticProfileComputed` Po_trace イベント）
 
-備考：`run_turn` 10段階パイプライン・`src/po_core/tensors/`・`src/po_core/trace/` により、
-このPhaseの要件は既存実装で実質的に満たされている（詳細は `docs/STATUS.md`）。
-本ロードマップにおける役割は、既存実装を North Star の Layer 1 定義と正式に対応付ける
-ドキュメント作業であり、新規ランタイム実装は不要。
+備考：PR-003 は Po_core カーネルの**最初の実行可能な種（first living cell）** を
+`src/po_core_original/` に実装した。これは Po_core の縮小版ではなく、完全な三層
+アーキテクチャの最初の起動点であり、構造上、最終形と整合している
+（Po_core が semantic_profile を計算し Po_trace を発行 → 後に Po_self が読む →
+後に Viewer がフィードバックを返す）。既存の `run_turn` 10段階パイプライン・
+`src/po_core/tensors/`・`src/po_core/trace/` は別トラックの成熟した Layer 1 実装であり、
+両者の統合（`po_trace_event_v1` と既存 `TraceEvent` の関係）は ADR を経て将来のPRで扱う
+（`docs/contracts/PO_TRACE_EVENT_V1.md`）。本Phaseは統合ランタイム完成を意味しない。
 
 ## Phase 3: Po_self Controller MVP — 未着手（計画中）
 
