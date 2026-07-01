@@ -8,16 +8,31 @@
 
 ## What is Po_core?
 
-Philosophy-driven AI: 42 philosopher AI personas deliberate via tensor calculations
-(Freedom Pressure, Semantic Delta, Blocked Tensor) and a 3-layer W_Ethics Gate
-to generate ethically responsible responses.
+Po_core is a **three-layer tensor intelligence model** for processing the meaning and
+responsibility of speech:
+
+- **Po_core (tensor kernel)** — computes semantic, ethical, responsibility, and
+  freedom-pressure tensors for each output and each decision path. 42 philosopher
+  AI personas act as **deliberation modules inside this layer** (not the system
+  itself), interacting via tensor calculations (Freedom Pressure, Semantic Delta,
+  Blocked Tensor) behind a 3-layer W_Ethics Gate.
+- **Po_self (recursive self-reconstruction layer)** — observes `Po_trace`,
+  evaluates discontinuity / responsibility pressure / ethical fluctuation, and
+  decides whether to preserve, reconstruct, jump, reject, or re-activate prior
+  meanings.
+- **Viewer (external resonance / feedback layer)** — receives the output and
+  returns resonance, agreement, disagreement, and social feedback tensors back
+  into Po_self.
+
+This three-layer tensor intelligence model is distinct from the three-layer
+**safety gate** (`IntentionGate` → `PolicyPrecheck` → `ActionGate`) described below.
 
 **Core thesis:** 「AIは統計的オウムである」という批判に対して、哲学的熟議によって倫理的責任を持つAIが
 **構築できる**ことをコード・テスト・論文で証明する。
 
 ## Architecture
 
-**Hexagonal `run_turn` pipeline** (10 steps):
+**Hexagonal `run_turn` pipeline** (10 steps, inside the Po_core tensor-kernel layer):
 
 ```
 MemoryRead → TensorCompute → SolarWill → IntentionGate → PhilosopherSelect

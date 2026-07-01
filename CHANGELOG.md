@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- docs: define the three-layer tensor intelligence model (Po_core / Po_self / Viewer) as the canonical Po_core architecture in `docs/厳格固定ルール.md`, `README.md`, `docs/spec/prd.md`, and `CLAUDE.md`. Po_core is the tensor kernel (semantic/ethical/responsibility/freedom-pressure tensors); Po_self is the recursive self-reconstruction layer (observes Po_trace, decides preserve/reconstruct/jump/reject/reactivate); Viewer is the external resonance/feedback layer (returns resonance/agreement/disagreement/feedback tensors to Po_self). The 42 philosophers are repositioned as deliberation modules inside Po_core, not the system itself. This model is explicitly distinguished from the pre-existing three-layer safety gate (`IntentionGate` → `PolicyPrecheck` → `ActionGate`), which is unchanged. Docs-only realignment (PR-001 of the v2 realignment plan): no code, tests, schemas, philosopher roster, or trace contract changes.
+
 ## [1.1.0] - 2026-04-30
 
 ### Added
