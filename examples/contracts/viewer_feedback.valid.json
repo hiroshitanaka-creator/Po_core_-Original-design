@@ -1,0 +1,27 @@
+{
+  "schema_version": "viewer_feedback_v1",
+  "feedback_id": "vf_001",
+  "request_id": "req_001",
+  "target_output_id": "out_001",
+  "viewer_resonance_level": 0.6,
+  "interpretation_agreement_level": 0.5,
+  "disagreement_level": 0.3,
+  "discomfort_level": 0.2,
+  "feedback_tensor": {
+    "resonance_axis": 0.6,
+    "agreement_axis": 0.5,
+    "disagreement_axis": 0.3,
+    "discomfort_axis": 0.2,
+    "trust_axis": 0.65,
+    "novelty_axis": 0.4
+  },
+  "reason_log": [
+    "Viewer found the fairness framing persuasive but noted the third-party impact was underweighted."
+  ],
+  "viewer_context": {
+    "viewer_type": "user",
+    "session_id": "sess_001",
+    "locale": "ja-JP"
+  },
+  "created_at": "2026-07-01T09:05:00Z"
+}

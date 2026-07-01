@@ -1,0 +1,30 @@
+{
+  "schema_version": "po_self_decision_v1",
+  "decision_id": "psd_002",
+  "request_id": "req_002",
+  "decision_type": "reconstruct",
+  "target_step_ids": ["step_001", "step_002"],
+  "trigger": {
+    "trigger_type": "viewer_feedback",
+    "reason": "disagreement_level 0.7 and discomfort_level 0.65 from viewer_feedback vf_002 exceeded the reconstruct threshold for target_step_ids."
+  },
+  "priority_summary": {
+    "max_priority_score": 8.2,
+    "mean_priority_score": 6.9,
+    "critical_count": 1
+  },
+  "action_plan": {
+    "action": "revise_steps",
+    "explanation": "Re-weight responsibility_axis for step_001 and step_002 given viewer-reported discomfort, then re-run Pareto aggregation for those steps only."
+  },
+  "max_self_cycles": 3,
+  "self_cycle_index": 2,
+  "created_at": "2026-07-01T09:10:00Z",
+  "viewer_feedback_refs": ["vf_002"],
+  "trace_refs": ["evt_semantic_profile_002", "evt_viewer_feedback_002"],
+  "reconstruction_constraints": {
+    "preserve_conclusion": true,
+    "max_revised_steps": 2
+  },
+  "human_review_required": false
+}

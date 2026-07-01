@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/viewer_feedback_v1.schema.json",
+  "title": "Po_core viewer_feedback v1",
+  "description": "PR-002 design contract (schema only, no runtime wiring). Represents external Viewer (Layer 3) feedback returned into Po_self (Layer 2). This is a tensor input for future Po_self decisions, not UI analytics. High disagreement/discomfort must not automatically delete output; it must become traceable pressure. See docs/contracts/VIEWER_FEEDBACK_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "feedback_id",
+    "request_id",
+    "target_output_id",
+    "viewer_resonance_level",
+    "interpretation_agreement_level",
+    "disagreement_level",
+    "discomfort_level",
+    "feedback_tensor",
+    "reason_log",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "viewer_feedback_v1"
+    },
+    "feedback_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "target_output_id": { "type": "string", "minLength": 1 },
+    "viewer_resonance_level": { "type": "number", "minimum": 0, "maximum": 1 },
+    "interpretation_agreement_level": { "type": "number", "minimum": 0, "maximum": 1 },
+    "disagreement_level": { "type": "number", "minimum": 0, "maximum": 1 },
+    "discomfort_level": { "type": "number", "minimum": 0, "maximum": 1 },
+    "feedback_tensor": {
+      "type": "object",
+      "description": "Core axes are fixed and required; extra axes are allowed only as numeric normalized (0..1) tensor extensions.",
+      "required": [
+        "resonance_axis",
+        "agreement_axis",
+        "disagreement_axis",
+        "discomfort_axis",
+        "trust_axis"
+      ],
+      "properties": {
+        "resonance_axis": { "type": "number", "minimum": 0, "maximum": 1 },
+        "agreement_axis": { "type": "number", "minimum": 0, "maximum": 1 },
+        "disagreement_axis": { "type": "number", "minimum": 0, "maximum": 1 },
+        "discomfort_axis": { "type": "number", "minimum": 0, "maximum": 1 },
+        "trust_axis": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "reason_log": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "viewer_context": {
+      "type": "object",
+      "description": "Optional context about the feedback source.",
+      "additionalProperties": false,
+      "properties": {
+        "viewer_type": {
+          "type": "string",
+          "enum": ["user", "evaluator", "society_proxy", "test_harness", "unknown"]
+        },
+        "session_id": { "type": "string", "minLength": 1 },
+        "locale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

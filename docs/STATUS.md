@@ -7,9 +7,12 @@
 
 ## 現フェーズ
 
-**Bootstrap / Original Design Governance** — 本PRにて、概念保存のためのガバナンス文書一式
-（`STRICT_CORE_RULES.md`, `AI_AGENT_INITIALIZATION_RULES.md`, `ARCHITECTURE_NORTH_STAR.md`,
-`CONCEPT_DRIFT_GUARD.md`, `GOVERNANCE.md`, `ROADMAP.md`, `GLOSSARY.md`) を新規追加した。
+**Phase 1: Domain Contracts（PR-002）— スキーマ／設計契約のみ、完了。**
+`docs/ROADMAP.md` Phase 0（Governance Bootstrap, PR-001）は完了済み。本PR（PR-002）にて、
+`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
+`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを新規追加した。
+**ランタイム挙動の変更は一切なし**（`run_turn` パイプライン・`PoSelf`・`viewer/`・
+哲学者モジュール・安全ゲートは無変更）。
 
 ## 正典ミッション（Canonical Mission）
 
@@ -19,11 +22,21 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## 確立していること（Established）
 
-- ガバナンス文書一式（本PRで新規追加）。
+- ガバナンス文書一式（PR-001で新規追加）。
 - 既存の日本語 SSOT：`docs/厳格固定ルール.md`（運用・宇宙ルール倫理）、
   `docs/status.md`（リリース状態）。
 - 既存の `.github/PULL_REQUEST_TEMPLATE.md`（SSOT既読・要件トレーサビリティ・
-  Policy Change Protocol・Determinism チェック）に Concept Preservation 節を追加統合。
+  Policy Change Protocol・Determinism チェック）に Concept Preservation 節を追加統合（PR-001）。
+- **（PR-002で新規追加）Phase 1 ドメイン契約一式**：
+  - `schemas/semantic_profile_v1.schema.json`
+  - `schemas/semantic_step_v1.schema.json`
+  - `schemas/viewer_feedback_v1.schema.json`
+  - `schemas/po_self_decision_v1.schema.json`
+  - `schemas/po_trace_event_v1.schema.json`
+  - 対応する `docs/contracts/*.md`（6ファイル：5契約 + `CONTRACT_OVERVIEW.md`）
+  - `examples/contracts/*.json`（8ファイル、全スキーマに対して有効な例）
+  - `tests/test_contract_schemas.py`（26テスト、`@pytest.mark.unit`、pure JSON Schema検証）
+  - `scripts/validate_contracts.py`（pytest不要のスタンドアロン検証スクリプト）
 
 ## ランタイム実装状況（正直な区分）
 
@@ -57,21 +70,32 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   現行の `src/po_core/viewer/` は観測可能性（observability）ダッシュボード・可視化モジュール
   （pipeline view, tensor view, pressure display 等、Phase 3 で追加）であり、
   上記フィードバックループとは別物。
-- `semantic_profile` / `semantic_step` / `po_self_decision` / `viewer_feedback` の
-  ドメインスキーマは未作成。既存の `docs/status.md` の "Next" 節にて
-  「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
-  domain models + schemas（no pipeline wiring yet）」として既に計画済みであることを確認した。
-  本ガバナンス層はこの既存計画と矛盾しないよう `docs/ROADMAP.md` の Phase 1 に対応させる。
-- 上記2点を安全ゲート・熟議モジュールへ実際に配線する三層クローズドループ全体は未実装。
+- **（PR-002で解消）** `semantic_profile` / `semantic_step` / `po_self_decision` /
+  `viewer_feedback` / `po_trace_event` の v1 JSON Schema と設計契約ドキュメントは作成済み
+  （`docs/contracts/CONTRACT_OVERVIEW.md` 参照）。ただし **これはスキーマ／設計契約のみ**
+  であり、これらのスキーマは `run_turn` パイプライン・`PoSelf`・`src/po_core/viewer/` の
+  いずれにも配線されていない。実際にこれらの構造を計算・発行・消費するコードは依然として
+  存在しない（過大申告を避けるため明記する）。
+- 上記を安全ゲート・熟議モジュールへ実際に配線する三層クローズドループ全体は未実装
+  （`docs/ROADMAP.md` Phase 2〜6）。
 
 ## 次のステップ
 
-- `docs/ROADMAP.md` Phase 1（Domain Contracts）へ進む。
-- 既存 `docs/status.md` の "Next" 節（PR-002 以降）と歩調を合わせる。
+- `docs/ROADMAP.md` Phase 2〜3（既存 Po_core カーネルとの対応付け、Po_self Controller MVP）へ進む。
+- 既存 `docs/status.md` の "Next" 節と歩調を合わせる（本PRの完了をもって
+  「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
+  domain models + schemas（no pipeline wiring yet）」を充足）。
 
 ## Completed ログ
 
-- （本エントリ）Original Design governance bootstrap: 上記ガバナンス文書一式を新規追加。
+- **PR-002（本エントリ）**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
+  JSON Schema Draft 2020-12）、`docs/contracts/*.md`（6件）、`examples/contracts/*.json`
+  （8件）、`tests/test_contract_schemas.py`（26テスト）、`scripts/validate_contracts.py`
+  を新規追加。`python scripts/validate_contracts.py` → 5 schemas / 8 examples 全て有効。
+  `pytest tests/test_contract_schemas.py -v`（`--noconftest`、jsonschema 4.26.0 で確認）→
+  26 passed。ランタイムコード（`src/po_core/`）・既存テスト・哲学者ロスター・既存
+  trace contract（`docs/ENGINE_TRACE_CONTRACT.md`）は無変更。
+- PR-001: Original Design governance bootstrap: ガバナンス文書一式を新規追加。
   既存の `README.md` / `CHANGELOG.md` / `.github/PULL_REQUEST_TEMPLATE.md` /
   `docs/厳格固定ルール.md` / `docs/status.md` はいずれも保持し、追加リンク以外は変更していない。
   ランタイムコード・テスト・スキーマ・哲学者ロスター・trace contract の変更なし。

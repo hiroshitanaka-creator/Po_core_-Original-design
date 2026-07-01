@@ -1,0 +1,45 @@
+{
+  "schema_version": "po_trace_event_v1",
+  "event_id": "evt_semantic_profile_001",
+  "request_id": "req_001",
+  "event_type": "SemanticProfileComputed",
+  "payload": {
+    "semantic_step": {
+      "schema_version": "semantic_step_v1",
+      "step_id": "step_001",
+      "source": {
+        "output_id": "out_001",
+        "proposal_id": "prop_001",
+        "origin": "philosopher_module"
+      },
+      "content": "Justice requires that the distribution of benefits and burdens track what each party is due.",
+      "semantic_profile": {
+        "schema_version": "semantic_profile_v1",
+        "profile_id": "sp_001",
+        "impact_field_tensor": {
+          "factual_axis": 0.4,
+          "causal_axis": 0.3,
+          "emotional_axis": 0.2,
+          "ethical_axis": 0.8,
+          "responsibility_axis": 0.6
+        },
+        "alert_level": {
+          "score": 0.55,
+          "level": "medium",
+          "reason": "Moderate ethical pressure detected; no immediate constraint conflict."
+        },
+        "primary_axis": "ethical_axis",
+        "priority_score": 6.5,
+        "ethics_delta": 0.2,
+        "responsibility_pressure": 0.6,
+        "freedom_pressure": 0.35,
+        "confidence": 0.7,
+        "justification": "High ethical_axis value reflects a request touching on fairness between two parties.",
+        "created_at": "2026-07-01T09:00:00Z"
+      },
+      "trace_refs": [],
+      "created_at": "2026-07-01T09:00:01Z"
+    }
+  },
+  "created_at": "2026-07-01T09:00:01Z"
+}

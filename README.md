@@ -300,6 +300,7 @@ Po_core's Pareto weights are config-driven (`pareto_table.yaml`) and fully exter
 | [docs/ROADMAP.md](./docs/ROADMAP.md) | Staged path toward the full three-layer runtime |
 | [docs/GLOSSARY.md](./docs/GLOSSARY.md) | Core vocabulary definitions |
 | [docs/AI_AGENT_INITIALIZATION_RULES.md](./docs/AI_AGENT_INITIALIZATION_RULES.md) | Rules for future AI coding agents |
+| [docs/contracts/CONTRACT_OVERVIEW.md](./docs/contracts/CONTRACT_OVERVIEW.md) | PR-002 domain-contract schemas: `semantic_profile`, `semantic_step`, `viewer_feedback`, `po_self_decision`, `po_trace_event` (schema/design-contract only, no runtime wiring) |
 | [docs/spec/prd.md](./docs/spec/prd.md) | Product Requirements Document |
 | [docs/spec/srs_v0.1.md](./docs/spec/srs_v0.1.md) | Software Requirements Specification (18 FR/NFR IDs) |
 | [docs/spec/output_schema_v1.json](./docs/spec/output_schema_v1.json) | JSON Schema — contract for all structured output |

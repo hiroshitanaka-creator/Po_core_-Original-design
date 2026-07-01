@@ -258,6 +258,8 @@ data/processed/
 
 # Keep package schema files
 !src/po_core/schemas/*.json
+# Keep PR-002 domain-contract schemas (docs/contracts/CONTRACT_OVERVIEW.md)
+!schemas/*.schema.json
 # Keep TypeScript SDK config
 !clients/typescript/package.json
 !clients/typescript/tsconfig.json
