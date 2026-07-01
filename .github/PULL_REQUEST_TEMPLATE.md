@@ -2,6 +2,22 @@
 - 変更概要:
 - 背景/目的:
 
+## Concept Preservation（Original Design ガバナンス層 — `docs/STRICT_CORE_RULES.md` 参照）
+- [ ] Po_core tensor kernel preserved（Po_core テンソル基幹層を保存している）
+- [ ] Po_self recursive layer preserved（Po_self 再帰層を保存している）
+- [ ] Viewer feedback layer preserved（Viewer フィードバック層を保存している）
+- [ ] 42 philosophers remain deliberation modules（42人の哲学者は熟議モジュールのままである）
+- [ ] Safety used as floor, not concept ceiling（安全性を天井ではなく床として扱っている）
+- [ ] Unimplemented concepts are labeled honestly instead of deleted（未実装概念を削除せず正直にラベル付けしている）
+
+## Change Type
+- [ ] Concept / SSOT
+- [ ] Runtime behavior
+- [ ] Trace / schema
+- [ ] Documentation
+- [ ] Governance
+- [ ] Experiment
+
 ## 必須チェック（SSOT / 進捗 / テスト報告）
 - [ ] SSOT `docs/厳格固定ルール.md` を読んだ
 - [ ] `docs/status.md` を更新した（どこを動かしたかを記載）

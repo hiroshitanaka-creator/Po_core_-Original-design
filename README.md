@@ -2,6 +2,7 @@
 
 最優先ルール（単一真実）：[docs/厳格固定ルール.md](https://github.com/hiroshitanaka-creator/Po_core/blob/main/docs/厳格固定ルール.md)
 最新進捗：[docs/status.md](https://github.com/hiroshitanaka-creator/Po_core/blob/main/docs/status.md)
+概念保存ガバナンス（Original Design）：[docs/STRICT_CORE_RULES.md](./docs/STRICT_CORE_RULES.md) ・ [docs/ARCHITECTURE_NORTH_STAR.md](./docs/ARCHITECTURE_NORTH_STAR.md) ・ [docs/CONCEPT_DRIFT_GUARD.md](./docs/CONCEPT_DRIFT_GUARD.md)
 
 **Philosophy-Driven AI: When Pigs Fly**
 
@@ -292,6 +293,13 @@ Po_core's Pareto weights are config-driven (`pareto_table.yaml`) and fully exter
 
 | Document | Description |
 |---|---|
+| [docs/STRICT_CORE_RULES.md](./docs/STRICT_CORE_RULES.md) | Concept-preservation SSOT (Original Design governance layer) |
+| [docs/ARCHITECTURE_NORTH_STAR.md](./docs/ARCHITECTURE_NORTH_STAR.md) | Three-layer architecture target (Po_core / Po_self / Viewer) |
+| [docs/CONCEPT_DRIFT_GUARD.md](./docs/CONCEPT_DRIFT_GUARD.md) | Checklist preventing concept shrinkage in future PRs |
+| [docs/GOVERNANCE.md](./docs/GOVERNANCE.md) | Branch/PR/ADR/status process rules |
+| [docs/ROADMAP.md](./docs/ROADMAP.md) | Staged path toward the full three-layer runtime |
+| [docs/GLOSSARY.md](./docs/GLOSSARY.md) | Core vocabulary definitions |
+| [docs/AI_AGENT_INITIALIZATION_RULES.md](./docs/AI_AGENT_INITIALIZATION_RULES.md) | Rules for future AI coding agents |
 | [docs/spec/prd.md](./docs/spec/prd.md) | Product Requirements Document |
 | [docs/spec/srs_v0.1.md](./docs/spec/srs_v0.1.md) | Software Requirements Specification (18 FR/NFR IDs) |
 | [docs/spec/output_schema_v1.json](./docs/spec/output_schema_v1.json) | JSON Schema — contract for all structured output |
