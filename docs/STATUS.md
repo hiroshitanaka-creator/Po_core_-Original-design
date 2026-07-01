@@ -7,12 +7,19 @@
 
 ## 現フェーズ
 
-**Phase 1: Domain Contracts（PR-002）— スキーマ／設計契約のみ、完了。**
-`docs/ROADMAP.md` Phase 0（Governance Bootstrap, PR-001）は完了済み。本PR（PR-002）にて、
-`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
-`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを新規追加した。
-**ランタイム挙動の変更は一切なし**（`run_turn` パイプライン・`PoSelf`・`viewer/`・
-哲学者モジュール・安全ゲートは無変更）。
+**Phase 2: Po_core Kernel MVP（PR-003）— 一部着手（最小runtime bridgeのみ）。**
+`docs/ROADMAP.md` Phase 0（Governance Bootstrap, PR-001）・Phase 1（Domain Contracts,
+PR-002）は完了済み。本PR（PR-003）にて、PR-002契約から最初の実行可能なブリッジとして
+新規パッケージ `src/po_core_original/`（`PoCoreKernel`）を追加した。
+
+**重要な区別**：`po_core_original` は既存の成熟した `src/po_core/`（PyPI公開済み
+`po-core-flyingpig`、`run_turn` パイプライン・42人の哲学者・安全ゲート等を含む）とは
+**別の、新規かつ最小限の実験的パッケージ**である。既存の `src/po_core/` は一切変更していない。
+`po_core_original` は「決定論的な入力分解 → semantic_profile スタブ計算 →
+SemanticProfileComputed trace 発行」のみを行う MVP ブリッジであり、`docs/ROADMAP.md`
+Phase 2（Po_core Kernel MVP）の一部分を、既存カーネルとは独立した形で先行実装したもの
+である。既存 `run_turn` との統合方針（並存か統合か）は未決定であり、今後 ADR が必要
+（`docs/GOVERNANCE.md`）。
 
 ## 正典ミッション（Canonical Mission）
 
@@ -37,6 +44,17 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   - `examples/contracts/*.json`（8ファイル、全スキーマに対して有効な例）
   - `tests/test_contract_schemas.py`（26テスト、`@pytest.mark.unit`、pure JSON Schema検証）
   - `scripts/validate_contracts.py`（pytest不要のスタンドアロン検証スクリプト）
+- **（PR-003で新規追加）`po_core_original` Kernel MVP**：
+  - `src/po_core_original/`（`models.py`, `step_decomposer.py`,
+    `semantic_profile_engine.py`, `trace.py`, `kernel.py`, `__init__.py`）
+  - `PoCoreKernel.process(text)` → `KernelResult`（`semantic_steps` + `trace_events`）
+  - 決定論的なキーワードベースの `semantic_profile` スコアリング（**ML でも最終的な
+    意味処理でもない、透明なルールベースの MVP スタブ**であることを明記）
+  - `SemanticProfileComputed` の `po_trace_event_v1` を1件発行し、各 `semantic_step` の
+    `trace_refs` に event_id を付与
+  - `tests/test_kernel_semantic_profile_trace.py`（15テスト、PR-002スキーマへの適合を
+    `jsonschema` で検証）
+  - `scripts/run_kernel_demo.py`（デモ用、runtimeサービスではない）
 
 ## ランタイム実装状況（正直な区分）
 
@@ -57,6 +75,13 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 - REST API（`src/po_core/app/rest/`）。PyPI パッケージ `po-core-flyingpig` として公開済み
   （詳細は `docs/status.md` を参照。バージョン・公開証跡はこちらが単一真実）。
 
+**（PR-003で新規追加、既存Layer 1とは別系統）** `src/po_core_original/` の `PoCoreKernel`：
+入力テキストの決定論的な文分割 → キーワードルールベースの `semantic_profile` スタブ計算 →
+`SemanticProfileComputed` trace 発行、のみを行う最小ブリッジ。**上記の既存 `src/po_core/`
+（`run_turn` 等）とは配線されておらず、独立した実験的コードパスである。**
+過大申告を避けるため：これは「真の意味処理」ではなく、キーワード有無で0.1刻みにスコアを
+加算する透明なルールベースのプレースホルダーである。
+
 ### 概念のみ／計画中（Conceptual / Planned） — Layer 2: Po_self, Layer 3: Viewer
 
 - **Po_self の再帰的自己再構成コントローラー**（`Po_trace` を観測し discontinuity /
@@ -72,28 +97,50 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   上記フィードバックループとは別物。
 - **（PR-002で解消）** `semantic_profile` / `semantic_step` / `po_self_decision` /
   `viewer_feedback` / `po_trace_event` の v1 JSON Schema と設計契約ドキュメントは作成済み
-  （`docs/contracts/CONTRACT_OVERVIEW.md` 参照）。ただし **これはスキーマ／設計契約のみ**
-  であり、これらのスキーマは `run_turn` パイプライン・`PoSelf`・`src/po_core/viewer/` の
-  いずれにも配線されていない。実際にこれらの構造を計算・発行・消費するコードは依然として
-  存在しない（過大申告を避けるため明記する）。
+  （`docs/contracts/CONTRACT_OVERVIEW.md` 参照）。
+- **（PR-003で部分的に解消）** `semantic_profile` / `semantic_step` /
+  `SemanticProfileComputed`（`po_trace_event`）を実際に計算・生成するコードが
+  `src/po_core_original/` に存在するようになった。ただし：
+  - これは決定論的なキーワードルールベースのMVPスタブであり、真の意味処理・ML・LLMでは
+    ない（`docs/contracts/SEMANTIC_PROFILE_V1.md` 参照）。
+  - 既存の成熟した `src/po_core/`（`run_turn`, 42人の哲学者, 安全ゲート）とは配線されて
+    いない、独立した並行実装である。
+  - `viewer_feedback` / `po_self_decision` を実際に計算・消費するコードは依然として存在
+    しない（`ViewerFeedbackReceived`, `PoSelfDecisionMade` 等の trace event も未発行）。
+- Po_self・Viewerの再帰的コントローラー／フィードバックループ本体は依然として未実装。
 - 上記を安全ゲート・熟議モジュールへ実際に配線する三層クローズドループ全体は未実装
-  （`docs/ROADMAP.md` Phase 2〜6）。
+  （`docs/ROADMAP.md` Phase 3〜6）。
 
 ## 次のステップ
 
-- `docs/ROADMAP.md` Phase 2〜3（既存 Po_core カーネルとの対応付け、Po_self Controller MVP）へ進む。
-- 既存 `docs/status.md` の "Next" 節と歩調を合わせる（本PRの完了をもって
-  「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
-  domain models + schemas（no pipeline wiring yet）」を充足）。
+- PR-004: Po_self Controller MVP（`SemanticProfileComputed` trace を読み、
+  `max_priority_score` を集計し、`PoSelfDecisionMade` を発行。preserve/reconstruct のみ、
+  `max_self_cycles` 強制）。
+- `po_core_original` と既存 `src/po_core/`（`run_turn`）との関係（並存か統合か）をADRで
+  決定する（`docs/GOVERNANCE.md`）。
+- 既存 `docs/status.md` の "Next" 節と歩調を合わせる。
 
 ## Completed ログ
 
-- **PR-002（本エントリ）**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
+- **PR-003（本エントリ）**: Phase 2 Po_core Kernel MVP、一部着手。新規パッケージ
+  `src/po_core_original/`（`models.py`, `step_decomposer.py`,
+  `semantic_profile_engine.py`, `trace.py`, `kernel.py`, `__init__.py`）を追加。
+  `PoCoreKernel.process(text)` が決定論的な文分割・`semantic_profile`
+  スタブ計算・`SemanticProfileComputed` trace 発行を行う。
+  `tests/test_kernel_semantic_profile_trace.py`（15テスト、`--noconftest`、
+  jsonschema 4.26.0 で確認）→ 15 passed。既存
+  `tests/test_contract_schemas.py`（26テスト）と合わせて41 passed、退行なし。
+  生成される `semantic_profile` / `semantic_step` / `po_trace_event` はすべて
+  PR-002 の対応する v1 スキーマに適合することをテストで確認済み。
+  `scripts/run_kernel_demo.py` で動作確認（火星の例文で3ステップ・1 trace event を生成）。
+  既存 `src/po_core/`（ランタイムコード・哲学者・安全ゲート・REST API）・既存テストは
+  無変更。Po_self recursion・Viewer feedback loop・哲学者・安全ゲート・ML/LLMは
+  この PR では実装していない。
+- PR-002: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
   JSON Schema Draft 2020-12）、`docs/contracts/*.md`（6件）、`examples/contracts/*.json`
   （8件）、`tests/test_contract_schemas.py`（26テスト）、`scripts/validate_contracts.py`
   を新規追加。`python scripts/validate_contracts.py` → 5 schemas / 8 examples 全て有効。
-  `pytest tests/test_contract_schemas.py -v`（`--noconftest`、jsonschema 4.26.0 で確認）→
-  26 passed。ランタイムコード（`src/po_core/`）・既存テスト・哲学者ロスター・既存
+  ランタイムコード（`src/po_core/`）・既存テスト・哲学者ロスター・既存
   trace contract（`docs/ENGINE_TRACE_CONTRACT.md`）は無変更。
 - PR-001: Original Design governance bootstrap: ガバナンス文書一式を新規追加。
   既存の `README.md` / `CHANGELOG.md` / `.github/PULL_REQUEST_TEMPLATE.md` /

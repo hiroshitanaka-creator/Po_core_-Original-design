@@ -78,24 +78,28 @@ def _validator_for(schema_filename: str) -> Draft202012Validator:
 
 @pytest.mark.unit
 @pytest.mark.parametrize("schema_version,spec", CONTRACTS.items())
-def test_schema_itself_is_valid_draft_2020_12(schema_version: str, spec: Dict[str, Any]) -> None:
+def test_schema_itself_is_valid_draft_2020_12(
+    schema_version: str, spec: Dict[str, Any]
+) -> None:
     validator = _validator_for(spec["schema"])
     assert validator is not None
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("schema_version,spec", CONTRACTS.items())
-def test_schema_declares_required_metadata(schema_version: str, spec: Dict[str, Any]) -> None:
+def test_schema_declares_required_metadata(
+    schema_version: str, spec: Dict[str, Any]
+) -> None:
     schema = _load_json(SCHEMAS_DIR / spec["schema"])
     for key in ("$schema", "$id", "title", "description", "type", "required"):
         assert key in schema, f"{spec['schema']} missing required key: {key}"
-    assert schema["additionalProperties"] is False, (
-        f"{spec['schema']} top-level additionalProperties must be false"
-    )
+    assert (
+        schema["additionalProperties"] is False
+    ), f"{spec['schema']} top-level additionalProperties must be false"
     schema_version_prop = schema["properties"]["schema_version"]
-    assert schema_version_prop.get("const") == schema_version, (
-        f"{spec['schema']} schema_version const must be '{schema_version}'"
-    )
+    assert (
+        schema_version_prop.get("const") == schema_version
+    ), f"{spec['schema']} schema_version const must be '{schema_version}'"
 
 
 @pytest.mark.unit
@@ -107,7 +111,9 @@ def test_schema_declares_required_metadata(schema_version: str, spec: Dict[str, 
         for example_name in spec["examples"]
     ],
 )
-def test_example_validates_against_schema(schema_version: str, example_name: str) -> None:
+def test_example_validates_against_schema(
+    schema_version: str, example_name: str
+) -> None:
     spec = CONTRACTS[schema_version]
     validator = _validator_for(spec["schema"])
     example_path = EXAMPLES_DIR / example_name
@@ -117,7 +123,9 @@ def test_example_validates_against_schema(schema_version: str, example_name: str
     errors = sorted(validator.iter_errors(instance), key=lambda e: list(e.path))
     if errors:
         messages = "\n".join(f"- {e.message} (at {list(e.path)})" for e in errors)
-        pytest.fail(f"{example_path} failed validation against {spec['schema']}:\n{messages}")
+        pytest.fail(
+            f"{example_path} failed validation against {spec['schema']}:\n{messages}"
+        )
 
 
 @pytest.mark.unit

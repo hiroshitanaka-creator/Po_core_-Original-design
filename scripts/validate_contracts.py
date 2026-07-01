@@ -57,7 +57,9 @@ def _load_json(path: Path) -> Any:
         return json.load(f)
 
 
-def _check_self_cycle_invariant(example_path: Path, instance: Dict[str, Any]) -> list[str]:
+def _check_self_cycle_invariant(
+    example_path: Path, instance: Dict[str, Any]
+) -> list[str]:
     """self_cycle_index <= max_self_cycles cannot be expressed in JSON Schema
     Draft 2020-12 as a cross-field constraint; check it explicitly here."""
     errors = []

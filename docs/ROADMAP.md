@@ -24,17 +24,21 @@
 ViewerFeedback domain models + schemas（no pipeline wiring yet）」を充足する。
 **パイプライン配線・runtime実装は行っていない**（Phase 2以降で対応）。
 
-## Phase 2: Po_core Kernel MVP — 実質的にほぼ充足済み
+## Phase 2: Po_core Kernel MVP — 実質的にほぼ充足済み + PR-003で最小bridge追加
 
 - input
-- step decomposition
-- tensor scoring
-- trace emission
+- step decomposition — ✅ PR-003: `src/po_core_original/step_decomposer.py`
+- tensor scoring — ✅ PR-003（決定論的キーワードルールベースのMVPスタブのみ。
+  ML/LLMではない）: `src/po_core_original/semantic_profile_engine.py`
+- trace emission — ✅ PR-003: `SemanticProfileComputed` を
+  `src/po_core_original/trace.py` + `kernel.py` から発行
 
 備考：`run_turn` 10段階パイプライン・`src/po_core/tensors/`・`src/po_core/trace/` により、
-このPhaseの要件は既存実装で実質的に満たされている（詳細は `docs/STATUS.md`）。
-本ロードマップにおける役割は、既存実装を North Star の Layer 1 定義と正式に対応付ける
-ドキュメント作業であり、新規ランタイム実装は不要。
+このPhaseの要件は既存の成熟したランタイム（`src/po_core/`）でも実質的に満たされている
+（詳細は `docs/STATUS.md`）。PR-003 はこれとは**別の、新規かつ最小限の実験的パッケージ**
+`src/po_core_original/`（`PoCoreKernel`）として、PR-002契約への最初の実行可能なブリッジを
+追加した。既存 `run_turn` との統合／並存方針は未決定（ADR要）。
+**このPhaseは runtime としてはまだMVPスタブ段階であり、統合runtime完了とは主張しない。**
 
 ## Phase 3: Po_self Controller MVP — 未着手（計画中）
 

@@ -142,7 +142,7 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["po_core*"]
-exclude = ["pocore*"]
+exclude = ["pocore*", "po_core_original*"]
 namespaces = false
 # Distribution scope notes:
 # - po_core.experiments  — INCLUDED: required by po-experiment CLI entry point
@@ -150,6 +150,12 @@ namespaces = false
 # - src/pocore/          — EXCLUDED from the wheel: test-only M1 scaffold kept
 #   for backward-compat imports inside the repo.  The package emits a
 #   DeprecationWarning at import and will be deleted in a future release.
+# - src/po_core_original/ — EXCLUDED from the wheel (PR-003): a separate,
+#   minimal experimental MVP bridge package (docs/contracts/CONTRACT_OVERVIEW.md,
+#   docs/ROADMAP.md Phase 2). It is not part of the published po-core-flyingpig
+#   distribution; it would otherwise be swept in because it matches the
+#   "po_core*" include glob. Imported directly from source via
+#   `pythonpath = src` in pytest.ini for tests/scripts only.
 # - Top-level folders (01_specifications/, 02_architecture/, experiments/) are
 #   outside src/ and therefore NOT included in the wheel (correct behavior, no action needed)
 

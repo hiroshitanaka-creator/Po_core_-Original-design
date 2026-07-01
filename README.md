@@ -119,6 +119,26 @@ For full source layout and component detail → [Architecture docs](./02_archite
 
 ---
 
+## Original Design: Kernel MVP (Experimental)
+
+> **Kernel MVP only — not full Po_self / Viewer / philosopher runtime.** `po_core_original` is a
+> separate, minimal experimental package (PR-003) that bridges the [PR-002 domain contracts](./docs/contracts/CONTRACT_OVERVIEW.md)
+> to executable code: deterministic sentence decomposition, a keyword-rule-based
+> `semantic_profile` stub (not ML/LLM), and `SemanticProfileComputed` trace emission. It does not
+> modify or replace the `po_core` runtime above.
+
+```python
+from po_core_original import PoCoreKernel
+
+kernel = PoCoreKernel()
+result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
+print(result.to_dict())
+```
+
+See `docs/STATUS.md` for what this MVP does and does not implement.
+
+---
+
 ## Release State
 
 Repository target version is `1.1.0`; `1.0.3` is the latest published on PyPI. Package classifiers declare `Development Status :: 4 - Beta`.
