@@ -21,6 +21,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           pip install mypy==1.11.2
+          # Newer numpy ships PEP 695 `type` statements in its bundled stubs
+          # (numpy/__init__.pyi), which mypy rejects with a blocking syntax
+          # error while [tool.mypy] python_version = "3.10" — on any mypy
+          # version (verified on 1.11.2 and 2.1.0), and per-module overrides
+          # cannot suppress stub parse errors. Lint-only cap; runtime/test
+          # jobs keep the unpinned resolution. Drop this cap when the typing
+          # target moves to 3.12+.
+          pip install "numpy<2.5"
       - name: Show mypy version
         run: mypy --version
       - name: Lint with flake8
