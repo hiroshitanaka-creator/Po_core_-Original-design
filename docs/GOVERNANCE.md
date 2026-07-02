@@ -118,3 +118,41 @@ Po_self, Viewer, or reconstruction-executor behavior
 
 See `docs/operations/trace_continuity_validation.md` for the full operational
 guide (when to run, how to interpret failures, common fixes).
+
+## Concept Drift Governance Gate
+
+Concept drift validation is required when a PR changes:
+
+- README
+- PRD
+- `docs/STRICT_CORE_RULES.md`
+- `docs/ARCHITECTURE_NORTH_STAR.md`
+- `docs/CONCEPT_DRIFT_GUARD.md`
+- public architecture descriptions
+- public claims about Po_core, Po_self, Viewer, Trace, or 42 philosophers
+
+Run:
+
+```bash
+python scripts/check_concept_drift.py --check-pr-template
+```
+
+This check prevents Po_core from being rewritten as:
+
+- a generic chatbot
+- a generic decision-support tool
+- a safety wrapper
+- a philosopher roleplay system
+- a simple multi-agent debate product
+
+The check is **governance-only and does not modify runtime behavior**. It
+reads documentation files and the PR template, using only the Python
+standard library, and reports structured issues (missing required identity
+terms, forbidden shrinkage phrases/patterns, unclosed ignore blocks, missing
+PR-template checklist items). See
+`docs/operations/concept_drift_validation.md` for the full operational
+guide, and `docs/CONCEPT_DRIFT_GUARD.md` for the underlying checklist this
+formalizes. The `Concept Drift` GitHub Actions workflow
+(`.github/workflows/concept-drift.yml`) is scoped to `README.md` /
+`docs/**` / the PR template and can also be run manually via
+`workflow_dispatch`.

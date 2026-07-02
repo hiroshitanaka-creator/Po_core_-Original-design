@@ -90,5 +90,11 @@ Complete this section if the PR changes any of:
 - [ ] I updated trace contract docs if event semantics changed
 - [ ] Not applicable because:
 
+## Concept Drift Check
+Complete this section if the PR changes README, PRD, architecture docs, governance docs, or public project wording.
+- [ ] I ran `python scripts/check_concept_drift.py --check-pr-template`
+- [ ] I confirmed this PR does not shrink Po_core into a generic chatbot, generic decision-support tool, safety wrapper, or philosopher roleplay system.
+- [ ] Not applicable because:
+
 ## Notes
 - 追加の注意事項・制約:

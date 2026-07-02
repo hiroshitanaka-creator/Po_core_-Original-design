@@ -16,7 +16,7 @@
 
 ## What is Po_core?
 
-**Po_core is a philosophy-driven AI decision-support system.** You give it a question; it returns structured options, reasons, counterarguments, uncertainty labels, and follow-up questions — all grounded in ethical deliberation.
+**Po_core is a three-layer tensor intelligence system for processing the meaning and responsibility of speech.** Its current implementation may begin with decision support, but its architecture targets semantic responsibility processing, trace-based self-reconstruction, and Viewer feedback loops (see `docs/CONCEPT_DRIFT_GUARD.md`). Today, you give it a question; it returns structured options, reasons, counterarguments, uncertainty labels, and follow-up questions — all grounded in ethical deliberation.
 
 **What you get back:**
 
@@ -30,6 +30,9 @@
 - Not a truth oracle — it does not claim factual correctness
 - Not an emotional-care chatbot — it provides structured reasoning, not emotional support
 - Not a replacement for medical, legal, or financial judgment
+- Not a generic chatbot, generic decision-support tool, safety wrapper, or philosopher roleplay system — see "Architecture" below
+
+The 42 philosophers are deliberation modules inside Po_core, not the whole system. Safety is a floor, not a concept ceiling: the three-layer safety gate constrains execution, it does not define Po_core's identity (see `docs/STRICT_CORE_RULES.md`).
 
 ---
 

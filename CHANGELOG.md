@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-010)
+- feat(governance): PR-010 — Governance Enforcement for Concept Drift. Makes `docs/CONCEPT_DRIFT_GUARD.md`'s manual checklist mechanically enforceable so README/PRD/PR-scaffolding wording can no longer quietly shrink Po_core into a generic chatbot, safety wrapper, or philosopher-roleplay demo: governance/docs/script/CI only, no runtime changes.
+- Concept drift rules configuration (`docs/governance/concept_drift_rules.json`, JSON only, no YAML dependency): required canonical identity terms (per-file, README vs. PRD), forbidden positive-identity literal phrases and regex patterns, allowed negation contexts, ignore-block/ignore-line markers, PR-template checklist items, and required governance docs.
+- `scripts/check_concept_drift.py` governance validator: standard-library only, no network access, deterministic, structured issues (never a bare bool). `--files`, `--rules`, `--json`, `--check-pr-template` flags. Checks required files (README + a PRD via `docs/PRD.md`/`docs/spec/prd.md`), required identity terms, forbidden shrinkage phrases/patterns (with same-line negation-context override so "Po_core is not a generic chatbot" passes while "Po_core is just a chatbot" fails), ignore markers (including `unclosed_ignore_block` detection), the PR template's Concept Preservation checklist, and existence of the governance docs this gate itself depends on.
+- Optional Concept Drift GitHub Actions workflow (`.github/workflows/concept-drift.yml`): scoped to `README.md` / `docs/**` / the PR template / the checker script, supports manual `workflow_dispatch`, runs `python scripts/check_concept_drift.py --check-pr-template` with zero dependencies to install. Not a required release gate.
+- PR template checklist for Concept Drift checks: new `## Concept Drift Check` section in `.github/PULL_REQUEST_TEMPLATE.md` (applies when a PR changes README, PRD, architecture docs, governance docs, or public project wording); existing Concept Preservation, M4-gate, and Trace Continuity checklist items are unchanged.
+- Operations documentation for concept drift validation (`docs/operations/concept_drift_validation.md`): purpose, why it exists, when to run, local commands, CI workflow explanation, required identity terms, forbidden shrinkage patterns, ignore-marker usage, common failures with fixes, what this does not test, future extensions.
+- Tests for forbidden shrinkage phrases and required canonical identity terms (`tests/test_concept_drift_guard.py`, 18 tests, subprocess-based).
+- Minimal README / `docs/spec/prd.md` wording additions to satisfy the new required identity terms ("three-layer tensor intelligence system", "Safety is a floor, not a concept ceiling") without removing or rewording the existing three-layer architecture description.
+- `docs/CONCEPT_DRIFT_GUARD.md` now points to the automated validator and wraps its existing bad-wording examples in concept-drift ignore markers (demonstrating correct usage, not suppressing a real violation).
+
+### Not Changed (PR-010)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, reconstruction, trace, or philosopher behavior changed.
+- `src/po_core_original/trace_validation/` (PR-008) and the trace continuity CI/scripts (PR-009) are unchanged — this PR only adds a separate, independent governance gate.
+
 ### Added (PR-009)
 - feat(governance): PR-009 — CI/Governance Trace Gate. Makes trace continuity validation part of the repository's operational discipline without forcing runtime changes: governance/CI/docs/script only.
 - Optional Trace Continuity GitHub Actions workflow (`.github/workflows/trace-continuity.yml`): scoped to trace-related paths, supports manual `workflow_dispatch`, installs only `jsonschema` + `pytest` (no heavy ML dependencies), runs `scripts/validate_trace_continuity.py --include-negative` and `pytest tests/test_trace_continuity_validator.py -v`. Not a required release gate yet.

@@ -11,6 +11,27 @@
 - Concept Drift Guard（`docs/CONCEPT_DRIFT_GUARD.md`）
 - PR テンプレートへの Concept Preservation 節統合
 
+### Governance Enforcement（PR-010）— ✅ 完了
+
+`docs/CONCEPT_DRIFT_GUARD.md` の手動チェックリストを機械的に強制する検証層を追加した
+（**ガバナンス・ドキュメント・スクリプト・CIのみ、ランタイム挙動は無変更**）：
+
+- Concept Drift validation script ✅（`scripts/check_concept_drift.py`、標準ライブラリのみ、
+  `docs/governance/concept_drift_rules.json` に基づき README/PRD の必須アイデンティティ
+  用語・禁止される「縮小」表現・ignore マーカーを検証）
+- Optional Concept Drift CI ✅（`.github/workflows/concept-drift.yml`、README・docs 関連
+  パスにスコープ、`workflow_dispatch` 対応、必須リリースゲートではない）
+- PR template checklist enforcement ✅（`.github/PULL_REQUEST_TEMPLATE.md` の
+  `## Concept Drift Check` 節。既存の Concept Preservation・Trace Continuity 等の節は
+  無変更のまま保持）
+
+Future work:
+
+- Extend concept drift validation to ADRs（表現が安定した後）。
+- Add release-doc public-claim validation（パッケージメタデータ・PyPI 説明文など
+  外部向けテキストへの拡張）。
+- Add AI-agent prompt preflight check（ドキュメント編集セッション開始前の事前検証）。
+
 ## Phase 1: Domain Contracts — ✅ PR-002で完了（スキーマ／設計契約のみ）
 
 - `semantic_profile` — `schemas/semantic_profile_v1.schema.json`

@@ -9,9 +9,11 @@
 
 ## 1. 目的 (Purpose)
 
-Po_core は「人間が決断するとき、倫理的な軸と説明責任を一緒に持てるようにする」ための
-哲学駆動型 AI 意思決定支援システムであり、その基幹は **語ることの意味と責任を構造的に処理する
-三層テンソル知性モデル**（Po_core / Po_self / Viewer）である。
+**Po_core is a three-layer tensor intelligence system for processing the meaning and
+responsibility of speech** (Po_core / Po_self / Viewer). Po_core は「人間が決断するとき、
+倫理的な軸と説明責任を一緒に持てるようにする」ための哲学駆動型 AI 意思決定支援システムであり、
+その基幹は **語ることの意味と責任を構造的に処理する三層テンソル知性モデル**（Po_core / Po_self /
+Viewer）である。
 
 - **Po_core（基幹層 / tensor kernel）**: 意味・倫理・責任・自由圧テンソルを計算する。
 - **Po_self（自己循環層）**: Po_trace を監視し、不連続性・責任圧・倫理的変動を評価したうえで、

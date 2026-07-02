@@ -7,6 +7,34 @@
 
 ## 現フェーズ
 
+**Phase 9: Governance Enforcement for Concept Drift（PR-010）— 完了
+（README/PRD/PRテンプレートの概念ドリフト検証を機械的に強制。ランタイム挙動は無変更）。**
+本PR（PR-010）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / 哲学者のいずれのランタイム挙動も
+変更していない。`docs/governance/concept_drift_rules.json`（正典アイデンティティ用語・
+禁止される「縮小」表現の literal/regex パターン・許容される否定文脈・ignore マーカー定義）、
+`scripts/check_concept_drift.py`（標準ライブラリのみ、ネットワークアクセス不要、
+README・PRD の必須アイデンティティ用語チェック・禁止表現スキャン・PRテンプレートの
+Concept Preservation チェックリスト検証を実施し、構造化された issue を返す）を新規追加。
+`docs/CONCEPT_DRIFT_GUARD.md`（既存の手動チェックリスト）は本検証器によって機械的に
+強制されるようになったことを明記し、既存の「悪い例」テキストを concept-drift-ignore
+マーカーで囲んで検証対象から正しく除外。`.github/workflows/concept-drift.yml`
+（README・docs 関連パスにスコープされた任意の CI、`workflow_dispatch` 対応、
+依存パッケージのインストール不要）を新規追加。`.github/PULL_REQUEST_TEMPLATE.md` に
+`## Concept Drift Check` 節を追加（既存の Trace Continuity・Concept Preservation
+等の節は無変更のまま保持）。README・`docs/spec/prd.md` に不足していた正典用語
+（"three-layer tensor intelligence system"・"Safety is a floor"）を最小限追加。
+`docs/operations/concept_drift_validation.md`（12節：目的・存在理由・実行タイミング・
+ローカルコマンド・CI説明・必須用語・禁止パターン・ignore マーカー使用法・よくある失敗・
+修正法・非検証対象・将来拡張）を新規追加。`tests/test_concept_drift_guard.py`
+（18テスト：良い例/悪い例の文章・否定文脈の許容・ignore line/block・unclosed block・
+必須用語欠落・PRテンプレート欠落項目・JSON出力・非ゼロ終了コード）→ 全パス。
+**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+
 **Phase 8: CI/Governance Trace Gate（PR-009）— 完了
 （trace continuity 検証をリポジトリの運用規律に組み込み。ランタイム挙動は無変更）。**
 本PR（PR-009）は**ガバナンス・CI・ドキュメント・スクリプトのみ**の PR である。
@@ -185,10 +213,37 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   domain models + schemas（no pipeline wiring yet）」を充足）。
 - Future: `Trace Continuity` ワークフローを、任意/スコープ限定の検証から安定化後に
   branch protection の required status check へ昇格させる。
+- Future: concept drift 検証の対象を ADR・リリースドキュメントへ拡張する（表現が
+  安定した後）。
 
 ## Completed ログ
 
-- **PR-009（本エントリ）**: Phase 8 CI/Governance Trace Gate 完了 —
+- **PR-010（本エントリ）**: Phase 9 Governance Enforcement for Concept Drift 完了 —
+  README/PRD/PRテンプレートの概念ドリフトを機械的に検証するゲートを追加。
+  **ガバナンス・ドキュメント・スクリプト・CIのみを追加し、ランタイム挙動は一切変更していない。**
+  `docs/governance/concept_drift_rules.json`（正典アイデンティティ用語・禁止パターン・
+  許容される否定文脈・ignore マーカー定義、JSON形式のみ・YAML依存なし）、
+  `scripts/check_concept_drift.py`（`--files`/`--rules`/`--json`/`--check-pr-template`、
+  標準ライブラリのみ・ネットワークアクセス不要・決定論的）を新規追加。7種の検証
+  （必須ファイル存在・必須アイデンティティ用語・禁止される肯定的アイデンティティ表現・
+  禁止 regex パターン・ignore マーカー処理・PRテンプレートの Concept Preservation
+  チェックリスト・ガバナンスドキュメント存在）を実装。"Po_core is not a generic chatbot"
+  のような正当な否定文は通過させつつ、"Po_core is just a chatbot" のような縮小表現は
+  拒否する（同一行内の allowed_negation_contexts の有無で判定）。README・
+  `docs/spec/prd.md` に不足していた正典用語を最小限追加（既存の三層アーキテクチャ・
+  42人の哲学者・Safety Floor 記述は削除も縮小もしていない）。
+  `.github/workflows/concept-drift.yml`（README・docs 関連パスにスコープ、
+  `workflow_dispatch` 対応、依存パッケージ不要）、`.github/PULL_REQUEST_TEMPLATE.md`
+  への `## Concept Drift Check` 節追加（既存の Trace Continuity・Concept Preservation・
+  M4ゲート等は無変更）、`docs/GOVERNANCE.md` の "Concept Drift Governance Gate" 節、
+  `docs/operations/concept_drift_validation.md`、`docs/CONCEPT_DRIFT_GUARD.md` への
+  自動検証器の言及とignoreマーカーの実演的使用を追加。`tests/test_concept_drift_guard.py`
+  （18テスト、subprocess経由でスクリプトの終了コード・出力を検証）→ 全パス。
+  **ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+  `decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+  `viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・trace validator の挙動は無変更。
+- **PR-009**: Phase 8 CI/Governance Trace Gate 完了 —
   ローカル trace continuity 検証スクリプト、スコープ限定 GitHub Actions ワークフロー、
   PR チェックリスト要件、運用ドキュメントを追加。**ガバナンス・検証のみを追加し、
   ランタイム挙動は一切変更していない。**

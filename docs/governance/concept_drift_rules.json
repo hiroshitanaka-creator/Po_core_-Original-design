@@ -1,0 +1,88 @@
+{
+  "schema_version": "concept_drift_rules_v1",
+  "checked_files": [
+    "README.md",
+    "docs/PRD.md",
+    "docs/spec/prd.md"
+  ],
+  "prd_files_any_of": [
+    "docs/PRD.md",
+    "docs/spec/prd.md"
+  ],
+  "required_identity_terms": {
+    "README.md": [
+      "three-layer tensor intelligence system",
+      "Po_core",
+      "Po_self",
+      "Viewer",
+      "42 philosophers",
+      "deliberation modules",
+      "Safety is a floor"
+    ],
+    "__prd__": [
+      "three-layer tensor intelligence system",
+      "Po_core",
+      "Po_self",
+      "Viewer",
+      "Po_trace",
+      "feedback tensor"
+    ]
+  },
+  "required_distinctions": [
+    "42 philosophers are deliberation modules",
+    "Safety is a floor",
+    "not the whole system"
+  ],
+  "forbidden_positive_identity_patterns": [
+    "Po_core is a chatbot",
+    "Po_core is a safe chatbot",
+    "Po_core is just a chatbot",
+    "Po_core is merely a chatbot",
+    "Po_core is a decision-support chatbot",
+    "Po_core is a generic decision-support tool",
+    "Po_core is just a decision-support tool",
+    "Po_core is merely a decision-support tool",
+    "Po_core is a safety wrapper",
+    "Po_core is just a safety wrapper",
+    "Po_core is a 42-philosopher chatbot",
+    "Po_core is a philosopher roleplay system",
+    "Po_core is a multi-agent debate toy",
+    "Po_core is mainly a safe answer generator",
+    "Po_core is primarily a safe answer generator",
+    "Po_core is only a philosophical decision-support system"
+  ],
+  "forbidden_regex_patterns": [
+    "(?i)Po_core\\s+is\\s+(just|merely|only|simply)\\s+(a\\s+)?(chatbot|decision-support tool|safety wrapper|debate system)",
+    "(?i)Po_core\\s+is\\s+(mainly|primarily)\\s+(a\\s+)?(safe\\s+)?(chatbot|answer generator|decision-support tool)",
+    "(?i)42\\s+philosophers\\s+(are|is)\\s+(the\\s+)?(whole\\s+)?Po_core",
+    "(?i)Viewer\\s+is\\s+(just|merely|only|simply)\\s+(a\\s+)?(dashboard|UI|visualization)",
+    "(?i)Po_self\\s+is\\s+(just|merely|only|simply)\\s+(a\\s+)?(wrapper|run_turn wrapper)",
+    "(?i)Trace\\s+is\\s+(just|merely|only|simply)\\s+(an?\\s+)?(audit log|log)"
+  ],
+  "allowed_negation_contexts": [
+    "not a generic chatbot",
+    "not a chatbot",
+    "not a safety wrapper",
+    "not merely",
+    "not just",
+    "not the whole system",
+    "are not the whole system",
+    "not the system itself"
+  ],
+  "pr_template_required_checklist_items": [
+    "Po_core tensor kernel preserved",
+    "Po_self recursive layer preserved",
+    "Viewer feedback layer preserved",
+    "42 philosophers remain deliberation modules",
+    "Safety used as floor, not concept ceiling",
+    "labeled honestly instead of deleted"
+  ],
+  "governance_docs_required": [
+    "docs/CONCEPT_DRIFT_GUARD.md",
+    "docs/operations/concept_drift_validation.md",
+    "docs/governance/concept_drift_rules.json"
+  ],
+  "ignore_block_start": "<!-- concept-drift-ignore-start -->",
+  "ignore_block_end": "<!-- concept-drift-ignore-end -->",
+  "ignore_line_marker": "<!-- concept-drift-ignore-line -->"
+}
