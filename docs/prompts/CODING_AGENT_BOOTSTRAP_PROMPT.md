@@ -8,7 +8,7 @@
 このリポジトリで作業を始める前に、以下を必ず読んでください：
 
 1. docs/STRICT_CORE_RULES.md（概念保存 SSOT）
-2. docs/STATUS.md（ガバナンス層の現状）
+2. docs/original_design_status.md（ガバナンス層の現状）
 3. docs/ARCHITECTURE_NORTH_STAR.md（アーキテクチャ目標）
 4. docs/CONCEPT_DRIFT_GUARD.md（概念縮小防止チェック）
 5. README.md
@@ -27,6 +27,6 @@ Po_core は三層テンソル知性システムです：
 未実装の概念を勝手に削除しないでください。実装済み／計画中／概念のみ／研究仮説を
 正直に区別してください（過大申告・過小申告のどちらも禁止）。
 
-作業完了時は docs/STATUS.md と CHANGELOG.md を更新し、
+作業完了時は docs/original_design_status.md と CHANGELOG.md を更新し、
 PR には Concept Preservation 節を含めてください。
 ```

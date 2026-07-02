@@ -16,7 +16,7 @@
 
 ## What is Po_core?
 
-**Po_core is a philosophy-driven AI decision-support system.** You give it a question; it returns structured options, reasons, counterarguments, uncertainty labels, and follow-up questions — all grounded in ethical deliberation.
+**Po_core is a three-layer tensor intelligence system for processing the meaning and responsibility of speech.** Its current implementation may begin with decision support, but its architecture targets semantic responsibility processing, trace-based self-reconstruction, and Viewer feedback loops (see `docs/CONCEPT_DRIFT_GUARD.md`). Today, you give it a question; it returns structured options, reasons, counterarguments, uncertainty labels, and follow-up questions — all grounded in ethical deliberation.
 
 **What you get back:**
 
@@ -30,6 +30,9 @@
 - Not a truth oracle — it does not claim factual correctness
 - Not an emotional-care chatbot — it provides structured reasoning, not emotional support
 - Not a replacement for medical, legal, or financial judgment
+- Not a generic chatbot, generic decision-support tool, safety wrapper, or philosopher roleplay system — see "Architecture" below
+
+The 42 philosophers are deliberation modules inside Po_core, not the whole system. Safety is a floor, not a concept ceiling: the three-layer safety gate constrains execution, it does not define Po_core's identity (see `docs/STRICT_CORE_RULES.md`).
 
 ---
 
@@ -87,6 +90,11 @@ pip install -e ".[dev]"
   `content_rewrite_applied` is always false); original content is preserved and
   proven unchanged by SHA-256 re-hash, not merely asserted. "Applied" means the
   plan was applied to the controlled executor, not that content was rewritten.
+- **`TraceContinuityValidator`** (PR-008) — validates parent/child continuity of
+  the trace graph emitted by the seeds above: every `PoSelfDecisionMade` /
+  `PoSelfReconstructionPlanned` / `PoSelfReconstructionApplied` event must have
+  an explicit path back to its `SemanticProfileComputed` root. Validation only —
+  it adds no new Po_core / Po_self / Viewer / reconstruction runtime behavior.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
@@ -95,6 +103,7 @@ pip install -e ".[dev]"
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
 - LLM / ML scoring
+- trace continuity as a *required* CI gate (PR-009 adds a scoped, optional workflow — see below)
 
 ```python
 from po_core_original import PoCoreKernel, PoSelfController
@@ -111,7 +120,34 @@ print(po_self_result.to_dict())
 `PoSelfResult` exposes `request_id`, `kernel_result`, `decision`, `trace_events`,
 and `to_dict()`. The `PoSelfDecision` and `PoSelfDecisionMade` trace event
 conform to the PR-002 v1 schemas. See `docs/ROADMAP.md` (Phases 2–3) and
-`docs/STATUS.md`.
+`docs/original_design_status.md`.
+
+### Trace continuity validation
+
+When changing trace events or trace contracts, run:
+
+```bash
+python scripts/validate_trace_continuity.py --include-negative
+python -m pytest tests/test_trace_continuity_validator.py -v
+```
+
+The scoped GitHub Actions workflow `Trace Continuity` also validates trace
+examples for trace-related PRs (not a required release gate yet). See
+`docs/operations/trace_continuity_validation.md` for the full guide and
+`docs/contracts/TRACE_CONTINUITY_V1.md` for the underlying contract.
+
+### ADR governance
+
+Architecture-impacting changes to the Original Design track (SSOT, schemas,
+trace contracts, Po_core/Po_self/Viewer responsibilities, concept
+preservation, or controlled modes) require an ADR. Run:
+
+```bash
+python scripts/check_adr_index.py
+```
+
+See `docs/original_design_adr/README.md` and
+`docs/operations/adr_process.md`.
 
 ---
 

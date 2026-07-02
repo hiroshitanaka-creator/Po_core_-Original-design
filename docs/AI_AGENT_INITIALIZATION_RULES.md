@@ -7,7 +7,7 @@
 ## 作業開始前に必読のファイル
 
 1. [docs/STRICT_CORE_RULES.md](./STRICT_CORE_RULES.md) — 概念保存 SSOT
-2. [docs/STATUS.md](./STATUS.md) — ガバナンス層の現状（実装済み／計画中の区分）
+2. [docs/original_design_status.md](./original_design_status.md) — ガバナンス層の現状（実装済み／計画中の区分）
 3. [docs/ARCHITECTURE_NORTH_STAR.md](./ARCHITECTURE_NORTH_STAR.md) — アーキテクチャ目標
 4. [docs/CONCEPT_DRIFT_GUARD.md](./CONCEPT_DRIFT_GUARD.md) — 概念縮小の防止チェック
 5. [README.md](../README.md) — 公開エントリポイント
@@ -67,5 +67,5 @@
 - 概念を削除する代わりにゲートを追加する
 - trace contract（トレース契約）を追加する
 - 段階的実装計画を追加する
-- `docs/STATUS.md` と `CHANGELOG.md` を更新する
+- `docs/original_design_status.md` と `CHANGELOG.md` を更新する
 - 既存の日本語 SSOT（`docs/厳格固定ルール.md`, `docs/status.md`）との整合性を確認する

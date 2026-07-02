@@ -1,7 +1,7 @@
 # Architecture North Star
 
 > アーキテクチャ目標の高密度な定義。実装状況は本書ではなく
-> [docs/STATUS.md](./STATUS.md) と [docs/status.md](./status.md) を参照すること。
+> [docs/original_design_status.md](./original_design_status.md) と [docs/status.md](./status.md) を参照すること。
 
 ## 一文で
 
@@ -70,7 +70,7 @@ Viewer resonance
 
 **注意（現状との区別）**：`src/po_core/po_self.py` の `PoSelf` クラスは、現時点では
 `run_turn` パイプラインを呼び出す API ラッパーであり、上記の trace 観測・再帰判定ロジックを
-実装したコントローラーではない。両者を混同しないこと（詳細は `docs/STATUS.md`）。
+実装したコントローラーではない。両者を混同しないこと（詳細は `docs/original_design_status.md`）。
 
 ## Layer 3: Viewer
 

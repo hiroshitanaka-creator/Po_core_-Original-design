@@ -93,6 +93,18 @@ future PRs).
   `event_type` enum only and have no example payload yet — per the honesty
   requirement in `docs/STRICT_CORE_RULES.md` (label unimplemented concepts, do
   not delete them).
+- **PR-008** adds a formal *trace graph* semantics on top of this envelope
+  (no schema/enum change): `parent_event_id` and `trace_refs` are the only
+  fields that form continuity edges — `created_at` is never used for this
+  purpose. `SemanticProfileComputed` is the required root event;
+  `ViewerFeedbackReceived` is an optional root-side event (may exist outside
+  the main chain); `PoSelfDecisionMade` is the minimum Po_self continuity
+  anchor; `PoSelfReconstructionPlanned` requires `PoSelfDecisionMade`
+  ancestry; `PoSelfReconstructionApplied` requires `PoSelfReconstructionPlanned`
+  ancestry. `src/po_core_original/trace_validation/` (`TraceContinuityValidator`)
+  checks this structurally. See `docs/contracts/TRACE_CONTINUITY_V1.md` for
+  the full graph model, required parent/child relationships per event type,
+  validation modes, and error taxonomy.
 
 ## 9. Future implementation notes
 

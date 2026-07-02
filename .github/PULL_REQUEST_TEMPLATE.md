@@ -67,11 +67,49 @@
 - [ ] ADR不要（理由を記載）
 - [ ] ADR追加/更新あり: `docs/adr/XXXX-*.md`
 
+## ADR Requirement
+Complete this section if the PR changes any of:
+- SSOT / strict core rules
+- architecture north star
+- schema files
+- trace contracts
+- Po_core / Po_self / Viewer layer responsibilities
+- concept drift rules
+- governance rules
+- future controlled modes: jump / reject / reactivate
+
+- [ ] ADR required and added/updated: `docs/original_design_adr/ADR-####-*.md`
+- [ ] ADR not required because:
+- [ ] I ran `python scripts/check_adr_index.py`
+
 ## Determinism & Compatibility Checklist
 - [ ] 凍結golden（`case_001` / `case_009`）を変更していない
 - [ ] schema互換性を確認した（`tests/test_input_schema.py` / `tests/test_output_schema.py`）
 - [ ] golden契約を確認した（`tests/test_golden_e2e.py`）
 - [ ] 互換性に影響がある場合、`docs/operations/migration_guide_v1.md` を更新した
+
+## Trace Continuity
+Complete this section if the PR changes any of:
+- `PoTraceEvent`
+- trace event payloads
+- `schemas/po_trace_event_v1.schema.json`
+- `docs/contracts/PO_TRACE_EVENT_V1.md`
+- `docs/contracts/TRACE_CONTINUITY_V1.md`
+- Po_self decision events
+- reconstruction planning/application events
+- Viewer feedback trace events
+
+- [ ] I ran `python scripts/validate_trace_continuity.py --include-negative`
+- [ ] I ran `python -m pytest tests/test_trace_continuity_validator.py -v`
+- [ ] I updated trace examples if event shape changed
+- [ ] I updated trace contract docs if event semantics changed
+- [ ] Not applicable because:
+
+## Concept Drift Check
+Complete this section if the PR changes README, PRD, architecture docs, governance docs, or public project wording.
+- [ ] I ran `python scripts/check_concept_drift.py --check-pr-template`
+- [ ] I confirmed this PR does not shrink Po_core into a generic chatbot, generic decision-support tool, safety wrapper, or philosopher roleplay system.
+- [ ] Not applicable because:
 
 ## Notes
 - 追加の注意事項・制約:

@@ -1,11 +1,124 @@
 # Status（Original Design ガバナンス層）
 
-> 本書は **Original Design ガバナンス層自体の状態** を記録する。
+> 本書は **Original Design ガバナンス層自体の状態** を記録する
+> （旧ファイル名: `docs/STATUS.md`。大文字小文字のみが異なるファイル名は
+> 大文字小文字を区別しないファイルシステム（macOS/Windows）で衝突するため、
+> `docs/original_design_status.md` に改名した。内容・役割の変更はない）。
 > リリース・パッケージ公開・テスト件数などランタイム全体のリリース状態は
 > 引き続き [docs/status.md](./status.md)（Release SSOT）が単一真実を保持する。
 > 両者は役割が異なる別ファイルであり、意図的に分離している（`docs/GOVERNANCE.md` 参照）。
 
 ## 現フェーズ
+
+**Phase 10: ADR System for Architecture Changes（PR-011）— 完了
+（アーキテクチャ変更を無言で行えないようにする ADR ガバナンスを追加。ランタイム挙動は無変更）。**
+本PR（PR-011）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / concept drift 検証 / 哲学者のいずれの
+ランタイム挙動も変更していない。SSOT・アーキテクチャ・スキーマ・trace contract・
+三層責務・concept preservation ルール・ガバナンスルール・将来の統制モード（jump/reject/
+reactivate）に影響する変更には ADR を必須とする。既存の `docs/adr/`（主系統 `po_core`
+パッケージの ADR、14件、小文字 `index.md`）は本PRの対象外・無変更のまま保持し、
+Original Design 専用の ADR システムを新規ディレクトリ `docs/original_design_adr/`
+に構築した（`docs/original_design_status.md` の改名前例と同じ理由：大文字小文字のみが
+異なるファイル名は大文字小文字を区別しないファイルシステムで衝突するため）。
+`docs/original_design_adr/README.md`（ADRとは何か・なぜ使うか・いつ必須か・番号付け・
+ステータスライフサイクル・追加方法・INDEX更新方法・検証器の実行方法）、
+`docs/original_design_adr/ADR-0000-template.md`（Status/Date/Deciders等のメタデータ、
+Context/Decision/Scope/Architecture Impact/Concept Preservation/Alternatives
+Considered/Consequences/Validation/Rollback/Notes の全節）、
+`docs/original_design_adr/ADR-0001-adopt-adr-system.md`（Accepted。ADR採用の決定と、
+なぜ `docs/adr/` を再利用せず新規ディレクトリにしたかの理由を記録）、
+`docs/original_design_adr/INDEX.md` を新規追加。`docs/governance/adr_rules.json`
+（JSON のみ、YAML依存なし：ADRディレクトリ・index/templateパス・許可ステータス値・
+ADR必須パスパターン・必須節一覧）、`scripts/check_adr_index.py`（標準ライブラリのみ、
+ネットワークアクセス不要、決定論的：ディレクトリ/テンプレート/インデックス存在確認、
+ファイル名パターン検証、ADR番号一意性、必須タイトル/ステータス/日付/9節の存在確認、
+ステータス値検証、INDEXとの整合性（欠落・テンプレート誤掲載・タイトル/ステータス/日付
+不一致・重複行）、ADR-0001の存在とAccepted状態を検証し、構造化された issue を返す）を
+新規追加。`.github/workflows/adr-index.yml`（`docs/original_design_adr/**` 等の
+ガバナンスパスにスコープされた任意のCI、`workflow_dispatch` 対応、pytest のみ
+インストール）、`.github/PULL_REQUEST_TEMPLATE.md` への `## ADR Requirement` 節追加
+（既存の日本語 `## ADRチェック` 節・Concept Preservation・Concept Drift Check・
+Trace Continuity 等の節は無変更のまま保持）、`docs/GOVERNANCE.md` への
+"ADR Governance Gate" 節（既存の主系統向け "ADR（Architecture Decision Record）要件"
+節は無変更のまま保持）、`docs/operations/adr_process.md`（12節：目的・必須/不要な場合・
+ライフサイクル・番号付け・追加方法・INDEX更新方法・検証器実行方法・よくある失敗3種
+（missing_adr/missing_section/index_mismatch）と修正法・concept drift検証との関係・
+trace continuity検証との関係・非検証対象）を新規追加。README.md に
+"### ADR governance" 小節を追加（Trace continuity validation 小節と同じ形式）。
+`tests/test_adr_index_validator.py`（17テスト：現行ADRセットのパス・欠落index・
+重複ADR番号・必須節欠落・不正ステータス・index欠落ADR・タイトル/ステータス/日付不一致・
+テンプレート非必須・テンプレート誤掲載・ADR-0001存在確認・ADR-0001がAccepted・JSON出力
+（成功/失敗双方）・非ゼロ終了・ランタイムパッケージ非依存）→ 全パス。
+**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・`docs/adr/`（主系統ADR）は
+無変更。ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+
+**Phase 9: Governance Enforcement for Concept Drift（PR-010）— 完了
+（README/PRD/PRテンプレートの概念ドリフト検証を機械的に強制。ランタイム挙動は無変更）。**
+本PR（PR-010）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / 哲学者のいずれのランタイム挙動も
+変更していない。`docs/governance/concept_drift_rules.json`（正典アイデンティティ用語・
+禁止される「縮小」表現の literal/regex パターン・許容される否定文脈・ignore マーカー定義）、
+`scripts/check_concept_drift.py`（標準ライブラリのみ、ネットワークアクセス不要、
+README・PRD の必須アイデンティティ用語チェック・禁止表現スキャン・PRテンプレートの
+Concept Preservation チェックリスト検証を実施し、構造化された issue を返す）を新規追加。
+`docs/CONCEPT_DRIFT_GUARD.md`（既存の手動チェックリスト）は本検証器によって機械的に
+強制されるようになったことを明記し、既存の「悪い例」テキストを concept-drift-ignore
+マーカーで囲んで検証対象から正しく除外。`.github/workflows/concept-drift.yml`
+（README・docs 関連パスにスコープされた任意の CI、`workflow_dispatch` 対応、
+依存パッケージのインストール不要）を新規追加。`.github/PULL_REQUEST_TEMPLATE.md` に
+`## Concept Drift Check` 節を追加（既存の Trace Continuity・Concept Preservation
+等の節は無変更のまま保持）。README・`docs/spec/prd.md` に不足していた正典用語
+（"three-layer tensor intelligence system"・"Safety is a floor"）を最小限追加。
+`docs/operations/concept_drift_validation.md`（12節：目的・存在理由・実行タイミング・
+ローカルコマンド・CI説明・必須用語・禁止パターン・ignore マーカー使用法・よくある失敗・
+修正法・非検証対象・将来拡張）を新規追加。`tests/test_concept_drift_guard.py`
+（18テスト：良い例/悪い例の文章・否定文脈の許容・ignore line/block・unclosed block・
+必須用語欠落・PRテンプレート欠落項目・JSON出力・非ゼロ終了コード）→ 全パス。
+**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+
+**Phase 8: CI/Governance Trace Gate（PR-009）— 完了
+（trace continuity 検証をリポジトリの運用規律に組み込み。ランタイム挙動は無変更）。**
+本PR（PR-009）は**ガバナンス・CI・ドキュメント・スクリプトのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / 哲学者のいずれのランタイム挙動も変更していない。
+`scripts/validate_trace_continuity.py`（ローカル CLI、`TraceContinuityValidator` を
+`examples/contracts/trace_chain*.json` に適用、`--include-negative` で無効フィクスチャの
+期待される失敗も検証）、`.github/workflows/trace-continuity.yml`（trace 関連パスに
+スコープされた任意の CI ワークフロー、`workflow_dispatch` 対応、`jsonschema`/`pytest`
+のみインストール — 重い ML 依存は導入しない）、`.github/PULL_REQUEST_TEMPLATE.md` への
+`Trace Continuity` チェックリスト節（trace 関連の変更時のみ必須）、
+`docs/GOVERNANCE.md` への "Trace Continuity Gate" 節、
+`docs/operations/trace_continuity_validation.md`（いつ実行するか・ローカルコマンド・
+CI 説明・失敗の読み方・よくある失敗と修正法・このテストが検証しないもの・将来拡張）を
+新規追加。この CI ワークフローは**必須リリースゲートではない**——安定後に branch
+protection の required check へ昇格させる計画を明記。
+
+**Phase 7: Trace Continuity Contract Hardening（PR-008）— 完了
+（trace チェーンの形式化とグラフ検証器の追加。新規ランタイム挙動は追加していない）。**
+本PR（PR-008）は**契約強化・検証器追加のみ**の PR である。Po_core / Po_self / Viewer /
+統制実行器に新しい振る舞いは一切追加していない。`docs/contracts/TRACE_CONTINUITY_V1.md`
+が PR-003〜PR-007 が既に発行している trace チェーンを正式化し、
+`src/po_core_original/trace_validation/`（`TraceContinuityValidator`）がそれを
+グラフとして構造的に検証する：`SemanticProfileComputed`（root）→
+`PoSelfDecisionMade`（Po_self の最低限の継続性アンカー）→
+`PoSelfReconstructionPlanned`（`reconstruct` 判定必須）→
+`PoSelfReconstructionApplied`（計画必須）。任意の Viewer 分岐：
+`ViewerFeedbackReceived`（root-side、任意）→ `ViewerFeedbackApplied`（feedback source
+必須：event 参照または `payload.feedback_ids`）。孤立した Po_self / 再構成イベントは
+strict モードで一切許容しない（10種の検証ルール、`docs/contracts/TRACE_CONTINUITY_V1.md`
+§10 参照）。検証器は構造化された issue（`TraceValidationIssue`）を返し、bool のみは
+返さない。既存ランタイム（`kernel.py` / `trace.py` / `controller.py` /
+`decision_engine.py` / `reconstruction_planner.py` / `reconstruction_executor.py` /
+`viewer_feedback/`）は**無変更**——検証の結果、既存の実際の trace 発行（`parent_event_id`
+/ `trace_refs` の配線）が既にこの契約を満たしていることを確認しただけで、メタデータ追加
+すら不要だった。
 
 **Phase 6: Controlled Reconstruction Executor Seed（PR-007）— 開始
 （trace 保存型パッチ提案実行の最初の起動）。**
@@ -147,10 +260,95 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 - 既存 `docs/status.md` の "Next" 節と歩調を合わせる（本PRの完了をもって
   「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
   domain models + schemas（no pipeline wiring yet）」を充足）。
+- Future: `Trace Continuity` ワークフローを、任意/スコープ限定の検証から安定化後に
+  branch protection の required status check へ昇格させる。
+- Future: concept drift 検証の対象を ADR・リリースドキュメントへ拡張する（表現が
+  安定した後）。
+- Future: 検証器が安定した後、`ADR Index` ワークフローを branch protection の
+  required status check へ昇格させる。
 
 ## Completed ログ
 
-- **PR-007（本エントリ）**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
+- **PR-011（本エントリ）**: Phase 10 ADR System for Architecture Changes 完了 —
+  ADR テンプレート・ADR index・最初の ADR・ADR ガバナンスルール・ローカル ADR index
+  検証器・任意の ADR Index CI ワークフロー・PR テンプレート ADR チェックリスト・
+  ADR プロセスドキュメントを追加。**ガバナンスのみであり、ランタイム挙動は変更していない。**
+  既存の主系統 `docs/adr/`（14件のADR、小文字 `index.md`）との大文字小文字のみの
+  ファイル名衝突を避けるため、Original Design 専用の新規ディレクトリ
+  `docs/original_design_adr/` を採用（詳細は ADR-0001 参照）。
+- **PR-010**: Phase 9 Governance Enforcement for Concept Drift 完了 —
+  README/PRD/PRテンプレートの概念ドリフトを機械的に検証するゲートを追加。
+  **ガバナンス・ドキュメント・スクリプト・CIのみを追加し、ランタイム挙動は一切変更していない。**
+  `docs/governance/concept_drift_rules.json`（正典アイデンティティ用語・禁止パターン・
+  許容される否定文脈・ignore マーカー定義、JSON形式のみ・YAML依存なし）、
+  `scripts/check_concept_drift.py`（`--files`/`--rules`/`--json`/`--check-pr-template`、
+  標準ライブラリのみ・ネットワークアクセス不要・決定論的）を新規追加。7種の検証
+  （必須ファイル存在・必須アイデンティティ用語・禁止される肯定的アイデンティティ表現・
+  禁止 regex パターン・ignore マーカー処理・PRテンプレートの Concept Preservation
+  チェックリスト・ガバナンスドキュメント存在）を実装。"Po_core is not a generic chatbot"
+  のような正当な否定文は通過させつつ、"Po_core is just a chatbot" のような縮小表現は
+  拒否する（同一行内の allowed_negation_contexts の有無で判定）。README・
+  `docs/spec/prd.md` に不足していた正典用語を最小限追加（既存の三層アーキテクチャ・
+  42人の哲学者・Safety Floor 記述は削除も縮小もしていない）。
+  `.github/workflows/concept-drift.yml`（README・docs 関連パスにスコープ、
+  `workflow_dispatch` 対応、依存パッケージ不要）、`.github/PULL_REQUEST_TEMPLATE.md`
+  への `## Concept Drift Check` 節追加（既存の Trace Continuity・Concept Preservation・
+  M4ゲート等は無変更）、`docs/GOVERNANCE.md` の "Concept Drift Governance Gate" 節、
+  `docs/operations/concept_drift_validation.md`、`docs/CONCEPT_DRIFT_GUARD.md` への
+  自動検証器の言及とignoreマーカーの実演的使用を追加。`tests/test_concept_drift_guard.py`
+  （18テスト、subprocess経由でスクリプトの終了コード・出力を検証）→ 全パス。
+  **ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+  `decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+  `viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・trace validator の挙動は無変更。
+- **PR-009**: Phase 8 CI/Governance Trace Gate 完了 —
+  ローカル trace continuity 検証スクリプト、スコープ限定 GitHub Actions ワークフロー、
+  PR チェックリスト要件、運用ドキュメントを追加。**ガバナンス・検証のみを追加し、
+  ランタイム挙動は一切変更していない。**
+  `scripts/validate_trace_continuity.py`（`--path` / `--include-negative` /
+  `--strict`・`--no-strict` / `--json`）を新規追加、有効例1件・無効例3件すべてに対し
+  期待通りの pass/fail を確認。`.github/workflows/trace-continuity.yml`（trace 関連
+  9パスにスコープ、`workflow_dispatch` 対応、`jsonschema`/`pytest` のみインストール、
+  full suite やリリース/公開タスクは実行しない、secrets 不要、artifact 発行なし、
+  リポジトリ状態を変更しない）を新規追加。`.github/PULL_REQUEST_TEMPLATE.md` に
+  `## Trace Continuity` 節を追加（既存の Concept Preservation・M4ゲート・
+  Determinism & Compatibility 等のチェックリストは無変更のまま保持）。
+  `docs/GOVERNANCE.md` に "Trace Continuity Gate" 節、
+  `docs/operations/trace_continuity_validation.md`（10節：目的・実行タイミング・
+  ローカルコマンド・CI説明・トリガーファイル・失敗の読み方・よくある失敗5種と修正法・
+  非検証対象・将来拡張）を新規追加。`tests/test_validate_trace_continuity_script.py`
+  （5テスト、subprocess 経由でスクリプトの終了コード・出力を検証）を追加。
+  `tests/test_trace_continuity_validator.py`（既存29テスト）は無変更のまま全パス確認。
+  **ランタイム変更なし**の確認：`kernel.py` / `trace.py` / `controller.py` /
+  `decision_engine.py` / `reconstruction_planner.py` / `reconstruction_executor.py` /
+  `viewer_feedback/` / `trace_validation/` のいずれも本PRでは変更していない。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+  ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+- **PR-008**: Phase 7 Trace Continuity Contract Hardening 完了 —
+  契約強化・検証器追加のみ、新規ランタイム挙動なし。`docs/contracts/TRACE_CONTINUITY_V1.md`
+  を新規追加（trace グラフ用語・必須イベントチェーン・必須 parent/child 関係・Viewer 分岐・
+  reconstruction planning/application 分岐・検証モード・エラー taxonomy・有効/無効例・
+  jump/reject/reactivate の将来拡張枠）。`src/po_core_original/trace_validation/`
+  （`graph.py`: `TraceNode`/`TraceEdge`/`TraceGraph`/`build_trace_graph`/
+  `has_ancestor_of_type`/`referenced_event_types`、`validator.py`:
+  `TraceContinuityValidator`/`TraceValidationIssue`/`TraceValidationResult`（10ルール）、
+  `errors.py`: `TraceContinuityError` 系7クラス）を新規追加。`examples/contracts/`
+  に有効チェーン例1件（`trace_chain.valid.json`、実際のカーネル+Viewer+Po_self実行から
+  導出、6イベント）と無効チェーン例3件（`orphan_decision` / `missing_plan_parent` /
+  `application_without_plan`、各々が期待する issue code を明記）を追加。
+  `tests/test_trace_continuity_validator.py`（29テスト、実チェーン検証込み）→ 全パス。
+  **ランタイム変更なし**の確認：PR-003〜PR-007 が既に発行している trace
+  （`kernel.py`/`trace.py`/`controller.py`/`reconstruction_planner.py`/
+  `reconstruction_executor.py`/`viewer_feedback/` の既存の `parent_event_id` /
+  `trace_refs` 配線）はメタデータ追加すら不要で、そのまま
+  `TraceContinuityValidator(strict=True)` を通過することを確認した（`preserve` のみの
+  フロー・`reconstruct` フロー・Viewer feedback 付きフローの3パターンで検証）。
+  `docs/contracts/PO_TRACE_EVENT_V1.md` / `docs/contracts/CONTRACT_OVERVIEW.md` に
+  trace グラフ意味論とチェーン図を追記（`po_trace_event_v1.schema.json` の
+  `event_type` enum・スキーマ自体は無変更）。CI/ガバナンスツールへの自動組み込みは
+  本PRのスコープ外（ライブラリとして提供、将来のCI gate化は未実装として明記）。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+- **PR-007**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
   trace 保存型パッチ提案実行の最初の起動。`schemas/reconstruction_patch_v1.schema.json`
   （JSON Schema Draft 2020-12、`execution_mode`/`content_rewrite_applied`/
   `original_content_preserved`/`original_content_mutated` は全て const）と

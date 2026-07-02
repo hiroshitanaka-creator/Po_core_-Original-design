@@ -9,6 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-011)
+- ADR template and ADR directory (`docs/original_design_adr/`, kept separate from the pre-existing main-track `docs/adr/` — see ADR-0001 for why).
+- ADR index and first accepted ADR adopting ADR governance (`docs/original_design_adr/INDEX.md`, `ADR-0001-adopt-adr-system.md`, `Accepted`).
+- `scripts/check_adr_index.py` ADR index validator (standard library only, no network access, `--json` output supported).
+- Optional ADR Index GitHub Actions workflow (`.github/workflows/adr-index.yml`), scoped to `docs/original_design_adr/**` and related governance paths, not a required release gate.
+- PR template ADR requirement checklist (`## ADR Requirement` in `.github/PULL_REQUEST_TEMPLATE.md`; the pre-existing `## ADRチェック` section for the main-track ADR system is unchanged).
+- ADR process operations documentation (`docs/operations/adr_process.md`).
+- Tests for ADR index validation (`tests/test_adr_index_validator.py`, 17 tests).
+
+### Not Changed (PR-011)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, trace, reconstruction, concept-drift-validator, or philosopher behavior changed.
+- The pre-existing main-track ADR system (`docs/adr/`, 14 ADRs) is untouched.
+
+### Changed (docs)
+- Renamed `docs/STATUS.md` to `docs/original_design_status.md` (governance/docs-only, no runtime behavior change). Case-only filenames (`status.md` vs. `STATUS.md`) collide on case-insensitive filesystems (macOS, Windows) and are easy for humans and tooling to confuse; the new name keeps the Original Design governance-layer status file distinct from `docs/status.md` (Release SSOT) without relying on case sensitivity. All in-repo cross-references updated (`README.md`, `docs/GOVERNANCE.md`, `docs/ROADMAP.md`, `docs/STRICT_CORE_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, `docs/AI_AGENT_INITIALIZATION_RULES.md`, `docs/contracts/CONTRACT_OVERVIEW.md`, `docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`); historical CHANGELOG entries describing past PRs are left unchanged since they are a log of what happened at the time, not current-state documentation.
+
+### Added (PR-010)
+- feat(governance): PR-010 — Governance Enforcement for Concept Drift. Makes `docs/CONCEPT_DRIFT_GUARD.md`'s manual checklist mechanically enforceable so README/PRD/PR-scaffolding wording can no longer quietly shrink Po_core into a generic chatbot, safety wrapper, or philosopher-roleplay demo: governance/docs/script/CI only, no runtime changes.
+- Concept drift rules configuration (`docs/governance/concept_drift_rules.json`, JSON only, no YAML dependency): required canonical identity terms (per-file, README vs. PRD), forbidden positive-identity literal phrases and regex patterns, allowed negation contexts, ignore-block/ignore-line markers, PR-template checklist items, and required governance docs.
+- `scripts/check_concept_drift.py` governance validator: standard-library only, no network access, deterministic, structured issues (never a bare bool). `--files`, `--rules`, `--json`, `--check-pr-template` flags. Checks required files (README + a PRD via `docs/PRD.md`/`docs/spec/prd.md`), required identity terms, forbidden shrinkage phrases/patterns (with same-line negation-context override so "Po_core is not a generic chatbot" passes while "Po_core is just a chatbot" fails), ignore markers (including `unclosed_ignore_block` detection), the PR template's Concept Preservation checklist, and existence of the governance docs this gate itself depends on.
+- Optional Concept Drift GitHub Actions workflow (`.github/workflows/concept-drift.yml`): scoped to `README.md` / `docs/**` / the PR template / the checker script, supports manual `workflow_dispatch`, runs `python scripts/check_concept_drift.py --check-pr-template` with zero dependencies to install. Not a required release gate.
+- PR template checklist for Concept Drift checks: new `## Concept Drift Check` section in `.github/PULL_REQUEST_TEMPLATE.md` (applies when a PR changes README, PRD, architecture docs, governance docs, or public project wording); existing Concept Preservation, M4-gate, and Trace Continuity checklist items are unchanged.
+- Operations documentation for concept drift validation (`docs/operations/concept_drift_validation.md`): purpose, why it exists, when to run, local commands, CI workflow explanation, required identity terms, forbidden shrinkage patterns, ignore-marker usage, common failures with fixes, what this does not test, future extensions.
+- Tests for forbidden shrinkage phrases and required canonical identity terms (`tests/test_concept_drift_guard.py`, 18 tests, subprocess-based).
+- Minimal README / `docs/spec/prd.md` wording additions to satisfy the new required identity terms ("three-layer tensor intelligence system", "Safety is a floor, not a concept ceiling") without removing or rewording the existing three-layer architecture description.
+- `docs/CONCEPT_DRIFT_GUARD.md` now points to the automated validator and wraps its existing bad-wording examples in concept-drift ignore markers (demonstrating correct usage, not suppressing a real violation).
+
+### Not Changed (PR-010)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, reconstruction, trace, or philosopher behavior changed.
+- `src/po_core_original/trace_validation/` (PR-008) and the trace continuity CI/scripts (PR-009) are unchanged — this PR only adds a separate, independent governance gate.
+
+### Added (PR-009)
+- feat(governance): PR-009 — CI/Governance Trace Gate. Makes trace continuity validation part of the repository's operational discipline without forcing runtime changes: governance/CI/docs/script only.
+- Optional Trace Continuity GitHub Actions workflow (`.github/workflows/trace-continuity.yml`): scoped to trace-related paths, supports manual `workflow_dispatch`, installs only `jsonschema` + `pytest` (no heavy ML dependencies), runs `scripts/validate_trace_continuity.py --include-negative` and `pytest tests/test_trace_continuity_validator.py -v`. Not a required release gate yet.
+- `scripts/validate_trace_continuity.py` local validation command: validates `examples/contracts/trace_chain.valid.json` by default; `--include-negative` also validates the 3 known-invalid examples and requires them to fail; `--path`, `--strict`/`--no-strict`, and `--json` flags. Exit code 0 iff all expected validations pass.
+- Trace continuity PR checklist requirements: new `## Trace Continuity` section in `.github/PULL_REQUEST_TEMPLATE.md` (applies when a PR changes `PoTraceEvent`, trace payloads, trace schemas/contracts, or Po_self/reconstruction/Viewer-feedback trace events); existing Concept Preservation, M4-gate, Policy Change Protocol, and Determinism & Compatibility checklist items are unchanged.
+- Operations documentation for running `TraceContinuityValidator` (`docs/operations/trace_continuity_validation.md`): when to run, local commands, CI workflow explanation, triggering paths, how to interpret failures, 6 common failure modes with fixes, what this validation does not test, and future extension notes.
+- `docs/GOVERNANCE.md` "Trace Continuity Gate" section documenting the policy.
+- Tests for the CLI script (`tests/test_validate_trace_continuity_script.py`, 5 tests, subprocess-based).
+
+### Not Changed (PR-009)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, reconstruction, or philosopher behavior changed.
+- `src/po_core_original/trace_validation/` (the PR-008 validator itself) is unchanged — this PR only adds tooling/docs around it.
+
+### Added (PR-008)
+- feat(trace): PR-008 — Trace Continuity Contract Hardening. Contract-hardening and validator PR only: no new Po_core, Po_self, Viewer, or reconstruction-executor runtime behavior was added.
+- Trace continuity contract documentation (`docs/contracts/TRACE_CONTINUITY_V1.md`): trace graph terminology, required event chain (`SemanticProfileComputed` → `PoSelfDecisionMade` → `PoSelfReconstructionPlanned` → `PoSelfReconstructionApplied`, optional `ViewerFeedbackReceived` → `ViewerFeedbackApplied` branch), required parent/child relationships, validation modes, 10-rule error taxonomy, and a reserved future extension point for `jump`/`reject`/`reactivate`.
+- Trace graph validator (`src/po_core_original/trace_validation/`): `build_trace_graph()` / `TraceGraph` / `TraceNode` / `TraceEdge` (`graph.py`), `has_ancestor_of_type()` / `referenced_event_types()` backward-traversal helpers, `TraceContinuityValidator` / `TraceValidationIssue` / `TraceValidationResult` (`validator.py`), and a 7-class error taxonomy (`TraceContinuityError` and 6 subclasses, `errors.py`). Exported from the top-level `po_core_original` package.
+- Structured validation issues (never a bare bool) for orphan events, missing parents, duplicate event IDs, request_id mismatches, unresolved `trace_refs`, invalid reconstruction-plan/application payload contracts, and unsupported future controlled-mode event types.
+- Valid and invalid trace chain examples: `examples/contracts/trace_chain.valid.json` (a real 6-event chain derived from an actual `PoCoreKernel` + `ViewerFeedbackService` + `PoSelfController` run) and three invalid examples (`trace_chain.invalid.orphan_decision.json`, `trace_chain.invalid.missing_plan_parent.json`, `trace_chain.invalid.application_without_plan.json`), each documenting its expected issue code(s).
+- Tests for end-to-end trace continuity validation (`tests/test_trace_continuity_validator.py`, 29 tests), including confirmation that the real trace chains already emitted by PR-003…PR-007 (preserve-only, reconstruct, and Viewer-feedback flows) pass `TraceContinuityValidator(strict=True)` **without any runtime metadata changes**.
+
+### Not Implemented (PR-008)
+- No new Po_core, Po_self, Viewer, or reconstruction behavior was added; `kernel.py`, `trace.py`, `controller.py`, `decision_engine.py`, `reconstruction_planner.py`, `reconstruction_executor.py`, and `viewer_feedback/` are all unchanged.
+- `jump` / `reject` / `reactivate` trace branches remain future controlled work; strict validation rejects their placeholder event types outright rather than defining continuity rules for them yet.
+- Automatic CI/governance-tooling integration for this validator (running it as a build gate) is not wired up — it is a library, usable by tests and future tooling.
+
 ### Fixed
 - fix(lint): restore the CI lint gate. `src/po_core/schemas/__init__.py` import order made isort-compliant (`importlib.resources` before `importlib.resources.abc`; pre-existing violation that failed the `lint` job and skipped all downstream CI jobs). `src/po_core/app/api.py` `_resolve_presented_key` now annotates `auth: str | None` so `token.strip()` is typed `str` instead of `Any` under newer mypy (`no-any-return` hardening; CI-pinned mypy 1.11.2 unaffected). `tests/test_contract_schemas.py` (added by PR #3) reformatted with black 26.1.0 (line-wrapping only; its 26 tests still pass). No behavior change (NFR-GOV-001).
 - fix(compat): `src/po_core/schemas/__init__.py` now imports `Traversable` from `importlib.abc` on Python 3.10 (`importlib.resources.abc` exists only on 3.11+). The 3.11+ import was a latent 3.10 runtime break present since the initial commit; it was never exposed because the CI `lint` job had always failed before `must-pass-tests` could run. Verified by executing the module under Python 3.10/3.11/3.12/3.13.

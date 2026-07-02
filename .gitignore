@@ -260,6 +260,8 @@ data/processed/
 !src/po_core/schemas/*.json
 # Keep PR-002 domain-contract schemas (docs/contracts/CONTRACT_OVERVIEW.md)
 !schemas/*.schema.json
+# Keep PR-010 concept drift governance rules config (docs/governance/concept_drift_rules.json)
+!docs/governance/*.json
 # Keep TypeScript SDK config
 !clients/typescript/package.json
 !clients/typescript/tsconfig.json

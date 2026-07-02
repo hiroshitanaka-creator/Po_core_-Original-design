@@ -73,10 +73,9 @@ All evidence gaps are now closed:
 
 ## Next
 
-v2 realignment (docs-only, PR-001 complete):
+v2 realignment (docs-only, PR-001 complete; PR-002 through PR-007 complete — see below):
 
-- PR-002: introduce `SemanticProfile` / `SemanticStep` / `PoSelfDecision` / `ViewerFeedback` domain models + schemas (no pipeline wiring yet).
-- Subsequent PRs: wire `Po_self` to observe `Po_trace` and emit preserve/reconstruct/jump/reject/reactivate decisions; wire `Viewer` to return resonance/agreement/disagreement/feedback tensors back into `Po_self`.
+- Next: PR-008 controlled reconstruction execution phase (still non-LLM, deterministic, human/gate-approved) that would consume the `reconstruction_patch_v1` proposals produced by PR-007 and apply a real, reviewable revision, emitting a distinct completion event; `jump`/`reject`/`reactivate` remain reserved future controlled modes.
 
 v1.1.0 publish tasks:
 
