@@ -87,6 +87,11 @@ pip install -e ".[dev]"
   `content_rewrite_applied` is always false); original content is preserved and
   proven unchanged by SHA-256 re-hash, not merely asserted. "Applied" means the
   plan was applied to the controlled executor, not that content was rewritten.
+- **`TraceContinuityValidator`** (PR-008) — validates parent/child continuity of
+  the trace graph emitted by the seeds above: every `PoSelfDecisionMade` /
+  `PoSelfReconstructionPlanned` / `PoSelfReconstructionApplied` event must have
+  an explicit path back to its `SemanticProfileComputed` root. Validation only —
+  it adds no new Po_core / Po_self / Viewer / reconstruction runtime behavior.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
@@ -95,6 +100,7 @@ pip install -e ".[dev]"
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
 - LLM / ML scoring
+- automatic CI enforcement of trace continuity (the validator is a library today, not yet a build gate)
 
 ```python
 from po_core_original import PoCoreKernel, PoSelfController

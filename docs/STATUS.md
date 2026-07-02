@@ -7,6 +7,26 @@
 
 ## 現フェーズ
 
+**Phase 7: Trace Continuity Contract Hardening（PR-008）— 完了
+（trace チェーンの形式化とグラフ検証器の追加。新規ランタイム挙動は追加していない）。**
+本PR（PR-008）は**契約強化・検証器追加のみ**の PR である。Po_core / Po_self / Viewer /
+統制実行器に新しい振る舞いは一切追加していない。`docs/contracts/TRACE_CONTINUITY_V1.md`
+が PR-003〜PR-007 が既に発行している trace チェーンを正式化し、
+`src/po_core_original/trace_validation/`（`TraceContinuityValidator`）がそれを
+グラフとして構造的に検証する：`SemanticProfileComputed`（root）→
+`PoSelfDecisionMade`（Po_self の最低限の継続性アンカー）→
+`PoSelfReconstructionPlanned`（`reconstruct` 判定必須）→
+`PoSelfReconstructionApplied`（計画必須）。任意の Viewer 分岐：
+`ViewerFeedbackReceived`（root-side、任意）→ `ViewerFeedbackApplied`（feedback source
+必須：event 参照または `payload.feedback_ids`）。孤立した Po_self / 再構成イベントは
+strict モードで一切許容しない（10種の検証ルール、`docs/contracts/TRACE_CONTINUITY_V1.md`
+§10 参照）。検証器は構造化された issue（`TraceValidationIssue`）を返し、bool のみは
+返さない。既存ランタイム（`kernel.py` / `trace.py` / `controller.py` /
+`decision_engine.py` / `reconstruction_planner.py` / `reconstruction_executor.py` /
+`viewer_feedback/`）は**無変更**——検証の結果、既存の実際の trace 発行（`parent_event_id`
+/ `trace_refs` の配線）が既にこの契約を満たしていることを確認しただけで、メタデータ追加
+すら不要だった。
+
 **Phase 6: Controlled Reconstruction Executor Seed（PR-007）— 開始
 （trace 保存型パッチ提案実行の最初の起動）。**
 本PR（PR-007）にて、`ReconstructionPlan` を**統制された実行器（Controlled
@@ -150,7 +170,31 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-007（本エントリ）**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
+- **PR-008（本エントリ）**: Phase 7 Trace Continuity Contract Hardening 完了 —
+  契約強化・検証器追加のみ、新規ランタイム挙動なし。`docs/contracts/TRACE_CONTINUITY_V1.md`
+  を新規追加（trace グラフ用語・必須イベントチェーン・必須 parent/child 関係・Viewer 分岐・
+  reconstruction planning/application 分岐・検証モード・エラー taxonomy・有効/無効例・
+  jump/reject/reactivate の将来拡張枠）。`src/po_core_original/trace_validation/`
+  （`graph.py`: `TraceNode`/`TraceEdge`/`TraceGraph`/`build_trace_graph`/
+  `has_ancestor_of_type`/`referenced_event_types`、`validator.py`:
+  `TraceContinuityValidator`/`TraceValidationIssue`/`TraceValidationResult`（10ルール）、
+  `errors.py`: `TraceContinuityError` 系7クラス）を新規追加。`examples/contracts/`
+  に有効チェーン例1件（`trace_chain.valid.json`、実際のカーネル+Viewer+Po_self実行から
+  導出、6イベント）と無効チェーン例3件（`orphan_decision` / `missing_plan_parent` /
+  `application_without_plan`、各々が期待する issue code を明記）を追加。
+  `tests/test_trace_continuity_validator.py`（29テスト、実チェーン検証込み）→ 全パス。
+  **ランタイム変更なし**の確認：PR-003〜PR-007 が既に発行している trace
+  （`kernel.py`/`trace.py`/`controller.py`/`reconstruction_planner.py`/
+  `reconstruction_executor.py`/`viewer_feedback/` の既存の `parent_event_id` /
+  `trace_refs` 配線）はメタデータ追加すら不要で、そのまま
+  `TraceContinuityValidator(strict=True)` を通過することを確認した（`preserve` のみの
+  フロー・`reconstruct` フロー・Viewer feedback 付きフローの3パターンで検証）。
+  `docs/contracts/PO_TRACE_EVENT_V1.md` / `docs/contracts/CONTRACT_OVERVIEW.md` に
+  trace グラフ意味論とチェーン図を追記（`po_trace_event_v1.schema.json` の
+  `event_type` enum・スキーマ自体は無変更）。CI/ガバナンスツールへの自動組み込みは
+  本PRのスコープ外（ライブラリとして提供、将来のCI gate化は未実装として明記）。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+- **PR-007**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
   trace 保存型パッチ提案実行の最初の起動。`schemas/reconstruction_patch_v1.schema.json`
   （JSON Schema Draft 2020-12、`execution_mode`/`content_rewrite_applied`/
   `original_content_preserved`/`original_content_mutated` は全て const）と

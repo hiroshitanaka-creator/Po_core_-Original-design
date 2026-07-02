@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-008)
+- feat(trace): PR-008 — Trace Continuity Contract Hardening. Contract-hardening and validator PR only: no new Po_core, Po_self, Viewer, or reconstruction-executor runtime behavior was added.
+- Trace continuity contract documentation (`docs/contracts/TRACE_CONTINUITY_V1.md`): trace graph terminology, required event chain (`SemanticProfileComputed` → `PoSelfDecisionMade` → `PoSelfReconstructionPlanned` → `PoSelfReconstructionApplied`, optional `ViewerFeedbackReceived` → `ViewerFeedbackApplied` branch), required parent/child relationships, validation modes, 10-rule error taxonomy, and a reserved future extension point for `jump`/`reject`/`reactivate`.
+- Trace graph validator (`src/po_core_original/trace_validation/`): `build_trace_graph()` / `TraceGraph` / `TraceNode` / `TraceEdge` (`graph.py`), `has_ancestor_of_type()` / `referenced_event_types()` backward-traversal helpers, `TraceContinuityValidator` / `TraceValidationIssue` / `TraceValidationResult` (`validator.py`), and a 7-class error taxonomy (`TraceContinuityError` and 6 subclasses, `errors.py`). Exported from the top-level `po_core_original` package.
+- Structured validation issues (never a bare bool) for orphan events, missing parents, duplicate event IDs, request_id mismatches, unresolved `trace_refs`, invalid reconstruction-plan/application payload contracts, and unsupported future controlled-mode event types.
+- Valid and invalid trace chain examples: `examples/contracts/trace_chain.valid.json` (a real 6-event chain derived from an actual `PoCoreKernel` + `ViewerFeedbackService` + `PoSelfController` run) and three invalid examples (`trace_chain.invalid.orphan_decision.json`, `trace_chain.invalid.missing_plan_parent.json`, `trace_chain.invalid.application_without_plan.json`), each documenting its expected issue code(s).
+- Tests for end-to-end trace continuity validation (`tests/test_trace_continuity_validator.py`, 29 tests), including confirmation that the real trace chains already emitted by PR-003…PR-007 (preserve-only, reconstruct, and Viewer-feedback flows) pass `TraceContinuityValidator(strict=True)` **without any runtime metadata changes**.
+
+### Not Implemented (PR-008)
+- No new Po_core, Po_self, Viewer, or reconstruction behavior was added; `kernel.py`, `trace.py`, `controller.py`, `decision_engine.py`, `reconstruction_planner.py`, `reconstruction_executor.py`, and `viewer_feedback/` are all unchanged.
+- `jump` / `reject` / `reactivate` trace branches remain future controlled work; strict validation rejects their placeholder event types outright rather than defining continuity rules for them yet.
+- Automatic CI/governance-tooling integration for this validator (running it as a build gate) is not wired up — it is a library, usable by tests and future tooling.
+
 ### Fixed
 - fix(lint): restore the CI lint gate. `src/po_core/schemas/__init__.py` import order made isort-compliant (`importlib.resources` before `importlib.resources.abc`; pre-existing violation that failed the `lint` job and skipped all downstream CI jobs). `src/po_core/app/api.py` `_resolve_presented_key` now annotates `auth: str | None` so `token.strip()` is typed `str` instead of `Any` under newer mypy (`no-any-return` hardening; CI-pinned mypy 1.11.2 unaffected). `tests/test_contract_schemas.py` (added by PR #3) reformatted with black 26.1.0 (line-wrapping only; its 26 tests still pass). No behavior change (NFR-GOV-001).
 - fix(compat): `src/po_core/schemas/__init__.py` now imports `Traversable` from `importlib.abc` on Python 3.10 (`importlib.resources.abc` exists only on 3.11+). The 3.11+ import was a latent 3.10 runtime break present since the initial commit; it was never exposed because the CI `lint` job had always failed before `must-pass-tests` could run. Verified by executing the module under Python 3.10/3.11/3.12/3.13.

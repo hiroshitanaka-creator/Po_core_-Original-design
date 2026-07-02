@@ -1,0 +1,51 @@
+{
+  "description": "PR-008 INVALID trace chain example: a SemanticProfileComputed root event exists, but PoSelfDecisionMade has no parent_event_id or trace_refs pointing back to it (or to anything). Each individual event is structurally plausible / schema-valid on its own, but as a CHAIN this fails TraceContinuityValidator with issue code 'orphan_po_self_decision'. See docs/contracts/TRACE_CONTINUITY_V1.md §10 (error taxonomy) and §12 (this example).",
+  "expected_validation_result": {
+    "valid": false,
+    "issue_codes": ["orphan_po_self_decision"]
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_orphan",
+      "request_id": "req_orphan",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_orphan",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_orphan_1",
+            "primary_axis": "factual_axis",
+            "priority_score": 1.0,
+            "alert_level": "low"
+          }
+        ]
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_self_decision_made_orphan",
+      "request_id": "req_orphan",
+      "event_type": "PoSelfDecisionMade",
+      "payload": {
+        "decision_id": "psd_orphan_1",
+        "decision_type": "preserve",
+        "target_step_ids": [],
+        "trigger_type": "none",
+        "max_priority_score": 1.0,
+        "mean_priority_score": 1.0,
+        "critical_count": 0,
+        "viewer_feedback_count": 0,
+        "max_viewer_pressure": 0.0,
+        "action": "no_change",
+        "self_cycle_index": 1,
+        "max_self_cycles": 1
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    }
+  ]
+}

@@ -33,6 +33,13 @@ Activated so far:
       rewritten: ``content_rewrite_applied`` is always false,
       ``original_content_preserved`` is always true, and
       ``SemanticStep.content`` is never mutated (verified by hash).
+    * ``TraceContinuityValidator`` (PR-008) — validates that a set of Po_trace
+      events forms a continuous, non-orphaned trace graph: every
+      ``PoSelfDecisionMade`` / ``PoSelfReconstructionPlanned`` /
+      ``PoSelfReconstructionApplied`` event must have explicit parent/child
+      continuity back to its ``SemanticProfileComputed`` root. Validation
+      only — it adds no new Po_core / Po_self / Viewer / reconstruction
+      runtime behavior.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation; Po_self's
@@ -81,13 +88,18 @@ from .self_controller import (
     PoSelfController,
     ReconstructionPlanner,
 )
+from .trace_validation import (
+    TraceContinuityValidator,
+    TraceValidationIssue,
+    TraceValidationResult,
+)
 from .viewer_feedback import (
     InMemoryViewerFeedbackStore,
     ViewerFeedbackService,
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 __all__ = [
     "PoCoreKernel",
@@ -117,5 +129,8 @@ __all__ = [
     "ReconstructionPatch",
     "ReconstructionPatchProposalBody",
     "ReconstructionExecutionResult",
+    "TraceContinuityValidator",
+    "TraceValidationIssue",
+    "TraceValidationResult",
     "__version__",
 ]

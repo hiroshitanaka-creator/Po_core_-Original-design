@@ -1,0 +1,97 @@
+{
+  "description": "PR-008 INVALID trace chain example: SemanticProfileComputed, PoSelfDecisionMade (reconstruct), and PoSelfReconstructionPlanned exist with correct continuity, but PoSelfReconstructionApplied has no parent_event_id or trace_refs pointing back to the PoSelfReconstructionPlanned event. Each individual event is structurally plausible / schema-valid on its own, but as a CHAIN this fails TraceContinuityValidator with issue code 'reconstruction_applied_without_plan'. See docs/contracts/TRACE_CONTINUITY_V1.md §10 (error taxonomy) and §12 (this example).",
+  "expected_validation_result": {
+    "valid": false,
+    "issue_codes": ["reconstruction_applied_without_plan"]
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_awp",
+      "request_id": "req_application_without_plan",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_application_without_plan",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_awp_1",
+            "primary_axis": "responsibility_axis",
+            "priority_score": 8.5,
+            "alert_level": "critical"
+          }
+        ]
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_self_decision_made_awp",
+      "request_id": "req_application_without_plan",
+      "event_type": "PoSelfDecisionMade",
+      "payload": {
+        "decision_id": "psd_awp_1",
+        "decision_type": "reconstruct",
+        "target_step_ids": ["step_001"],
+        "trigger_type": "priority_threshold",
+        "max_priority_score": 8.5,
+        "mean_priority_score": 8.5,
+        "critical_count": 1,
+        "viewer_feedback_count": 0,
+        "max_viewer_pressure": 0.0,
+        "action": "revise_steps",
+        "self_cycle_index": 1,
+        "max_self_cycles": 1
+      },
+      "created_at": "2026-07-02T07:22:35Z",
+      "parent_event_id": "evt_semantic_profile_computed_awp",
+      "trace_refs": ["evt_semantic_profile_computed_awp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_self_reconstruction_planned_awp",
+      "request_id": "req_application_without_plan",
+      "event_type": "PoSelfReconstructionPlanned",
+      "payload": {
+        "plan_id": "rp_awp_psdawp1",
+        "decision_id": "psd_awp_1",
+        "source_decision_type": "reconstruct",
+        "plan_type": "revise_steps",
+        "plan_status": "planned",
+        "content_rewrite_allowed": false,
+        "target_step_ids": ["step_001"],
+        "operation_count": 1,
+        "trigger_type": "priority_threshold",
+        "max_priority_score": 8.5,
+        "viewer_feedback_count": 0,
+        "max_viewer_pressure": 0.0
+      },
+      "created_at": "2026-07-02T07:22:35Z",
+      "parent_event_id": "evt_po_self_decision_made_awp",
+      "trace_refs": ["evt_po_self_decision_made_awp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_self_reconstruction_applied_awp",
+      "request_id": "req_application_without_plan",
+      "event_type": "PoSelfReconstructionApplied",
+      "payload": {
+        "plan_id": "rp_awp_psdawp1",
+        "decision_id": "psd_awp_1",
+        "patch_count": 1,
+        "target_step_ids": ["step_001"],
+        "execution_mode": "patch_proposal_only",
+        "original_content_preserved": true,
+        "original_content_mutated": false,
+        "content_rewrite_applied": false,
+        "cycle_guard_passed": true,
+        "self_cycle_index": 1,
+        "max_self_cycles": 1,
+        "trace_continuity_verified": true
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    }
+  ]
+}
