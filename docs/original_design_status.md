@@ -10,6 +10,40 @@
 
 ## 現フェーズ
 
+**Phase 11: Governance Preflight Aggregator（PR-012）— 完了
+（concept drift・trace continuity・ADR index・schema/example の4検証器を
+1コマンドに集約。ランタイム挙動は無変更）。**
+本PR（PR-012）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / concept drift 検証 / ADR 検証 /
+哲学者のいずれのランタイム挙動も変更していない。`scripts/governance_preflight.py`
+（標準ライブラリのみ、subprocess経由で既存の `scripts/check_concept_drift.py` /
+`scripts/validate_trace_continuity.py` / `scripts/check_adr_index.py` /
+`tests/test_contract_schemas.py`（pytest）を呼び出すだけで、検証ロジック自体は
+一切再実装していない）を新規追加。`--json`（機械可読サマリ）・`--skip-tests`
+（pytestベースのschemaチェックのみ除外、最終PR検証には非推奨）・`--only`
+（`concept-drift`/`trace`/`adr`/`schemas` を反復指定またはカンマ区切りで選択、
+未知の値はexit 2）・`--fail-fast`（最初の失敗で停止）・`--list-checks`（exit 0で
+一覧表示）に対応。終了コードは決定論的（0=全パス、1=いずれか失敗、
+2=CLI使用方法エラー、3=必須ファイル欠落）。任意の `Governance Preflight` CI
+ワークフロー（`.github/workflows/governance-preflight.yml`、README/docs/schemas/
+examples/governance関連パスにスコープ、`workflow_dispatch` 対応、pytest+jsonschema
+のみインストール、既存の `Concept Drift`/`Trace Continuity`/`ADR Index` ワークフローを
+置き換えない）、`docs/operations/governance_preflight.md`（目的・集約対象・実行時期・
+ローカルコマンド・CI説明・終了コード・オプション・よくある失敗・非検証対象・将来拡張の
+10節）、`.github/PULL_REQUEST_TEMPLATE.md` への `## Governance Preflight` 節追加
+（既存の Concept Preservation・Concept Drift Check・Trace Continuity・ADR Requirement
+の各チェックリストは無変更のまま保持）、`docs/GOVERNANCE.md` への
+"Governance Preflight" 節を新規追加。`tests/test_governance_preflight.py`
+（14テスト：`--list-checks`・未知の `--only` 値・`--only` 単体実行×4種・JSON出力の
+パース可否・失敗時の非ゼロ終了・`--fail-fast` の早期停止・必須ファイル欠落時の
+exit 3・デフォルト実行が4検証すべてを含むこと・ランタイムパッケージ非依存、
+subprocess.run をモンキーパッチしてスクリプト本体は実行しない設計）→ 全パス。
+**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・既存の4検証器の挙動は無変更。
+ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+
 **Phase 10: ADR System for Architecture Changes（PR-011）— 完了
 （アーキテクチャ変更を無言で行えないようにする ADR ガバナンスを追加。ランタイム挙動は無変更）。**
 本PR（PR-011）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
@@ -266,10 +300,18 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   安定した後）。
 - Future: 検証器が安定した後、`ADR Index` ワークフローを branch protection の
   required status check へ昇格させる。
+- Future: 安定化後、`Governance Preflight` を branch protection の required
+  status check へ昇格させる。
 
 ## Completed ログ
 
-- **PR-011（本エントリ）**: Phase 10 ADR System for Architecture Changes 完了 —
+- **PR-012（本エントリ）**: Governance Preflight Aggregator added.
+  Added `scripts/governance_preflight.py`, optional Governance Preflight CI
+  workflow, operations documentation, PR template checklist, and tests.
+  The preflight aggregates concept drift, trace continuity, ADR index, and
+  schema/example validation. This is governance-only and does not change
+  runtime behavior.
+- **PR-011**: Phase 10 ADR System for Architecture Changes 完了 —
   ADR テンプレート・ADR index・最初の ADR・ADR ガバナンスルール・ローカル ADR index
   検証器・任意の ADR Index CI ワークフロー・PR テンプレート ADR チェックリスト・
   ADR プロセスドキュメントを追加。**ガバナンスのみであり、ランタイム挙動は変更していない。**

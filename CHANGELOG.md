@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-012)
+- `scripts/governance_preflight.py` aggregate governance validator.
+- Optional Governance Preflight GitHub Actions workflow.
+- Operations documentation for governance preflight.
+- PR template Governance Preflight checklist.
+- Tests for preflight check selection, JSON output, fail-fast behavior, and error handling.
+
+### Not Changed (PR-012)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, trace, reconstruction, or philosopher behavior changed.
+
 ### Added (PR-011)
 - ADR template and ADR directory (`docs/original_design_adr/`, kept separate from the pre-existing main-track `docs/adr/` — see ADR-0001 for why).
 - ADR index and first accepted ADR adopting ADR governance (`docs/original_design_adr/INDEX.md`, `ADR-0001-adopt-adr-system.md`, `Accepted`).

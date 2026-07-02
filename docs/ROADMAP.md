@@ -68,6 +68,33 @@ Future work:
 - Future: 検証器が安定した後、`ADR Index` ワークフローを branch protection の
   required status check へ昇格させる。
 
+### Governance Enforcement: Governance Preflight aggregator（PR-012）— ✅ 完了
+
+concept drift・trace continuity・ADR index・schema/example の既存4検証器を1コマンドに
+集約した（**ガバナンス・ドキュメント・スクリプト・CIのみ、ランタイム挙動は無変更**）：
+
+- Governance Preflight aggregator ✅（`scripts/governance_preflight.py`、標準ライブラリ
+  のみ、subprocess経由で既存の `scripts/check_concept_drift.py` /
+  `scripts/validate_trace_continuity.py` / `scripts/check_adr_index.py` /
+  `tests/test_contract_schemas.py` を呼び出すだけで検証ロジックは再実装しない。
+  `--json` / `--skip-tests` / `--only` / `--fail-fast` / `--list-checks` に対応。
+  終了コードは決定論的：0=全パス、1=いずれか失敗、2=CLI使用方法エラー、
+  3=必須ファイル欠落）
+- Optional Governance Preflight CI workflow ✅（`.github/workflows/governance-preflight.yml`、
+  README/docs/schemas/examples/governance関連パスにスコープ、`workflow_dispatch` 対応、
+  必須リリースゲートではない、既存の `Concept Drift`/`Trace Continuity`/`ADR Index`
+  ワークフローを置き換えない）
+- PR template preflight checklist ✅（`.github/PULL_REQUEST_TEMPLATE.md` の
+  `## Governance Preflight` 節。既存の Concept Preservation・Concept Drift Check・
+  Trace Continuity・ADR Requirement 等の節は無変更のまま保持）
+
+Future work:
+
+- Optional future: required branch protection for Governance Preflight.
+- Optional future: aggregate release-readiness checks.
+- Optional future: AI-agent preflight wrapper that prints required reading
+  before checks.
+
 ## Phase 1: Domain Contracts — ✅ PR-002で完了（スキーマ／設計契約のみ）
 
 - `semantic_profile` — `schemas/semantic_profile_v1.schema.json`

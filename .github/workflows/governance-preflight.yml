@@ -1,0 +1,56 @@
+# Governance-only aggregate check.
+# Runs concept drift, trace continuity, ADR index, and schema/example validation.
+# Does not test or change runtime behavior.
+#
+# Scope (PR-012): aggregates the existing Concept Drift (PR-010), Trace
+# Continuity (PR-009), ADR Index (PR-011), and contract schema/example
+# (PR-002) governance validators behind one command
+# (scripts/governance_preflight.py). It does not replace those individual
+# workflows and does not reimplement any validator logic. No network access,
+# no secrets, no artifact publishing, no repository mutation.
+#
+# This check is scoped to governance/docs/schema/example paths and is NOT a
+# required release gate. See docs/GOVERNANCE.md ("Governance Preflight") and
+# docs/operations/governance_preflight.md.
+
+name: Governance Preflight
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/**"
+      - "schemas/**"
+      - "examples/contracts/**"
+      - "scripts/check_concept_drift.py"
+      - "scripts/validate_trace_continuity.py"
+      - "scripts/check_adr_index.py"
+      - "scripts/governance_preflight.py"
+      - "tests/test_contract_schemas.py"
+      - "tests/test_trace_continuity_validator.py"
+      - "tests/test_concept_drift_guard.py"
+      - "tests/test_adr_index_validator.py"
+      - "tests/test_governance_preflight.py"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/workflows/governance-preflight.yml"
+  workflow_dispatch:
+
+jobs:
+  governance-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.11"
+      - name: Install minimal dependencies
+        # Governance-only: only pytest (schema check) and jsonschema (schema
+        # validation) are needed. No runtime dependencies (numpy, torch,
+        # etc.) are installed.
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest jsonschema
+      - name: Run governance preflight
+        run: python scripts/governance_preflight.py

@@ -201,3 +201,37 @@ The optional `ADR Index` GitHub Actions workflow
 (`.github/workflows/adr-index.yml`) is scoped to
 `docs/original_design_adr/**` and related governance paths and can also be
 run manually via `workflow_dispatch`.
+
+## Governance Preflight
+
+Before PRs affecting architecture docs, schemas, trace contracts, ADRs,
+governance, or public wording, run:
+
+```bash
+python scripts/governance_preflight.py
+```
+
+This command aggregates:
+
+- concept drift validation
+- trace continuity validation
+- ADR index validation
+- schema/example validation
+
+Governance preflight is not a runtime test. It does not prove Po_core
+behavior. It verifies that concept, trace, ADR, and schema governance
+remain coherent.
+
+It is **governance-only and does not modify runtime behavior**. It
+orchestrates the existing `scripts/check_concept_drift.py`,
+`scripts/validate_trace_continuity.py`, `scripts/check_adr_index.py`, and
+`tests/test_contract_schemas.py` checks via `subprocess`, without
+reimplementing their logic. See
+`docs/operations/governance_preflight.md` for the full operational guide,
+including CLI options (`--json`, `--only`, `--fail-fast`,
+`--list-checks`, `--skip-tests`) and exit codes. The optional
+`Governance Preflight` GitHub Actions workflow
+(`.github/workflows/governance-preflight.yml`) is scoped to
+governance/docs/schema/example paths, does not replace the individual
+`Concept Drift`, `Trace Continuity`, or `ADR Index` workflows, and can also
+be run manually via `workflow_dispatch`.
