@@ -18,11 +18,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import (
-    PO_TRACE_BLOCKED_SCHEMA_VERSION,
-    PoTraceBlocked,
-    PoTraceEvent,
-)
+from ..models import PO_TRACE_BLOCKED_SCHEMA_VERSION, PoTraceBlocked, PoTraceEvent
 from ..trace import create_trace_event
 from .store import InMemoryBlockedTraceStore
 
