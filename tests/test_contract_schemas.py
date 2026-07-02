@@ -216,5 +216,11 @@ def test_po_trace_event_type_enum_covers_all_contract_events() -> None:
         "PoSelfReconstructionApplied",
         "PoSelfCycleLimitReached",
         "ConceptDriftGuardEvaluated",
+        # PR-014 (seed-level): Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor.
+        "PoTraceBlockedRecorded",
+        "PoTraceBlockedRead",
+        "PoSelfSeedlingEvaluated",
+        "SemanticJumpTensorComputed",
+        "SemanticJumpPlanned",
     }
     assert event_types == expected

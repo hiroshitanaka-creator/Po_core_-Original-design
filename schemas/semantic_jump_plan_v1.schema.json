@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/semantic_jump_plan_v1.schema.json",
+  "title": "Po_core semantic_jump_plan v1",
+  "description": "PR-014 design + runtime contract (seed-level). Produced from a semantic_jump_tensor_v1 whose jump_recommended is true. A semantic_jump_plan PROPOSES that a semantic frame change be reviewed -- it never performs the jump, never rewrites content, and always requires human review. See docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "jump_plan_id",
+    "request_id",
+    "semantic_jump_tensor_id",
+    "source_jump_type",
+    "plan_status",
+    "target_step_ids",
+    "planning_reason",
+    "jump_pressure",
+    "requires_human_review",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "semantic_jump_plan_v1" },
+    "jump_plan_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "semantic_jump_tensor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The semantic_jump_tensor that recommended this plan."
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional: the po_self_decision this plan is contextually associated with, if any."
+    },
+    "source_jump_type": {
+      "type": "string",
+      "enum": [
+        "reframing",
+        "context_shift",
+        "responsibility_shift",
+        "ethical_frame_shift",
+        "blocked_trace_reactivation",
+        "unresolved_contradiction_jump"
+      ],
+      "description": "Mirrors the source tensor's jump_type at plan time. 'none' is excluded here because a plan is only created when jump_recommended was true."
+    },
+    "plan_status": {
+      "type": "string",
+      "enum": ["planned", "blocked", "not_applicable"]
+    },
+    "target_step_ids": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "planning_reason": { "type": "string", "minLength": 1 },
+    "jump_pressure": { "type": "number", "minimum": 0, "maximum": 1 },
+    "requires_human_review": {
+      "const": true,
+      "description": "A semantic_jump_plan always requires human review before any future execution phase could act on it -- a gate, not a deleted concept (docs/STRICT_CORE_RULES.md Safety Floor / Concept Ceiling)."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

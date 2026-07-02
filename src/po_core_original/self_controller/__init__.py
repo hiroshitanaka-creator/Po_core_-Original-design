@@ -14,6 +14,9 @@ from .cycle_guard import SelfCycleGuard
 from .decision_engine import RECONSTRUCT_THRESHOLD, PoSelfDecisionEngine
 from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
+from .seedling_evaluator import SEEDLING_ACTIVATION_THRESHOLD, SeedlingEvaluator
+from .semantic_jump_planner import SemanticJumpPlanner
+from .semantic_jump_tensor import JUMP_PRESSURE_THRESHOLD, SemanticJumpTensorComputer
 from .trace_reader import PoTraceReader
 
 __all__ = [
@@ -24,4 +27,9 @@ __all__ = [
     "ReconstructionPlanner",
     "ControlledReconstructionExecutor",
     "RECONSTRUCT_THRESHOLD",
+    "SeedlingEvaluator",
+    "SEEDLING_ACTIVATION_THRESHOLD",
+    "SemanticJumpTensorComputer",
+    "JUMP_PRESSURE_THRESHOLD",
+    "SemanticJumpPlanner",
 ]

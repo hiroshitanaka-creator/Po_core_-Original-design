@@ -1,0 +1,17 @@
+{
+  "schema_version": "semantic_jump_tensor_v1",
+  "semantic_jump_tensor_id": "sjt_reqdemo_psdreqde",
+  "request_id": "req_demo",
+  "source_step_ids": ["step_002"],
+  "semantic_delta": 0.75,
+  "discontinuity_score": 0.9,
+  "novelty_score": 0.4,
+  "contradiction_score": 0.5,
+  "responsibility_shift_score": 0.6,
+  "viewer_disagreement_pressure": 0.8,
+  "jump_pressure": 0.9,
+  "jump_recommended": true,
+  "jump_type": "ethical_frame_shift",
+  "created_at": "2026-07-02T07:22:35Z",
+  "trace_refs": ["evt_po_self_decision_made_001"]
+}

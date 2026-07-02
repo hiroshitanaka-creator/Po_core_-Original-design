@@ -30,6 +30,20 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `reconstruction_patch_v1` | `schemas/reconstruction_patch_v1.schema.json` | `docs/contracts/RECONSTRUCTION_PATCH_V1.md` | `ControlledReconstructionExecutor` (Layer 2, PR-007) | future controlled reconstruction execution phase |
 | `po_trace_event_v1` | `schemas/po_trace_event_v1.schema.json` | `docs/contracts/PO_TRACE_EVENT_V1.md` | all layers | all layers (via `Po_trace`) |
 | trace continuity (no new schema) | n/a — validates `po_trace_event_v1` instances as a graph | `docs/contracts/TRACE_CONTINUITY_V1.md` | consumes trace emitted by all layers (PR-008) | tests, future CI / governance tooling |
+| `po_trace_blocked_v1` | `schemas/po_trace_blocked_v1.schema.json` | `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level) | Po_self (`Po_self_seedling` evaluation input) |
+| `po_self_seedling_v1` | `schemas/po_self_seedling_v1.schema.json` | `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level bootstrap evaluation) | future self-growth governance (not implemented) |
+| `semantic_jump_tensor_v1` | `schemas/semantic_jump_tensor_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_core/Po_self boundary (Layer 1/2, PR-014, feature-flagged off by default) | `SemanticJumpPlanner` (PR-014) |
+| `semantic_jump_plan_v1` | `schemas/semantic_jump_plan_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, feature-flagged off by default) | future controlled jump execution (not implemented) |
+
+> `po_trace_blocked_v1`, `po_self_seedling_v1`, `semantic_jump_tensor_v1`, and
+> `semantic_jump_plan_v1` (PR-014) are design **and** runtime contracts, like
+> `reconstruction_plan_v1`/`reconstruction_patch_v1` — but seed-level and
+> feature-flagged: `enable_trace_blocked_recording` defaults `True` (with a
+> trigger that is real but inert under today's default decision flow, see
+> `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` §8); `enable_seedling_evaluation`
+> and `enable_semantic_jump` both default `False`. None of the three ever
+> rewrite content, execute a jump, reactivate a blocked trace, or start an
+> autonomous self-growth loop.
 
 > `reconstruction_plan_v1` (PR-006) and `reconstruction_patch_v1` (PR-007) are design
 > **and runtime** contracts — unlike the five PR-002 schema-only contracts above
@@ -88,6 +102,37 @@ continuity (the plan's originating `SemanticProfileComputed` /
 default. The `SelfCycleGuard` cycle guard prevents uncontrolled self-recursion.
 Actual controlled reconstruction *execution* (a later phase that would apply a
 real, still non-LLM, revision) is deliberately not implemented yet.
+
+### Po_trace_blocked, Po_self_seedling, and Semantic Jump Tensor (PR-014, seed-level)
+
+Three more concepts are wired in at seed-level, each feature-flagged and
+never executing anything destructive:
+
+- **`Po_trace_blocked`** (`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`):
+  when a `reconstruct` decision's plan cannot be concretely planned
+  (`plan_status` `not_applicable`/`blocked`), `BlockedTraceService` records it
+  as a `PoTraceBlocked` and emits `PoTraceBlockedRecorded` — a future
+  reactivation *candidate*, not a deletion. `enable_trace_blocked_recording`
+  defaults `True` (see the contract doc for why this default has no observed
+  effect on today's request flow).
+- **`Po_self_seedling`** (`docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`):
+  `SeedlingEvaluator` computes a bootstrap `activation_score` from blocked-trace
+  / Viewer / semantic-jump / ethical pressure and emits
+  `PoSelfSeedlingEvaluated`. `enable_seedling_evaluation` defaults `False`; no
+  self-growth loop is started.
+- **Semantic Jump Tensor** (`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`):
+  `SemanticJumpTensorComputer` evaluates whether a semantic *frame* change
+  (not a same-frame `reconstruct` patch) may be warranted, emitting
+  `SemanticJumpTensorComputed`; if `jump_recommended`, `SemanticJumpPlanner`
+  emits `SemanticJumpPlanned` and one secondary, informational
+  `PoSelfDecisionMade(decision_type="jump")` event.
+  `enable_semantic_jump` defaults `False`; no jump is ever executed.
+
+```text
+SemanticProfileComputed
+  ├─ PoTraceBlockedRecorded → PoTraceBlockedRead → PoSelfSeedlingEvaluated
+  └─ SemanticJumpTensorComputed → SemanticJumpPlanned → PoSelfDecisionMade(jump)
+```
 
 ### Trace continuity chain (PR-008)
 

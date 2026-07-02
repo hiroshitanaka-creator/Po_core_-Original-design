@@ -38,12 +38,12 @@ Optional fields: `viewer_feedback_refs`, `trace_refs`, `reconstruction_constrain
 | `request_id` | string | non-empty | |
 | `decision_type` | enum | `preserve`/`reconstruct`/`jump`/`reject`/`reactivate` | |
 | `target_step_ids` | array\<string\> | minItems 0 | empty allowed for `preserve` |
-| `trigger.trigger_type` | enum | `priority_threshold`/`ethics_delta`/`responsibility_pressure`/`viewer_feedback`/`trace_discontinuity`/`blocked_trace_reactivation`/`manual_override`/`none` | |
+| `trigger.trigger_type` | enum | `priority_threshold`/`ethics_delta`/`responsibility_pressure`/`viewer_feedback`/`trace_discontinuity`/`blocked_trace_reactivation`/`manual_override`/`none`/`semantic_jump_pressure`/`blocked_trace_pressure`/`seedling_activation` | the last 3 added PR-014 (seed-level) |
 | `trigger.reason` | string | non-empty | |
 | `priority_summary.max_priority_score` | number | 0..10 | |
 | `priority_summary.mean_priority_score` | number | 0..10 | |
 | `priority_summary.critical_count` | integer | >=0 | |
-| `action_plan.action` | enum | `no_change`/`revise_steps`/`regenerate_path`/`suppress_output`/`reactivate_trace` | |
+| `action_plan.action` | enum | `no_change`/`revise_steps`/`regenerate_path`/`suppress_output`/`reactivate_trace`/`plan_semantic_jump`/`evaluate_seedling`/`record_blocked_trace` | the last 3 added PR-014 (seed-level) |
 | `action_plan.explanation` | string | non-empty | |
 | `max_self_cycles` | integer | 1..10 | |
 | `self_cycle_index` | integer | 1..10 | must be <= `max_self_cycles` (see Invariants) |
@@ -86,3 +86,30 @@ Optional fields: `viewer_feedback_refs`, `trace_refs`, `reconstruction_constrain
   `reconstruct` first, per the invariant above, before attempting `jump`/`reject`/`reactivate`.
 - `reconstruction_constraints` is intentionally left unconstrained in the schema; its shape
   should be designed alongside the first `reconstruct` implementation, not speculatively now.
+
+## 10. `jump` seed-level wiring (PR-014)
+
+As of PR-014, `decision_type: "jump"` is behaviorally emitted, but only as a
+**secondary, informational** decision — never as the primary
+preserve/reconstruct decision, and never executed. When `enable_semantic_jump`
+is `True` (default `False`) and a `SemanticJumpTensor` recommends a jump
+(`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`), the controller emits
+one additional `PoSelfDecisionMade` event with:
+
+- `decision_type: "jump"`
+- `trigger.trigger_type: "semantic_jump_pressure"`
+- `action_plan.action: "plan_semantic_jump"`
+- `target_step_ids` matching the `SemanticJumpPlan`'s `target_step_ids`
+
+This decision is a **plan proposal record**, not an execution: it means "Po_self
+evaluated that a semantic frame change *may* be warranted, and a
+`SemanticJumpPlan` was created for future human review" — it is never handed
+to `ReconstructionPlanner`/`ControlledReconstructionExecutor` (both reject
+non-`reconstruct` decisions outright). `reject` and `reactivate` remain fully
+conceptual — no runtime code emits them.
+
+`blocked_trace_pressure` and `seedling_activation` (new `trigger_type` values,
+PR-014) and `evaluate_seedling` / `record_blocked_trace` (new `action_plan.action`
+values, PR-014) are declared in the schema for future use but are **not**
+behaviorally emitted by any runtime code in this PR — honestly reserved, not
+deleted (`docs/STRICT_CORE_RULES.md`).

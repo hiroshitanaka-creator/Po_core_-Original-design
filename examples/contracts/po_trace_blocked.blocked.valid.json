@@ -1,0 +1,19 @@
+{
+  "schema_version": "po_trace_blocked_v1",
+  "blocked_trace_id": "btr_reqdemo_a1b2c3d4",
+  "request_id": "req_demo",
+  "source_event_id": "evt_po_self_decision_made_001",
+  "source_step_ids": ["step_002"],
+  "blocked_reason": "Reconstruction plan rp_reqdemo_psdreqde is not_applicable: no concrete revision operation could be planned.",
+  "blocked_type": "reconstruction_deferred",
+  "semantic_profile_refs": ["sp_req_demo_2"],
+  "pressure_snapshot": {
+    "max_priority_score": 0.75,
+    "max_viewer_pressure": 0.8
+  },
+  "reactivation_eligibility": true,
+  "reactivation_score": 0.775,
+  "status": "blocked",
+  "created_at": "2026-07-02T07:22:35Z",
+  "trace_refs": ["evt_po_self_decision_made_001"]
+}

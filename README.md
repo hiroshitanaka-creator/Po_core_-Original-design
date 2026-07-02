@@ -95,14 +95,29 @@ pip install -e ".[dev]"
   `PoSelfReconstructionPlanned` / `PoSelfReconstructionApplied` event must have
   an explicit path back to its `SemanticProfileComputed` root. Validation only —
   it adds no new Po_core / Po_self / Viewer / reconstruction runtime behavior.
+- **`BlockedTraceService` / `BlockedTraceReader`** (PR-014, seed-level) — record
+  a diverted semantic step / decision path as a `PoTraceBlocked` future
+  reactivation *candidate* (never a deletion, never auto-reactivated) and read
+  it back for Po_self. See `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`.
+- **`SeedlingEvaluator`** (PR-014, off by default) — evaluates a
+  `Po_self_seedling` bootstrap-activation record from accumulated pressure.
+  Evaluation only — no autonomous self-growth loop. See
+  `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`.
+- **`SemanticJumpTensorComputer` / `SemanticJumpPlanner`** (PR-014, off by
+  default) — evaluate whether a semantic *frame* change (distinct from a
+  same-frame `reconstruct` patch) may be warranted and, if so, propose a
+  `SemanticJumpPlan` requiring human review, plus one secondary,
+  informational `decision_type="jump"` decision. Never executes a jump. See
+  `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
 - actual content rewriting / LLM-based reconstruction (the executor only ever produces patch *proposals*)
-- `jump` / `reject` / `reactivate` decision execution
+- destructive semantic jump execution, `reject` / `reactivate` decision execution, automatic blocked-trace reactivation
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
 - LLM / ML scoring
+- autonomous self-growth loops (`Po_self_seedling` evaluates only)
 - trace continuity as a *required* CI gate (PR-009 adds a scoped, optional workflow — see below)
 
 ```python

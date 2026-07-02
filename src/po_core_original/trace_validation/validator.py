@@ -25,7 +25,13 @@ from .errors import (
     RequestIdMismatchError,
     TraceContinuityError,
 )
-from .graph import TraceEventLike, TraceGraph, build_trace_graph, has_ancestor_of_type
+from .graph import (
+    TraceEventLike,
+    TraceGraph,
+    ancestors_of_type,
+    build_trace_graph,
+    has_ancestor_of_type,
+)
 
 SEMANTIC_PROFILE_COMPUTED = "SemanticProfileComputed"
 VIEWER_FEEDBACK_RECEIVED = "ViewerFeedbackReceived"
@@ -33,6 +39,12 @@ VIEWER_FEEDBACK_APPLIED = "ViewerFeedbackApplied"
 PO_SELF_DECISION_MADE = "PoSelfDecisionMade"
 PO_SELF_RECONSTRUCTION_PLANNED = "PoSelfReconstructionPlanned"
 PO_SELF_RECONSTRUCTION_APPLIED = "PoSelfReconstructionApplied"
+# PR-014 (seed-level): Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor.
+PO_TRACE_BLOCKED_RECORDED = "PoTraceBlockedRecorded"
+PO_TRACE_BLOCKED_READ = "PoTraceBlockedRead"
+PO_SELF_SEEDLING_EVALUATED = "PoSelfSeedlingEvaluated"
+SEMANTIC_JUMP_TENSOR_COMPUTED = "SemanticJumpTensorComputed"
+SEMANTIC_JUMP_PLANNED = "SemanticJumpPlanned"
 
 # Reserved future event types (docs/contracts/RECONSTRUCTION_PLAN_V1.md §11,
 # RECONSTRUCTION_PATCH_V1.md §11): jump / reject / reactivate are preserved as
@@ -65,6 +77,14 @@ _ISSUE_EXCEPTIONS: Dict[str, type] = {
     "reconstruction_applied_missing_preservation_flags": InvalidTraceTransitionError,
     "unsupported_future_controlled_mode_event": InvalidTraceTransitionError,
     "orphan_trace_event": OrphanTraceEventError,
+    # PR-014 (seed-level): Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor.
+    "orphan_po_trace_blocked": OrphanTraceEventError,
+    "trace_blocked_read_without_source": OrphanTraceEventError,
+    "seedling_without_blocked_trace": MissingParentEventError,
+    "orphan_semantic_jump_tensor": OrphanTraceEventError,
+    "jump_plan_without_tensor": MissingParentEventError,
+    "jump_plan_without_recommendation": InvalidTraceTransitionError,
+    "jump_decision_without_plan": InvalidTraceTransitionError,
 }
 
 
@@ -148,6 +168,12 @@ class TraceContinuityValidator:
         specific_issues.extend(self._check_reconstruction_planned(graph))
         specific_issues.extend(self._check_reconstruction_applied(graph))
         specific_issues.extend(self._check_future_controlled_mode_events(graph))
+        specific_issues.extend(self._check_po_trace_blocked_recorded(graph))
+        specific_issues.extend(self._check_po_trace_blocked_read(graph))
+        specific_issues.extend(self._check_seedling_evaluated(graph))
+        specific_issues.extend(self._check_semantic_jump_tensor(graph))
+        specific_issues.extend(self._check_semantic_jump_planned(graph))
+        specific_issues.extend(self._check_jump_decision_ancestry(graph))
         issues.extend(specific_issues)
 
         already_flagged = {i.event_id for i in specific_issues if i.event_id}
@@ -419,6 +445,11 @@ class TraceContinuityValidator:
             PO_SELF_RECONSTRUCTION_PLANNED,
             PO_SELF_RECONSTRUCTION_APPLIED,
             VIEWER_FEEDBACK_APPLIED,
+            PO_TRACE_BLOCKED_RECORDED,
+            PO_TRACE_BLOCKED_READ,
+            PO_SELF_SEEDLING_EVALUATED,
+            SEMANTIC_JUMP_TENSOR_COMPUTED,
+            SEMANTIC_JUMP_PLANNED,
         }
         for node in graph.nodes.values():
             if node.event_type not in non_root_types:
@@ -435,6 +466,175 @@ class TraceContinuityValidator:
                         "parent_event_id nor trace_refs; Po_self-layer and "
                         "reconstruction events must never be free-floating. Add "
                         "continuity metadata linking it to its causing event."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 11 (PR-014): PoTraceBlockedRecorded requires SemanticProfileComputed
+    def _check_po_trace_blocked_recorded(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_TRACE_BLOCKED_RECORDED):
+            if has_ancestor_of_type(graph, node.event_id, SEMANTIC_PROFILE_COMPUTED):
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="orphan_po_trace_blocked",
+                    message=(
+                        f"PoTraceBlockedRecorded event {node.event_id} is orphaned: "
+                        "no SemanticProfileComputed reference found. Add trace_refs "
+                        "containing the root SemanticProfileComputed event_id, "
+                        "directly or via the causing PoSelfDecisionMade "
+                        "(docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md)."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 12 (PR-014): PoTraceBlockedRead continuity ---------------------
+    def _check_po_trace_blocked_read(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_TRACE_BLOCKED_READ):
+            has_event_link = has_ancestor_of_type(
+                graph, node.event_id, PO_TRACE_BLOCKED_RECORDED
+            )
+            has_payload_ids = bool(node.payload.get("blocked_trace_ids"))
+            if has_event_link or has_payload_ids:
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="trace_blocked_read_without_source",
+                    message=(
+                        f"PoTraceBlockedRead event {node.event_id} has no blocked "
+                        "trace source: no PoTraceBlockedRecorded ancestor and no "
+                        "non-empty payload.blocked_trace_ids. Reference the "
+                        "PoTraceBlockedRecorded event_id(s) via trace_refs, or "
+                        "include the read blocked_trace_id(s) in "
+                        "payload.blocked_trace_ids."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 13 (PR-014): PoSelfSeedlingEvaluated requires PoTraceBlockedRecorded
+    def _check_seedling_evaluated(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_SELF_SEEDLING_EVALUATED):
+            if has_ancestor_of_type(graph, node.event_id, PO_TRACE_BLOCKED_RECORDED):
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="seedling_without_blocked_trace",
+                    message=(
+                        f"PoSelfSeedlingEvaluated event {node.event_id} is orphaned: "
+                        "no PoTraceBlockedRecorded reference found. This PR's seed "
+                        "runtime only evaluates a seedling when a blocked trace "
+                        "exists for the request "
+                        "(docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md §7); add "
+                        "trace_refs pointing to the causing PoTraceBlockedRecorded "
+                        "event."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 14 (PR-014): SemanticJumpTensorComputed requires SemanticProfileComputed
+    def _check_semantic_jump_tensor(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(SEMANTIC_JUMP_TENSOR_COMPUTED):
+            if has_ancestor_of_type(graph, node.event_id, SEMANTIC_PROFILE_COMPUTED):
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="orphan_semantic_jump_tensor",
+                    message=(
+                        f"SemanticJumpTensorComputed event {node.event_id} is "
+                        "orphaned: no SemanticProfileComputed reference found. Add "
+                        "trace_refs containing the root SemanticProfileComputed "
+                        "event_id, directly or via the causing PoSelfDecisionMade."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 15 (PR-014): SemanticJumpPlanned requires a recommending tensor -
+    def _check_semantic_jump_planned(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(SEMANTIC_JUMP_PLANNED):
+            tensors = ancestors_of_type(
+                graph, node.event_id, SEMANTIC_JUMP_TENSOR_COMPUTED
+            )
+            if not tensors:
+                issues.append(
+                    TraceValidationIssue(
+                        code="jump_plan_without_tensor",
+                        message=(
+                            f"SemanticJumpPlanned event {node.event_id} is orphaned: "
+                            "no SemanticJumpTensorComputed reference found. Add "
+                            "trace_refs or parent_event_id pointing to the tensor "
+                            "that recommended this plan."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+                continue
+            if not any(t.payload.get("jump_recommended") is True for t in tensors):
+                issues.append(
+                    TraceValidationIssue(
+                        code="jump_plan_without_recommendation",
+                        message=(
+                            f"SemanticJumpPlanned event {node.event_id} references "
+                            "a SemanticJumpTensorComputed whose payload."
+                            "jump_recommended is not true; a SemanticJumpPlan must "
+                            "only be created from a tensor that recommended a jump "
+                            "(docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md)."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+        return issues
+
+    # -- Rule 16 (PR-014): jump PoSelfDecisionMade requires SemanticJumpPlanned
+    def _check_jump_decision_ancestry(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_SELF_DECISION_MADE):
+            if node.payload.get("decision_type") != "jump":
+                continue
+            if has_ancestor_of_type(graph, node.event_id, SEMANTIC_JUMP_PLANNED):
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="jump_decision_without_plan",
+                    message=(
+                        f"PoSelfDecisionMade event {node.event_id} has "
+                        "payload.decision_type='jump' but no SemanticJumpPlanned "
+                        "reference found. A jump decision must always trace back "
+                        "to the SemanticJumpPlan it records "
+                        "(docs/contracts/PO_SELF_DECISION_V1.md §10)."
                     ),
                     event_id=node.event_id,
                     event_type=node.event_type,

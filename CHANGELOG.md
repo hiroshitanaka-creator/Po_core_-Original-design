@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-014)
+- `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`, `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`, `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` — new design + runtime contracts.
+- `schemas/po_trace_blocked_v1.schema.json`, `schemas/po_self_seedling_v1.schema.json`, `schemas/semantic_jump_tensor_v1.schema.json`, `schemas/semantic_jump_plan_v1.schema.json`.
+- `src/po_core_original/blocked_trace/` (`store.py`, `service.py`, `reader.py`) — records a diverted semantic step / decision path as a `PoTraceBlocked` future reactivation candidate (never a deletion, never auto-reactivated).
+- `src/po_core_original/self_controller/seedling_evaluator.py` — `SeedlingEvaluator`, a `Po_self_seedling` bootstrap-activation evaluator (no self-growth loop).
+- `src/po_core_original/self_controller/semantic_jump_tensor.py`, `semantic_jump_planner.py` — `SemanticJumpTensorComputer` / `SemanticJumpPlanner`, evaluating whether a semantic FRAME change may be warranted and proposing a human-review-required `SemanticJumpPlan` (never executing a jump).
+- `PoSelfController` feature flags: `enable_trace_blocked_recording` (default `True`, inert under today's decision engine), `enable_semantic_jump` (default `False`), `enable_seedling_evaluation` (default `False`). When enabled and a jump is recommended, one secondary, informational `PoSelfDecisionMade(decision_type="jump")` is emitted — never executed.
+- New trace event types: `PoTraceBlockedRecorded`, `PoTraceBlockedRead`, `PoSelfSeedlingEvaluated`, `SemanticJumpTensorComputed`, `SemanticJumpPlanned` (added to `schemas/po_trace_event_v1.schema.json`).
+- New `po_self_decision_v1` enum values: `trigger_type` gains `semantic_jump_pressure`/`blocked_trace_pressure`/`seedling_activation`; `action_plan.action` gains `plan_semantic_jump`/`evaluate_seedling`/`record_blocked_trace` (only `semantic_jump_pressure`/`plan_semantic_jump` are behaviorally emitted).
+- `TraceContinuityValidator` rules 11–16 (`docs/contracts/TRACE_CONTINUITY_V1.md` §8a, §10) and `ancestors_of_type()` graph helper.
+- `docs/original_design_adr/ADR-0002-po-trace-blocked-seedling-jump-tensor.md` (Accepted).
+- Tests: `tests/test_po_trace_blocked_contract.py`, `tests/test_po_self_seedling_contract.py`, `tests/test_semantic_jump_tensor_contract.py`, `tests/test_semantic_jump_seed_wiring.py`, `tests/test_trace_continuity_seedling_jump.py` (56 tests).
+- 4 new valid schema examples + 4 new invalid trace-chain fixtures under `examples/contracts/`.
+
+### Changed (PR-014)
+- `PoSelfResult` gains optional fields: `blocked_traces`, `semantic_jump_tensor`, `semantic_jump_plan`, `jump_decision`, `seedling`.
+- `scripts/validate_contracts.py` and `scripts/validate_trace_continuity.py` register the new schemas/examples.
+- `tests/test_contract_schemas.py`'s `event_type` enum coverage assertion updated for the 5 new event types.
+
+### Not Changed (PR-014)
+- No actual content rewriting; no destructive semantic jump execution; no autonomous self-growth loop; no `reject`/`reactivate` execution; no automatic blocked-trace reactivation; no LLM/ML/philosopher-module dependency added.
+- `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`, `ControlledReconstructionExecutor`, `ViewerFeedbackService` are untouched.
+- Default-flag request flow (`enable_trace_blocked_recording=True`, `enable_semantic_jump=False`, `enable_seedling_evaluation=False`) produces no new trace event types, verified by test.
+
 ### Added (PR-013)
 - `scripts/ai_agent_bootstrap_preflight.py` AI-agent bootstrap command.
 - Required-reading and governance-file verification for AI-assisted work.
