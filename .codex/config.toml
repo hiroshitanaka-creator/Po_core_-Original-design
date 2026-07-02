@@ -1,0 +1,123 @@
+# Project-scoped Codex configuration for Po_core_-Original-design.
+#
+# Purpose:
+# - Keep Codex aligned with the Po_core Original Design governance layer.
+# - Prefer high reasoning quality over speed for architecture/schema/trace work.
+# - Allow repository edits while preserving approval, sandbox, and secret hygiene.
+#
+# Notes:
+# - Project-scoped .codex/config.toml is loaded only after the project is trusted.
+# - Do not put provider, auth, notification, telemetry, or machine-local keys here.
+# - User-specific provider/auth settings belong in ~/.codex/config.toml.
+
+# GPT-5.5 is the recommended default for complex coding, computer-use,
+# knowledge-work, and research workflows in Codex.
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+model_verbosity = "high"
+
+# Interactive but protected: Codex can edit the workspace, but must ask for
+# approval when work exceeds the sandbox or needs elevated actions.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Keep web search available through Codex's cached index, but do not grant shell
+# commands outbound network access inside the workspace-write sandbox.
+web_search = "cached"
+
+# Avoid surfacing raw reasoning in UI / exec output. Codex should provide concise
+# summaries and concrete diffs, not hidden chain-of-thought.
+hide_agent_reasoning = true
+
+# Give Codex enough project guidance context when AGENTS.md is absent.
+project_doc_max_bytes = 200000
+project_doc_fallback_filenames = ["CLAUDE.md", "README.md"]
+
+# Keep session history local and bounded for this project.
+[history]
+persistence = "none"
+max_bytes = 10485760
+
+[sandbox_workspace_write]
+network_access = false
+exclude_slash_tmp = true
+exclude_tmpdir_env_var = true
+
+[features]
+hooks = true
+unified_exec = true
+undo = true
+enable_request_compression = true
+skill_mcp_dependency_install = false
+
+[shell_environment_policy]
+inherit = "core"
+ignore_default_excludes = false
+exclude = [
+  "*TOKEN*",
+  "*SECRET*",
+  "*PASSWORD*",
+  "*PRIVATE_KEY*",
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "GH_TOKEN",
+  "NPM_TOKEN",
+  "PYPI_TOKEN",
+  "TWINE_PASSWORD",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY"
+]
+
+[shell_environment_policy.set]
+PYTHONDONTWRITEBYTECODE = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+
+# Repo-specific operating instructions injected into Codex sessions.
+# These instructions are intentionally strict because this repository's main
+# risk is concept drift: turning Po_core into a generic chatbot, safety wrapper,
+# or philosopher roleplay demo.
+developer_instructions = '''
+Po_core Original Design operating rules for Codex:
+
+1. Treat this repository as the canonical Original Design track for Po_core.
+2. Before editing, read at minimum:
+   - docs/STRICT_CORE_RULES.md
+   - docs/AI_AGENT_INITIALIZATION_RULES.md
+   - docs/ARCHITECTURE_NORTH_STAR.md
+   - docs/CONCEPT_DRIFT_GUARD.md
+   - docs/GOVERNANCE.md
+   - docs/ROADMAP.md
+   - docs/original_design_status.md
+   - README.md
+3. Preserve the canonical identity:
+   Po_core is a three-layer tensor intelligence system for processing the meaning and responsibility of speech.
+   - Po_core: tensor kernel.
+   - Po_self: recursive trace-based self-reconstruction layer.
+   - Viewer: external resonance / feedback tensor layer.
+   - The 42 philosophers are deliberation modules inside Po_core, not the whole system.
+   - Safety is a floor, not a concept ceiling.
+4. Do not shrink Po_core into:
+   - a generic chatbot
+   - a generic decision-support tool
+   - a safety wrapper
+   - a philosopher roleplay system
+   - a simple multi-agent debate demo
+5. If a concept is risky or not implemented yet, do not delete it. Add gates, thresholds, traceability, staged rollout, human review, or label it as conceptual/planned.
+6. Be explicit about status: implemented / planned / conceptual / research hypothesis.
+7. Do not claim actual content rewriting, LLM reconstruction, jump/reject/reactivate execution, full Viewer UI, or philosopher tensor computation unless code and tests prove it.
+8. For docs or public wording changes, run:
+   python scripts/check_concept_drift.py --check-pr-template
+9. For trace/schema/reconstruction event changes, run:
+   python scripts/validate_trace_continuity.py --include-negative
+   python -m pytest tests/test_trace_continuity_validator.py -v --noconftest -p no:cacheprovider
+10. For ADR or architecture governance changes, run:
+   python scripts/check_adr_index.py
+11. For schema/example changes, run:
+   python -m pytest tests/test_contract_schemas.py -v --noconftest -p no:cacheprovider
+12. PR-012 governance_preflight.py may exist on newer branches. If it exists, prefer:
+   python scripts/governance_preflight.py
+13. Keep runtime and governance scopes separate. Governance config/docs/scripts must not silently change Po_core / Po_self / Viewer runtime behavior.
+14. Update docs/original_design_status.md and CHANGELOG.md when adding or changing governance, schema, trace, or architecture contracts.
+15. In every final report, state whether runtime behavior changed. If it did not, say so explicitly.
+'''
