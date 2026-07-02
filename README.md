@@ -69,15 +69,21 @@ pip install -e ".[dev]"
 - **`PoCoreKernel`** (PR-003) — decomposes input into semantic steps, computes a
   deterministic `semantic_profile` per step, and emits a `SemanticProfileComputed`
   Po_trace event.
-- **`PoSelfController`** (PR-004) — reads `SemanticProfileComputed` trace,
-  analyses semantic pressure, and emits a `PoSelfDecisionMade` event carrying a
-  `preserve` or `reconstruct` control decision, bounded by `max_self_cycles`.
+- **`PoSelfController`** (PR-004/PR-005) — reads `SemanticProfileComputed` trace,
+  analyses semantic **and Viewer** pressure, and emits a `PoSelfDecisionMade`
+  event carrying a `preserve` or `reconstruct` control decision, bounded by
+  `max_self_cycles`.
+- **`ViewerFeedbackService`** (PR-005) — receives Viewer feedback tensors, stores
+  them (`InMemoryViewerFeedbackStore`), and emits `ViewerFeedbackReceived`; the
+  controller applies their pressure and emits `ViewerFeedbackApplied`. Viewer
+  feedback is a tensor input to Po_self, not UI analytics — high disagreement /
+  discomfort becomes traceable pressure, never an automatic deletion.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
-- Viewer feedback loop (Layer 3)
+- Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
-- actual reconstruction application (PR-004 only *marks* steps)
+- actual reconstruction application (`reconstruct` only *marks* steps)
 - `jump` / `reject` / `reactivate` decision behavior
 - LLM / ML scoring
 

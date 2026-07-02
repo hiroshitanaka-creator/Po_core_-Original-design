@@ -39,6 +39,17 @@ SEMANTIC_PROFILE_SCHEMA_VERSION = "semantic_profile_v1"
 SEMANTIC_STEP_SCHEMA_VERSION = "semantic_step_v1"
 PO_TRACE_EVENT_SCHEMA_VERSION = "po_trace_event_v1"
 PO_SELF_DECISION_SCHEMA_VERSION = "po_self_decision_v1"
+VIEWER_FEEDBACK_SCHEMA_VERSION = "viewer_feedback_v1"
+
+# Fixed, required core axes of a viewer feedback_tensor (schema: 5 axes, plus
+# optional normalized 0..1 extension axes).
+VIEWER_FEEDBACK_CORE_AXES = (
+    "resonance_axis",
+    "agreement_axis",
+    "disagreement_axis",
+    "discomfort_axis",
+    "trust_axis",
+)
 
 
 @dataclass(frozen=True)
@@ -354,4 +365,100 @@ class PoSelfResult:
             "kernel_result": self.kernel_result.to_dict(),
             "decision": self.decision.to_dict(),
             "trace_events": [e.to_dict() for e in self.trace_events],
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Viewer (Layer 3) models — added in PR-005.
+#
+# ViewerFeedback mirrors ``schemas/viewer_feedback_v1.schema.json``. It is a
+# *tensor input* for Po_self (Layer 2), NOT UI analytics and NOT a like/dislike
+# counter. High disagreement / discomfort must never auto-delete output; it
+# becomes traceable external pressure that Po_self reasons over
+# (docs/contracts/VIEWER_FEEDBACK_V1.md).
+# --------------------------------------------------------------------------- #
+
+
+def _check_unit_interval(name: str, value: float) -> None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"{name} must be a number, got {value!r}")
+    if not (0.0 <= float(value) <= 1.0):
+        raise ValueError(f"{name} must be normalized to 0.0..1.0, got {value!r}")
+
+
+@dataclass(frozen=True)
+class ViewerFeedback:
+    """External Viewer feedback tensor (mirrors ``viewer_feedback_v1``).
+
+    All ``*_level`` fields and every ``feedback_tensor`` value must be
+    normalized to 0.0..1.0 (validated in ``__post_init__``). ``reason_log`` may
+    be empty; ``feedback_tensor`` may NOT be empty (its five core axes are
+    required by the schema). ``viewer_context`` is optional and omitted from
+    ``to_dict()`` when unset (the schema envelope is ``additionalProperties:
+    false``).
+    """
+
+    schema_version: str
+    feedback_id: str
+    request_id: str
+    target_output_id: str
+    viewer_resonance_level: float
+    interpretation_agreement_level: float
+    disagreement_level: float
+    discomfort_level: float
+    feedback_tensor: Dict[str, float]
+    reason_log: List[str] = field(default_factory=list)
+    created_at: str = ""
+    viewer_context: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self) -> None:
+        for name in (
+            "viewer_resonance_level",
+            "interpretation_agreement_level",
+            "disagreement_level",
+            "discomfort_level",
+        ):
+            _check_unit_interval(name, getattr(self, name))
+        if not self.feedback_tensor:
+            raise ValueError("feedback_tensor must not be empty")
+        for axis in VIEWER_FEEDBACK_CORE_AXES:
+            if axis not in self.feedback_tensor:
+                raise ValueError(f"feedback_tensor is missing required axis '{axis}'")
+        for axis, value in self.feedback_tensor.items():
+            _check_unit_interval(f"feedback_tensor['{axis}']", value)
+
+    def to_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "feedback_id": self.feedback_id,
+            "request_id": self.request_id,
+            "target_output_id": self.target_output_id,
+            "viewer_resonance_level": self.viewer_resonance_level,
+            "interpretation_agreement_level": self.interpretation_agreement_level,
+            "disagreement_level": self.disagreement_level,
+            "discomfort_level": self.discomfort_level,
+            "feedback_tensor": dict(self.feedback_tensor),
+            "reason_log": list(self.reason_log),
+            "created_at": self.created_at,
+        }
+        if self.viewer_context is not None:
+            out["viewer_context"] = dict(self.viewer_context)
+        return out
+
+
+@dataclass(frozen=True)
+class ViewerFeedbackReceipt:
+    """Return value of ``ViewerFeedbackService.receive_feedback``.
+
+    Bundles the stored feedback with the ``ViewerFeedbackReceived`` trace event
+    that recorded its receipt.
+    """
+
+    feedback: ViewerFeedback
+    trace_event: PoTraceEvent
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "feedback": self.feedback.to_dict(),
+            "trace_event": self.trace_event.to_dict(),
         }

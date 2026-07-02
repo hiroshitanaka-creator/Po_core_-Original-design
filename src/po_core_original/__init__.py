@@ -8,24 +8,28 @@ final model on purpose:
     * Po_core (Layer 1) computes semantic profiles and emits Po_trace (PR-003).
     * Po_self (Layer 2) reads that trace and decides preserve / reconstruct
       (first activation, PR-004).
-    * Viewer (Layer 3) will later *return* feedback tensors.
+    * Viewer (Layer 3) returns feedback tensors that become external pressure on
+      Po_self (first activation, PR-005).
 
 Activated so far:
 
     * ``PoCoreKernel`` (PR-003) — deterministic step decomposition,
       deterministic semantic-profile scoring, ``SemanticProfileComputed`` trace.
-    * ``PoSelfController`` (PR-004) — reads ``SemanticProfileComputed`` trace,
-      analyses semantic pressure, emits a ``PoSelfDecisionMade`` event carrying
-      a ``preserve`` or ``reconstruct`` control decision, bounded by
-      ``max_self_cycles``.
+    * ``PoSelfController`` (PR-004/PR-005) — reads ``SemanticProfileComputed``
+      trace, analyses semantic + Viewer pressure, emits a ``PoSelfDecisionMade``
+      event carrying a ``preserve`` or ``reconstruct`` control decision, bounded
+      by ``max_self_cycles``.
+    * ``ViewerFeedbackService`` / ``InMemoryViewerFeedbackStore`` (PR-005) —
+      receive Viewer feedback tensors, store them, emit ``ViewerFeedbackReceived``
+      and (when applied) ``ViewerFeedbackApplied`` trace events.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation; Po_self's
 ``jump`` / ``reject`` / ``reactivate`` decisions, actual content
-reconstruction, the Viewer feedback loop (Layer 3), philosopher deliberation,
-safety-gate runtime, LLM integration, and ML scoring are **not yet grown**.
-Those concepts are preserved in docs/ and remain the next stages of growth,
-not discarded simplifications.
+reconstruction, the full Viewer UI / REST feedback API / long-term persistence,
+philosopher deliberation, safety-gate runtime, LLM integration, and ML scoring
+are **not yet grown**. Those concepts are preserved in docs/ and remain the
+next stages of growth, not discarded simplifications.
 
 Public usage::
 
@@ -52,10 +56,17 @@ from .models import (
     SemanticProfile,
     SemanticStep,
     SemanticStepSource,
+    ViewerFeedback,
+    ViewerFeedbackReceipt,
 )
 from .self_controller import PoSelfController
+from .viewer_feedback import (
+    InMemoryViewerFeedbackStore,
+    ViewerFeedbackService,
+    compute_viewer_pressure,
+)
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 __all__ = [
     "PoCoreKernel",
@@ -72,5 +83,10 @@ __all__ = [
     "PoSelfActionPlan",
     "PoSelfDecision",
     "PoSelfResult",
+    "ViewerFeedback",
+    "ViewerFeedbackReceipt",
+    "ViewerFeedbackService",
+    "InMemoryViewerFeedbackStore",
+    "compute_viewer_pressure",
     "__version__",
 ]

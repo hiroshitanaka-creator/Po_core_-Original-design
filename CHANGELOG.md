@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(viewer): PR-005 — Viewer Feedback Tensor First Activation (`src/po_core_original/viewer_feedback/`). The Viewer layer is activated as an external *feedback tensor source* (not a UI, not a dashboard, not social analytics): feedback is received, stored, traced, turned into deterministic pressure, and fed into Po_self's decision context.
+- ViewerFeedback tensor model runtime support (`ViewerFeedback`, `ViewerFeedbackReceipt` dataclasses; 0..1 validation in `__post_init__`; conforms to `viewer_feedback_v1`).
+- In-memory ViewerFeedback store (`InMemoryViewerFeedbackStore`; insertion-ordered, replace-in-place on duplicate `feedback_id`; no persistence, no DB dependency).
+- ViewerFeedbackReceived Po_trace event (`ViewerFeedbackService.receive_feedback` → `ViewerFeedbackReceipt`).
+- ViewerFeedbackApplied Po_trace event, emitted when feedback is applied to the Po_self decision context.
+- Viewer feedback pressure integration into `PoSelfController` decision context: `PoSelfController(feedback_store=...)` and `evaluate(..., viewer_feedback=[...])`; per-item `viewer_pressure = max(disagreement, discomfort, 1 - resonance, 1 - agreement)`; combined pressure `= max(semantic_normalized, viewer_pressure)`; viewer pressure ≥ threshold triggers `reconstruct` with `trigger_type="viewer_feedback"` when no semantic step crosses the threshold. Viewer feedback never overrides safety or schemas.
+- `PoSelfDecisionMade` payload gains `viewer_feedback_count` and `max_viewer_pressure` (PR-004 fields unchanged); `PoSelfDecision.viewer_feedback_refs` records applied feedback ids.
+- Tests validating ViewerFeedback and Viewer trace events against v1 schemas (`tests/test_viewer_feedback_tensor.py`, 18 tests, jsonschema-backed). Package version `0.0.2 → 0.0.3`.
+
+### Not Implemented
+- Viewer UI, REST feedback API, and long-term feedback persistence remain future work (the store is in-memory only).
+- Actual content reconstruction and philosopher deliberation remain unimplemented.
+
+### Added
 - feat(po_self): PR-004 — Po_self Controller Seed, the first activation of trace-based self-reconstruction (`src/po_core_original/self_controller/`). Po_self reads the `SemanticProfileComputed` Po_trace emitted by the Po_core kernel, analyses semantic pressure, and emits a `PoSelfDecisionMade` event carrying a `preserve` or `reconstruct` control decision. This is the first executable seed of the Po_self layer — not a mini Po_core and not full self-evolution.
 - Po_self Controller Seed that reads SemanticProfileComputed trace events (`PoSelfController.evaluate(kernel_result)` → `PoSelfResult`).
 - PoSelfDecision v1 runtime dataclasses (`PoSelfTrigger`, `PoSelfPrioritySummary`, `PoSelfActionPlan`, `PoSelfDecision`, `PoSelfResult`) and a deterministic decision engine (`normalized_priority = min(max_priority_score / 10, 1.0)`; `>= 0.75` → reconstruct, else preserve).

@@ -7,6 +7,18 @@
 
 ## 現フェーズ
 
+**Phase 4: Viewer Feedback Tensor First Activation（PR-005）— 開始（Viewer 層の最初の起動）。**
+本PR（PR-005）にて、Viewer を「将来の入力層」から「最初の実行可能な外部フィードバック
+テンソル源」へと起動した。これは UI でもダッシュボードでもソーシャル分析でもない。
+`ViewerFeedbackService.receive_feedback()` が `ViewerFeedback` テンソルを受け取り、
+`InMemoryViewerFeedbackStore` に格納し、`ViewerFeedbackReceived` trace イベントを発行する。
+`PoSelfController.evaluate(kernel_result, viewer_feedback=...)`（または `feedback_store`
+から request_id で取得）が Viewer 圧力（`compute_viewer_pressure`）を計算し、
+`ViewerFeedbackApplied` を発行して Po_self の判定コンテキストへ供給する。
+高い disagreement / discomfort は出力を自動削除せず、**追跡可能な圧力**として Po_self が
+推論する（安全・スキーマを上書きしない）。決定論的：同一 input・request_id・feedback set で
+同一判定。未実装：Viewer UI・REST・長期永続化・実際のコンテンツ再構成・哲学者熟議。
+
 **Phase 3: Po_self Controller Seed（PR-004）— 開始（Po_self 層の最初の起動）。**
 本PR（PR-004）にて、Po_self を「将来の概念」から「最初の実行可能な種」へと起動した。
 これは Po_core のミニ版でも自己進化の完成でもなく、**trace ベース自己再構成の最初の起動点**
@@ -110,7 +122,24 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-004（本エントリ）**: Phase 3 Po_self Controller Seed 開始 — Po_self 層の最初の起動。
+- **PR-005（本エントリ）**: Phase 4 Viewer Feedback Tensor First Activation 開始 — Viewer 層の最初の起動。
+  `src/po_core_original/viewer_feedback/`（`store.py` / `service.py` / `pressure.py` /
+  `__init__.py`）を新規追加。`ViewerFeedbackService.receive_feedback()` が `ViewerFeedback`
+  を格納し `ViewerFeedbackReceived` を発行。`PoSelfController` を拡張し、明示引数
+  `viewer_feedback` および `feedback_store`（request_id で取得）から feedback を集約
+  （explicit → store の順、feedback_id で重複排除）、`compute_viewer_pressure` で圧力を算出、
+  `ViewerFeedbackApplied` を発行して decision engine に供給。判定ルール（決定論）：
+  `combined = max(semantic_normalized, viewer_pressure)`。semantic が閾値超なら
+  `trigger_type=priority_threshold`、そうでなく viewer 圧力が閾値超なら
+  `trigger_type=viewer_feedback` で reconstruct（全 step を対象にマーク、コンテンツ書き換えなし）。
+  per-item viewer_pressure = `max(disagreement, discomfort, 1-resonance, 1-agreement)`。
+  `models.py` に `ViewerFeedback` / `ViewerFeedbackReceipt` を追加（`to_dict()`、0..1 検証、
+  `schemas/viewer_feedback_v1` 準拠）。trace イベント順：kernel events → ViewerFeedbackApplied
+  （feedback 有時のみ）→ PoSelfDecisionMade。`tests/test_viewer_feedback_tensor.py`
+  （18テスト、jsonschema 検証込み）→ 全パス。未実装（概念保存）：Viewer UI・REST・
+  長期永続化・実際のコンテンツ再構成・哲学者熟議・LLM・ML。Viewer feedback は安全・スキーマを
+  上書きしない。既存 `src/po_core/` ランタイム・哲学者ロスター・trace contract・スキーマは無変更。
+- **PR-004**: Phase 3 Po_self Controller Seed 開始 — Po_self 層の最初の起動。
   `src/po_core_original/self_controller/`（`controller.py` / `trace_reader.py` /
   `decision_engine.py` / `cycle_guard.py` / `__init__.py`）を新規追加。Po_self が
   `SemanticProfileComputed` trace を読み、`PoSelfDecisionMade` を発行する。
