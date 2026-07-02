@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from importlib.resources.abc import Traversable
+import sys
 from importlib.resources import files
 from typing import Final
+
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+else:  # Python 3.10: importlib.resources.abc does not exist yet
+    from importlib.abc import Traversable
 
 PACKAGE_NAME: Final[str] = __name__
 
