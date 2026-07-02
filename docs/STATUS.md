@@ -7,12 +7,74 @@
 
 ## 現フェーズ
 
+**Phase 6: Controlled Reconstruction Executor Seed（PR-007）— 開始
+（trace 保存型パッチ提案実行の最初の起動）。**
+本PR（PR-007）にて、`ReconstructionPlan` を**統制された実行器（Controlled
+Reconstruction Executor）** に適用し、決定論的な**パッチ提案（patch proposal）**
+のみを生成する層を起動した。**実際のコンテンツ書き換えは行わない**：
+`execution_mode` は常に `patch_proposal_only`、`content_rewrite_applied` は常に
+false、`original_content_preserved` は常に true、`original_content_mutated` は常に
+false。`SemanticStep.content` は変更前後でハッシュ（SHA-256）を再計算して不変を証明
+し、ミューテーションが検出された場合は `RuntimeError` を送出し成功 trace を発行しない。
+`reconstruct` 判定＋計画がある場合のみ実行、`preserve` では実行もイベントも発生しない。
+trace 継続性（`SemanticProfileComputed` / `PoSelfDecisionMade` /
+`PoSelfReconstructionPlanned` が source trace に含まれること）は既定で必須
+（`strict_trace_continuity=True`）、`SelfCycleGuard` で無制限再帰を防止。
+`PoSelfReconstructionApplied` trace イベントは「計画が統制実行器に適用された」ことを
+意味し、「コンテンツが書き換えられた」ことは意味しない（イベント名の誤読を防ぐため
+ドキュメントで明示）。`jump` / `reject` / `reactivate` は実行器が拒否（ValueError）。
+
+**Phase 5: Reconstruction Planning Seed（PR-006）— 開始（明示的再構成計画の最初の起動）。**
+本PR（PR-006）にて、Po_self の `reconstruct` 判定を**明示的で追跡可能な再構成計画
+（ReconstructionPlan）** へ変換する計画層を起動した。これはコンテンツを書き換えない：
+`content_rewrite_allowed` は常に false、各 operation の constraints は
+`rewrite_allowed=false` / `preserve_trace=true` / `requires_future_executor=true` を要求する。
+`reconstruct` 判定時のみ `ReconstructionPlanner.create_plan()` が計画を生成し、
+`PoSelfReconstructionPlanned` trace イベントを発行、`PoSelfResult.reconstruction_plan` に保持。
+`preserve` では計画もイベントも生成しない。`jump` / `reject` / `reactivate` はスキーマ・
+ドキュメント上の将来の統制モードとして保存（振る舞い未実装）。実際の再構成実行
+（コンテンツ書き換え）は将来の統制 executor に委ねる（本PR未実装）。
+
+**Phase 4: Viewer Feedback Tensor First Activation（PR-005）— 開始（Viewer 層の最初の起動）。**
+本PR（PR-005）にて、Viewer を「将来の入力層」から「最初の実行可能な外部フィードバック
+テンソル源」へと起動した。これは UI でもダッシュボードでもソーシャル分析でもない。
+`ViewerFeedbackService.receive_feedback()` が `ViewerFeedback` テンソルを受け取り、
+`InMemoryViewerFeedbackStore` に格納し、`ViewerFeedbackReceived` trace イベントを発行する。
+`PoSelfController.evaluate(kernel_result, viewer_feedback=...)`（または `feedback_store`
+から request_id で取得）が Viewer 圧力（`compute_viewer_pressure`）を計算し、
+`ViewerFeedbackApplied` を発行して Po_self の判定コンテキストへ供給する。
+高い disagreement / discomfort は出力を自動削除せず、**追跡可能な圧力**として Po_self が
+推論する（安全・スキーマを上書きしない）。決定論的：同一 input・request_id・feedback set で
+同一判定。未実装：Viewer UI・REST・長期永続化・実際のコンテンツ再構成・哲学者熟議。
+
+**Phase 3: Po_self Controller Seed（PR-004）— 開始（Po_self 層の最初の起動）。**
+本PR（PR-004）にて、Po_self を「将来の概念」から「最初の実行可能な種」へと起動した。
+これは Po_core のミニ版でも自己進化の完成でもなく、**trace ベース自己再構成の最初の起動点**
+である。`PoSelfController.evaluate(kernel_result)` が Po_core（Layer 1）の emit した
+`SemanticProfileComputed` trace を読み、意味的圧力（semantic pressure）を分析し、
+`preserve` / `reconstruct` の制御判定を生成して `PoSelfDecisionMade` trace イベントを発行する。
+すべての判定は trace として記録される（監査ログではなく、将来の再構成のための基盤）。
+`max_self_cycles`（1..10、既定 1）で無制限再帰を防止する。
+
+本PRで実際に振る舞いとして実装したのは `preserve` / `reconstruct` のみ。
+`jump` / `reject` / `reactivate` はスキーマ・ドキュメント上の概念として保存し、振る舞いは未実装。
+実際のコンテンツ書き換え・Viewer フィードバック・哲学者熟議・LLM・ML は未実装（概念保存）。
+
+**Phase 2: Po_core Kernel Seed（PR-003）— 開始（Po_core カーネルの最初の実行可能な種）。**
+`docs/ROADMAP.md` Phase 0（PR-001）・Phase 1（PR-002）は完了済み。本PR（PR-003）にて、
+PR-002 の設計契約を実行可能なコードへ橋渡しする最初のランタイム点を追加した
+（`src/po_core_original/`）。これは Po_core の縮小版・ミニ版ではなく、**完全な三層
+アーキテクチャの最初の起動点（first living cell）** である。構造上、最終形と整合している：
+Po_core（Layer 1）が semantic_profile を計算し Po_trace を発行、Po_self（Layer 2）が後で
+その trace を読み、Viewer（Layer 3）が後でフィードバックテンソルを返す。
+
+本PRで実際に動くのは Layer 1 側のみ：決定論的なステップ分解、決定論的な semantic_profile
+スコアリング（＝最終的なテンソル計算ではなく、その席に座る透明な決定論的「種」）、
+`SemanticProfileComputed` Po_trace イベントの発行。**汎用評価器ではない。**
+
 **Phase 1: Domain Contracts（PR-002）— スキーマ／設計契約のみ、完了。**
-`docs/ROADMAP.md` Phase 0（Governance Bootstrap, PR-001）は完了済み。本PR（PR-002）にて、
-`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
-`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを新規追加した。
-**ランタイム挙動の変更は一切なし**（`run_turn` パイプライン・`PoSelf`・`viewer/`・
-哲学者モジュール・安全ゲートは無変更）。
+PR-002 にて、`semantic_profile` / `semantic_step` / `viewer_feedback` / `po_self_decision` /
+`po_trace_event` の v1 JSON Schema・ドキュメント契約・examples・検証テストを追加した。
 
 ## 正典ミッション（Canonical Mission）
 
@@ -88,7 +150,105 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-002（本エントリ）**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
+- **PR-007（本エントリ）**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
+  trace 保存型パッチ提案実行の最初の起動。`schemas/reconstruction_patch_v1.schema.json`
+  （JSON Schema Draft 2020-12、`execution_mode`/`content_rewrite_applied`/
+  `original_content_preserved`/`original_content_mutated` は全て const）と
+  `docs/contracts/RECONSTRUCTION_PATCH_V1.md`、例2件
+  （`examples/contracts/reconstruction_patch.proposal_only.valid.json`、
+  `examples/contracts/po_trace.po_self_reconstruction_applied.valid.json`）を新規追加。
+  `models.py` に `ReconstructionPatchProposalBody` / `ReconstructionPatch` /
+  `ReconstructionExecutionResult` を追加（全て `to_dict()`）、`PoSelfResult` に
+  `reconstruction_execution`（任意）を追加。`self_controller/reconstruction_executor.py`
+  の `ControlledReconstructionExecutor.execute()` が `reconstruct`/`revise_steps`
+  プランのみを受理（`jump`/`reject`/`reactivate` や `content_rewrite_allowed=true`、
+  `decision_id` 不一致は `ValueError`）、各 planned operation を SHA-256 ハッシュで
+  original content を証明しつつ決定論的パッチ提案へ変換（対象 step 欠落時は
+  `patch_status=not_applicable`、全欠落時は `RuntimeError`）、trace 継続性
+  （既定 strict）と `SelfCycleGuard`（既定 max_self_cycles=1）を検証したうえで
+  `PoSelfReconstructionApplied` を発行。`controller.py` を拡張し、`reconstruct` 判定＋
+  計画がある場合のみ実行器を起動（`enable_controlled_reconstruction_execution`
+  で無効化可）。trace イベント順：kernel events → ViewerFeedbackApplied（feedback 有時）→
+  PoSelfDecisionMade → PoSelfReconstructionPlanned（reconstruct 時）→
+  PoSelfReconstructionApplied（実行器有効時）。既存の `po_trace_event_v1` enum に
+  `PoSelfReconstructionApplied` は既に存在したため $comment 追記のみ（enum変更なし）。
+  `tests/test_controlled_reconstruction_executor.py`（21テスト、jsonschema 検証込み、
+  コンテンツ不変性・trace継続性・cycle guard・全ターゲット欠落時の RuntimeError・
+  jump/reject/reactivate 拒否を網羅）→ 全パス。`scripts/validate_contracts.py` は
+  7 schemas / 12 examples を検証。未実装（概念保存）：実際のコンテンツ書き換え・
+  LLM ベースの再構成・jump / reject / reactivate の実行・REST・UI・哲学者モジュール。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。PR-004〜PR-006 の
+  既存テストは trace イベント順の変化（末尾に PoSelfReconstructionApplied が追加）に
+  合わせて3件のアサーションを更新、全て再パス。
+- **PR-006**: Phase 5 Reconstruction Planning Seed 開始 — 明示的再構成計画の最初の起動。
+  `schemas/reconstruction_plan_v1.schema.json`（JSON Schema Draft 2020-12、
+  `content_rewrite_allowed` は const false）と `docs/contracts/RECONSTRUCTION_PLAN_V1.md`、
+  例 2件（`examples/contracts/reconstruction_plan.revise_steps.valid.json`、
+  `examples/contracts/po_trace.po_self_reconstruction_planned.valid.json`）を新規追加。
+  `models.py` に `ReconstructionOperationConstraints` / `ReconstructionOperation` /
+  `ReconstructionPlan` を追加（全て `to_dict()`）、`PoSelfResult` に `reconstruction_plan`
+  （任意）を追加。`self_controller/reconstruction_planner.py` の `ReconstructionPlanner` が
+  `reconstruct` 判定を計画へ変換（`preserve` は None）、target step ごとに `revise_step`
+  operation を生成（コンテンツ書き換えなし）。`controller.py` を拡張し、`reconstruct` 時に
+  `PoSelfReconstructionPlanned` を発行。trace イベント順：kernel events →
+  ViewerFeedbackApplied（feedback 有時）→ PoSelfDecisionMade →
+  PoSelfReconstructionPlanned（reconstruct 時）。`schemas/po_trace_event_v1.schema.json`
+  は enum に既存の `PoSelfReconstructionPlanned` を持つため無変更（$comment 追記のみ）。
+  `tests/test_reconstruction_planning.py`（13テスト、jsonschema 検証込み）→ 全パス。
+  `scripts/validate_contracts.py` は 6 schemas / 10 examples を検証。未実装（概念保存）：
+  実際のコンテンツ書き換え／再構成実行、jump / reject / reactivate の振る舞い、LLM / ML /
+  REST / UI / 哲学者モジュール。既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+- **PR-005**: Phase 4 Viewer Feedback Tensor First Activation 開始 — Viewer 層の最初の起動。
+  `src/po_core_original/viewer_feedback/`（`store.py` / `service.py` / `pressure.py` /
+  `__init__.py`）を新規追加。`ViewerFeedbackService.receive_feedback()` が `ViewerFeedback`
+  を格納し `ViewerFeedbackReceived` を発行。`PoSelfController` を拡張し、明示引数
+  `viewer_feedback` および `feedback_store`（request_id で取得）から feedback を集約
+  （explicit → store の順、feedback_id で重複排除）、`compute_viewer_pressure` で圧力を算出、
+  `ViewerFeedbackApplied` を発行して decision engine に供給。判定ルール（決定論）：
+  `combined = max(semantic_normalized, viewer_pressure)`。semantic が閾値超なら
+  `trigger_type=priority_threshold`、そうでなく viewer 圧力が閾値超なら
+  `trigger_type=viewer_feedback` で reconstruct（全 step を対象にマーク、コンテンツ書き換えなし）。
+  per-item viewer_pressure = `max(disagreement, discomfort, 1-resonance, 1-agreement)`。
+  `models.py` に `ViewerFeedback` / `ViewerFeedbackReceipt` を追加（`to_dict()`、0..1 検証、
+  `schemas/viewer_feedback_v1` 準拠）。trace イベント順：kernel events → ViewerFeedbackApplied
+  （feedback 有時のみ）→ PoSelfDecisionMade。`tests/test_viewer_feedback_tensor.py`
+  （18テスト、jsonschema 検証込み）→ 全パス。未実装（概念保存）：Viewer UI・REST・
+  長期永続化・実際のコンテンツ再構成・哲学者熟議・LLM・ML。Viewer feedback は安全・スキーマを
+  上書きしない。既存 `src/po_core/` ランタイム・哲学者ロスター・trace contract・スキーマは無変更。
+- **PR-004**: Phase 3 Po_self Controller Seed 開始 — Po_self 層の最初の起動。
+  `src/po_core_original/self_controller/`（`controller.py` / `trace_reader.py` /
+  `decision_engine.py` / `cycle_guard.py` / `__init__.py`）を新規追加。Po_self が
+  `SemanticProfileComputed` trace を読み、`PoSelfDecisionMade` を発行する。
+  実装した振る舞い：**preserve / reconstruct のみ**。判定ルール（決定論）：
+  `normalized_priority = min(max_priority_score / 10, 1.0)`、`>= 0.75` で reconstruct
+  （該当 step を将来の再構成対象としてマーク、コンテンツ書き換えは行わない）、それ以外は preserve。
+  未実装（概念保存）：jump / reject / reactivate の振る舞い、実際のコンテンツ再構成、
+  Viewer フィードバック、哲学者熟議、LLM、ML。`models.py` に `PoSelfTrigger` /
+  `PoSelfPrioritySummary` / `PoSelfActionPlan` / `PoSelfDecision` / `PoSelfResult` を追加
+  （全て `to_dict()` を持ち、`schemas/po_self_decision_v1` に準拠）。`SelfCycleGuard` が
+  `max_self_cycles`（1..10、既定 1）で再帰を制限。`tests/test_po_self_controller.py`
+  （18テスト、jsonschema 検証込み）→ 全パス。`examples/po_self_controller_demo.py` を追加。
+  **キャリブレーション注記**：PR-003 の `semantic_profile_engine._WEIGHTS` を再スケールし、
+  `priority_score` がスキーマの 0..10 帯域を使うようにした（従来は 0..2.5 に留まり、
+  PR-004 の `/10` 正規化しきい値が無意味だった）。ethical / responsibility 軸を高く重み付けし
+  （Po_core のミッション：語ることの意味と責任）、`priority_score` は 10.0 で clamp。
+  この変更は `priority_score` のみに影響し、軸値・`ethics_delta`・各 pressure は不変のため、
+  既存 PR-003 テスト（決定論性・primary_axis・neutral 軸=0.1 を検証）は無変更で全パス。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・trace contract・スキーマは無変更。
+- **PR-003**: Phase 2 Po_core Kernel Seed 開始。`src/po_core_original/`
+  （`__init__.py` / `kernel.py` / `step_decomposer.py` / `semantic_profile_engine.py` /
+  `trace.py` / `models.py`）を新規追加し、PR-002 の設計契約を実行可能なコードへ橋渡しする
+  最初のランタイム点（first executable seed）を実装。`PoCoreKernel.process(text)` は
+  raw text → SemanticStep[] → SemanticProfile[] → `SemanticProfileComputed` Po_trace
+  イベント → `KernelResult` を返す。全モデルは標準ライブラリの dataclass で `to_dict()` を持ち、
+  生成物は PR-002 の v1 スキーマ（`schemas/semantic_profile_v1` / `semantic_step_v1` /
+  `po_trace_event_v1`）に対して検証される。`tests/test_kernel_semantic_profile_trace.py`
+  （17テスト、jsonschema 検証）→ 全パス。`scripts/run_kernel_demo.py` を追加。
+  **正直な区分**：semantic_profile スコアリングは決定論的な「種」であり最終テンソル計算ではない。
+  Po_self 再帰（Layer 2）・Viewer フィードバック（Layer 3）・哲学者熟議・安全ゲート runtime・
+  LLM・ML は本PRでは未実装（概念として保存、次段階で成長）。既存 `src/po_core/` ランタイム・
+  既存テスト・哲学者ロスター・trace contract は無変更。
+- **PR-002**: Phase 1 Domain Contracts 完了。`schemas/*.schema.json`（5件、
   JSON Schema Draft 2020-12）、`docs/contracts/*.md`（6件）、`examples/contracts/*.json`
   （8件）、`tests/test_contract_schemas.py`（26テスト）、`scripts/validate_contracts.py`
   を新規追加。`python scripts/validate_contracts.py` → 5 schemas / 8 examples 全て有効。

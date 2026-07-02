@@ -24,35 +24,67 @@
 ViewerFeedback domain models + schemas（no pipeline wiring yet）」を充足する。
 **パイプライン配線・runtime実装は行っていない**（Phase 2以降で対応）。
 
-## Phase 2: Po_core Kernel MVP — 実質的にほぼ充足済み
+## Phase 2: Po_core Kernel MVP — 🟡 着手（PR-003で最初の実行可能な種を実装）
 
-- input
-- step decomposition
-- tensor scoring
-- trace emission
+- input ✅
+- step decomposition ✅（`src/po_core_original/step_decomposer.py`）
+- tensor scoring 🟡（決定論的な「種」スコアリング。最終テンソル計算は未成長）
+- trace emission ✅（`SemanticProfileComputed` Po_trace イベント）
 
-備考：`run_turn` 10段階パイプライン・`src/po_core/tensors/`・`src/po_core/trace/` により、
-このPhaseの要件は既存実装で実質的に満たされている（詳細は `docs/STATUS.md`）。
-本ロードマップにおける役割は、既存実装を North Star の Layer 1 定義と正式に対応付ける
-ドキュメント作業であり、新規ランタイム実装は不要。
+備考：PR-003 は Po_core カーネルの**最初の実行可能な種（first living cell）** を
+`src/po_core_original/` に実装した。これは Po_core の縮小版ではなく、完全な三層
+アーキテクチャの最初の起動点であり、構造上、最終形と整合している
+（Po_core が semantic_profile を計算し Po_trace を発行 → 後に Po_self が読む →
+後に Viewer がフィードバックを返す）。既存の `run_turn` 10段階パイプライン・
+`src/po_core/tensors/`・`src/po_core/trace/` は別トラックの成熟した Layer 1 実装であり、
+両者の統合（`po_trace_event_v1` と既存 `TraceEvent` の関係）は ADR を経て将来のPRで扱う
+（`docs/contracts/PO_TRACE_EVENT_V1.md`）。本Phaseは統合ランタイム完成を意味しない。
 
-## Phase 3: Po_self Controller MVP — 未着手（計画中）
+## Phase 3: Po_self Controller Seed — 🟡 着手（PR-004で最初の起動を実装）
 
-- `Po_trace` を読む
-- preserve/reconstruct 判定
-- `max_self_cycles`
+- `Po_trace` を読む ✅（`src/po_core_original/self_controller/trace_reader.py`）
+- preserve / reconstruct 判定 ✅（`decision_engine.py`、決定論的しきい値）
+- `max_self_cycles` ✅（`cycle_guard.py`、1..10、既定 1）
+- `PoSelfDecisionMade` trace 発行 ✅（`controller.py`）
+- 明示的再構成計画（ReconstructionPlan / PoSelfReconstructionPlanned）✅（PR-006、
+  `self_controller/reconstruction_planner.py`。計画のみ・コンテンツ書き換えなし）
+- 統制された再構成実行器（ControlledReconstructionExecutor / パッチ提案 /
+  PoSelfReconstructionApplied）✅（PR-007、`self_controller/reconstruction_executor.py`。
+  決定論的パッチ**提案**のみ・実際のコンテンツ書き換えなし・元コンテンツはハッシュで
+  不変性を証明・trace継続性とcycle guardを強制）
+- jump / reject / reactivate 判定・実行 🔲（スキーマ・ドキュメントに概念として保存、
+  振る舞い未実装。ControlledReconstructionExecutor は明示的に ValueError で拒否）
+- 実際のコンテンツ**書き換え実行**（真の reconstruction execution phase）🔲
+  （将来の、LLMを使わない決定論的な実行フェーズ。PR-007 はパッチ「提案」の生成のみ）
 
-備考：現行 `src/po_core/po_self.py` の `PoSelf` クラスは API ラッパーであり、
-本Phaseが対象とする trace 観測・再帰判定コントローラーとは別物（`docs/STATUS.md` 参照）。
+備考：PR-004〜PR-007 は Po_self 層の**最初の実行可能な種（first activation）** を
+`src/po_core_original/self_controller/` に段階的に実装した。これは Po_core のミニ版でも
+自己進化の完成でもなく、trace ベース自己再構成の最初の起動点である。Po_self は
+`SemanticProfileComputed` trace を読み、`preserve` / `reconstruct` を判定し
+（PR-004）、`PoSelfDecisionMade` を発行し、`reconstruct` 時は再構成計画を立て
+（PR-006）、その計画を統制実行器へ適用して決定論的パッチ提案を生成する（PR-007）。
+完全な Po_self 再帰（jump / reject / reactivate の実行、実際のコンテンツ書き換え、
+LLMベース再構成）は将来の作業として残す。なお現行 `src/po_core/po_self.py` の
+`PoSelf` クラスは別トラックの API ラッパーであり、本Phaseのコントローラーとは別物
+（`docs/STATUS.md` 参照）。
 
-## Phase 4: Viewer Feedback MVP — 未着手（計画中）
+## Phase 4: Viewer Feedback First Activation — 🟡 着手（PR-005で最初の起動を実装）
 
-- feedback tensor
-- feedback storage
-- feedback applied to next cycle
+- feedback tensor モデル ✅（`ViewerFeedback` — `src/po_core_original/models.py`）
+- feedback storage ✅（`InMemoryViewerFeedbackStore` — `viewer_feedback/store.py`、in-memory のみ）
+- feedback receipt tracing ✅（`ViewerFeedbackReceived` — `viewer_feedback/service.py`）
+- feedback pressure ✅（`compute_viewer_pressure` — `viewer_feedback/pressure.py`）
+- feedback applied to Po_self decision context ✅（`ViewerFeedbackApplied` — `controller.py`）
+- Viewer UI / REST feedback API 🔲（未実装、将来）
+- 長期永続化（DB） 🔲（未実装、将来。現状 in-memory のみ）
 
-備考：現行 `src/po_core/viewer/` は観測可能性ダッシュボードであり、
-本Phaseが対象とする双方向フィードバックループとは別物（`docs/STATUS.md` 参照）。
+備考：PR-005 は Viewer 層を**外部フィードバックテンソル源**として最初に起動した
+（`src/po_core_original/viewer_feedback/`）。UI・ダッシュボード・ソーシャル分析ではない。
+Viewer feedback は Po_self への tensor 入力であり、高い disagreement / discomfort は
+出力を自動削除せず追跡可能な圧力になる（安全・スキーマを上書きしない）。現行
+`src/po_core/viewer/` は別トラックの観測可能性ダッシュボードであり、本Phaseの
+フィードバックループとは別物（`docs/STATUS.md` 参照）。完全な Viewer UI・外部ソーシャル
+ループ・長期永続化は将来の作業として残す。
 
 ## Phase 5: Deliberation Modules — 実質的に充足済み
 

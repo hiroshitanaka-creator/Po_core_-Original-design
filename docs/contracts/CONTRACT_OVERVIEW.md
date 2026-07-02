@@ -18,7 +18,7 @@ Per `docs/STRICT_CORE_RULES.md` ("Safety Floor / Concept Ceiling" and "Concept P
 Rules"), declaring these contracts now — even without runtime behavior — is how the intended
 architecture is protected from being quietly dropped for being "not implemented yet."
 
-## The five contracts
+## The contracts
 
 | Contract | Schema | Doc | Produced by | Consumed by |
 |---|---|---|---|---|
@@ -26,7 +26,14 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `semantic_step_v1` | `schemas/semantic_step_v1.schema.json` | `docs/contracts/SEMANTIC_STEP_V1.md` | Po_core (Layer 1) | Po_self (Layer 2) |
 | `viewer_feedback_v1` | `schemas/viewer_feedback_v1.schema.json` | `docs/contracts/VIEWER_FEEDBACK_V1.md` | Viewer (Layer 3) | Po_self (Layer 2) |
 | `po_self_decision_v1` | `schemas/po_self_decision_v1.schema.json` | `docs/contracts/PO_SELF_DECISION_V1.md` | Po_self (Layer 2) | next Po_core cycle / output reconstruction |
+| `reconstruction_plan_v1` | `schemas/reconstruction_plan_v1.schema.json` | `docs/contracts/RECONSTRUCTION_PLAN_V1.md` | Po_self (Layer 2, PR-006) | `ControlledReconstructionExecutor` (PR-007) |
+| `reconstruction_patch_v1` | `schemas/reconstruction_patch_v1.schema.json` | `docs/contracts/RECONSTRUCTION_PATCH_V1.md` | `ControlledReconstructionExecutor` (Layer 2, PR-007) | future controlled reconstruction execution phase |
 | `po_trace_event_v1` | `schemas/po_trace_event_v1.schema.json` | `docs/contracts/PO_TRACE_EVENT_V1.md` | all layers | all layers (via `Po_trace`) |
+
+> `reconstruction_plan_v1` (PR-006) and `reconstruction_patch_v1` (PR-007) are design
+> **and runtime** contracts — unlike the five PR-002 schema-only contracts above
+> them, they are wired into `src/po_core_original/self_controller/`
+> (`reconstruction_planner.py` and `reconstruction_executor.py`).
 
 ## Data flow
 
@@ -41,11 +48,45 @@ Po_trace
 Po_self
   └─ emits PoSelfDecisionMade
                  ↓
+      (if decision_type == reconstruct)
+      ReconstructionPlan  ── emits PoSelfReconstructionPlanned
+                 ↓
+      ControlledReconstructionExecutor
+                 ↓
+      ReconstructionPatchProposal[]  ── emits PoSelfReconstructionApplied
+                 ↓
+      Future controlled reconstruction EXECUTION phase  (not implemented)
+                 ↓
 Viewer
   └─ emits ViewerFeedbackReceived
                  ↓
 Po_self next cycle
 ```
+
+### Reconstruction planning (PR-006)
+
+A Po_self `reconstruct` decision is converted into an explicit
+`reconstruction_plan_v1` (`schemas/reconstruction_plan_v1.schema.json`,
+`docs/contracts/RECONSTRUCTION_PLAN_V1.md`) and recorded as a
+`PoSelfReconstructionPlanned` trace event. **A ReconstructionPlan is a plan, not
+execution:** `content_rewrite_allowed` is always `false`, it preserves trace
+continuity, and it prevents uncontrolled self-rewrite.
+
+### Controlled reconstruction executor (PR-007)
+
+A `ReconstructionPlan` is applied to the `ControlledReconstructionExecutor`,
+which converts each planned operation into a deterministic
+`reconstruction_patch_v1` proposal (`schemas/reconstruction_patch_v1.schema.json`,
+`docs/contracts/RECONSTRUCTION_PATCH_V1.md`) and records the run as a
+`PoSelfReconstructionApplied` trace event. **Patch proposals are not rewritten
+content** — `execution_mode` is always `"patch_proposal_only"` and
+`content_rewrite_applied` is always `false`. Original content is preserved
+(proven by re-hashing after patch creation, not merely asserted). Trace
+continuity (the plan's originating `SemanticProfileComputed` /
+`PoSelfDecisionMade` / `PoSelfReconstructionPlanned` events) is mandatory by
+default. The `SelfCycleGuard` cycle guard prevents uncontrolled self-recursion.
+Actual controlled reconstruction *execution* (a later phase that would apply a
+real, still non-LLM, revision) is deliberately not implemented yet.
 
 ### How `semantic_profile` flows from Po_core to Po_self
 
@@ -64,11 +105,12 @@ subsequent `po_self_decision`.
 ### How `po_self_decision` flows back into output reconstruction
 
 Po_self emits a `po_self_decision` (`preserve`/`reconstruct`/`jump`/`reject`/`reactivate`) via a
-`PoSelfDecisionMade` `po_trace_event`. For `reconstruct` (and, once implemented, `jump` /
-`reactivate`), the `action_plan` and `target_step_ids` describe which `semantic_step`s should be
-revised, and `PoSelfReconstructionPlanned` / `PoSelfReconstructionApplied` events (declared,
-not yet implemented — see `docs/contracts/PO_TRACE_EVENT_V1.md`) would record the outcome. This
-decision then becomes the input to the next Po_core cycle.
+`PoSelfDecisionMade` `po_trace_event`. For `reconstruct`, the `action_plan` and `target_step_ids`
+describe which `semantic_step`s should be revised; `PoSelfReconstructionPlanned` (PR-006) records
+the resulting `reconstruction_plan`, and `PoSelfReconstructionApplied` (PR-007) records the
+`ControlledReconstructionExecutor`'s deterministic patch proposals (see
+`docs/contracts/PO_TRACE_EVENT_V1.md`). `jump` / `reject` / `reactivate` remain declared, not yet
+implemented. This decision then becomes the input to the next Po_core cycle.
 
 ### How `Po_trace` connects all layers
 
@@ -91,8 +133,9 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
 
 ## Validation
 
-- `tests/test_contract_schemas.py` — pytest suite (`@pytest.mark.unit`) validating all 5 schemas
-  and 8 example fixtures.
+- `tests/test_contract_schemas.py` — pytest suite (`@pytest.mark.unit`) validating all 7 schemas
+  and 12 example fixtures (incl. `reconstruction_plan_v1` / `PoSelfReconstructionPlanned` added in
+  PR-006, and `reconstruction_patch_v1` / `PoSelfReconstructionApplied` added in PR-007).
 - `scripts/validate_contracts.py` — standalone script performing the same validation
   (including the `self_cycle_index <= max_self_cycles` invariant that JSON Schema cannot
   express), runnable without pytest: `python scripts/validate_contracts.py`.

@@ -47,7 +47,17 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
             "po_trace.semantic_profile_computed.valid.json",
             "po_trace.viewer_feedback_received.valid.json",
             "po_trace.po_self_decision_made.valid.json",
+            "po_trace.po_self_reconstruction_planned.valid.json",
+            "po_trace.po_self_reconstruction_applied.valid.json",
         ],
+    },
+    "reconstruction_plan_v1": {
+        "schema": "reconstruction_plan_v1.schema.json",
+        "examples": ["reconstruction_plan.revise_steps.valid.json"],
+    },
+    "reconstruction_patch_v1": {
+        "schema": "reconstruction_patch_v1.schema.json",
+        "examples": ["reconstruction_patch.proposal_only.valid.json"],
     },
 }
 
@@ -57,7 +67,9 @@ def _load_json(path: Path) -> Any:
         return json.load(f)
 
 
-def _check_self_cycle_invariant(example_path: Path, instance: Dict[str, Any]) -> list[str]:
+def _check_self_cycle_invariant(
+    example_path: Path, instance: Dict[str, Any]
+) -> list[str]:
     """self_cycle_index <= max_self_cycles cannot be expressed in JSON Schema
     Draft 2020-12 as a cross-field constraint; check it explicitly here."""
     errors = []

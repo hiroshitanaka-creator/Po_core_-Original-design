@@ -59,6 +59,62 @@ pip install -e ".[dev]"
 
 ---
 
+## Current executable seeds (Original Design)
+
+> **Seeds only — not a reduced product.** These are the first running cells of
+> the intended three-layer architecture, grown one layer at a time and
+> structurally aligned with the final model. The semantic-profile scoring is a
+> transparent deterministic seed, not the final tensor computation.
+
+- **`PoCoreKernel`** (PR-003) — decomposes input into semantic steps, computes a
+  deterministic `semantic_profile` per step, and emits a `SemanticProfileComputed`
+  Po_trace event.
+- **`PoSelfController`** (PR-004/PR-005) — reads `SemanticProfileComputed` trace,
+  analyses semantic **and Viewer** pressure, and emits a `PoSelfDecisionMade`
+  event carrying a `preserve` or `reconstruct` control decision, bounded by
+  `max_self_cycles`.
+- **`ViewerFeedbackService`** (PR-005) — receives Viewer feedback tensors, stores
+  them (`InMemoryViewerFeedbackStore`), and emits `ViewerFeedbackReceived`; the
+  controller applies their pressure and emits `ViewerFeedbackApplied`. Viewer
+  feedback is a tensor input to Po_self, not UI analytics — high disagreement /
+  discomfort becomes traceable pressure, never an automatic deletion.
+- **`ReconstructionPlanner`** (PR-006) — converts a `reconstruct` decision into an
+  explicit, traceable `ReconstructionPlan` and emits `PoSelfReconstructionPlanned`.
+  Planning only: `content_rewrite_allowed` is always false. Content is never rewritten.
+- **`ControlledReconstructionExecutor`** (PR-007) — applies a `ReconstructionPlan`
+  and emits `PoSelfReconstructionApplied`. Produces deterministic **patch
+  proposals only** (`execution_mode` is always `patch_proposal_only`,
+  `content_rewrite_applied` is always false); original content is preserved and
+  proven unchanged by SHA-256 re-hash, not merely asserted. "Applied" means the
+  plan was applied to the controlled executor, not that content was rewritten.
+
+**Not yet implemented (preserved as concepts, honestly labeled):**
+
+- actual content rewriting / LLM-based reconstruction (the executor only ever produces patch *proposals*)
+- `jump` / `reject` / `reactivate` decision execution
+- Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
+- philosopher deliberation modules
+- LLM / ML scoring
+
+```python
+from po_core_original import PoCoreKernel, PoSelfController
+
+kernel = PoCoreKernel()
+kernel_result = kernel.process("火星には酸素が豊富にある。だから人間はすぐ住める。")
+
+po_self = PoSelfController()
+po_self_result = po_self.evaluate(kernel_result)
+print(po_self_result.decision.decision_type)   # "preserve" or "reconstruct"
+print(po_self_result.to_dict())
+```
+
+`PoSelfResult` exposes `request_id`, `kernel_result`, `decision`, `trace_events`,
+and `to_dict()`. The `PoSelfDecision` and `PoSelfDecisionMade` trace event
+conform to the PR-002 v1 schemas. See `docs/ROADMAP.md` (Phases 2–3) and
+`docs/STATUS.md`.
+
+---
+
 ## Key Links
 
 | | |
