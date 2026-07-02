@@ -569,22 +569,74 @@ def test_has_ancestor_of_type_handles_cycles_without_hanging():
 # Extra: no heavy dependency required (LLM/ML/REST/UI/philosopher).
 # --------------------------------------------------------------------------- #
 def test_no_heavy_dependencies():
+    import os
+    import subprocess
     import sys
+    import textwrap
 
-    before = set(sys.modules)
-    doc = _load_example("trace_chain.valid.json")
-    TraceContinuityValidator(strict=True).validate(doc["events"])
-    loaded = set(sys.modules) - before
-    for banned in (
-        "torch",
-        "sentence_transformers",
-        "openai",
-        "transformers",
-        "numpy",
-        "dash",
-        "flask",
-        "fastapi",
-    ):
-        assert banned not in loaded
-    assert "po_core.philosophers" not in loaded
-    assert "po_core_original.philosophers" not in loaded
+    script = textwrap.dedent(
+        """
+        import json
+        import sys
+        from pathlib import Path
+
+        banned_modules = (
+            "torch",
+            "sentence_transformers",
+            "openai",
+            "transformers",
+            "numpy",
+            "dash",
+            "flask",
+            "fastapi",
+            "po_core.philosophers",
+            "po_core_original.philosophers",
+        )
+        doc = json.loads(
+            Path("examples/contracts/trace_chain.valid.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        before = set(sys.modules)
+        from po_core_original.trace_validation import TraceContinuityValidator
+
+        TraceContinuityValidator(strict=True).validate(doc["events"])
+        loaded = set(sys.modules) - before
+        violations = sorted(
+            {
+                module
+                for module in loaded
+                for banned in banned_modules
+                if module == banned or module.startswith(f"{banned}.")
+            }
+        )
+        if violations:
+            print(
+                "heavy modules loaded by TraceContinuityValidator import/validate: "
+                + ", ".join(violations),
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        print("no heavy modules loaded by TraceContinuityValidator import/validate")
+        """
+    )
+    env = os.environ.copy()
+    src_path = str(ROOT_DIR / "src")
+    env["PYTHONPATH"] = (
+        src_path
+        if not env.get("PYTHONPATH")
+        else src_path + os.pathsep + env["PYTHONPATH"]
+    )
+    # This subprocess starts with a fresh sys.modules table, so pytest plugins,
+    # tests/conftest.py, and earlier tests cannot pre-populate heavy modules.
+    # The snapshot is taken before importing TraceContinuityValidator, so
+    # import-time and validation-time heavy dependency regressions both fail.
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT_DIR,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
