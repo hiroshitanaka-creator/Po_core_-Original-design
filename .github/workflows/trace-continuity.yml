@@ -46,4 +46,8 @@ jobs:
       - name: Validate trace continuity examples (valid + negative fixtures)
         run: python scripts/validate_trace_continuity.py --include-negative
       - name: Run trace continuity validator tests
-        run: python -m pytest tests/test_trace_continuity_validator.py -v
+        # --noconftest: tests/conftest.py imports the full po_core package
+        # (numpy/torch/etc. transitively), which this scoped job deliberately
+        # does not install. test_trace_continuity_validator.py only needs
+        # po_core_original, so conftest.py collection is skipped.
+        run: python -m pytest tests/test_trace_continuity_validator.py -v --noconftest -p no:cacheprovider
