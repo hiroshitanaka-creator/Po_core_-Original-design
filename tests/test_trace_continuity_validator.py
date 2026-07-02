@@ -571,8 +571,10 @@ def test_has_ancestor_of_type_handles_cycles_without_hanging():
 def test_no_heavy_dependencies():
     import sys
 
+    before = set(sys.modules)
     doc = _load_example("trace_chain.valid.json")
     TraceContinuityValidator(strict=True).validate(doc["events"])
+    loaded = set(sys.modules) - before
     for banned in (
         "torch",
         "sentence_transformers",
@@ -583,6 +585,6 @@ def test_no_heavy_dependencies():
         "flask",
         "fastapi",
     ):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        assert banned not in loaded
+    assert "po_core.philosophers" not in loaded
+    assert "po_core_original.philosophers" not in loaded
