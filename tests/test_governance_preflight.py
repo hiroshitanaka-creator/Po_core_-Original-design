@@ -83,7 +83,9 @@ def test_unknown_only_value_exits_with_usage_error(capsys) -> None:
         ("schemas", "test_contract_schemas.py"),
     ],
 )
-def test_only_runs_single_named_check(monkeypatch, only_value, expected_fragment) -> None:
+def test_only_runs_single_named_check(
+    monkeypatch, only_value, expected_fragment
+) -> None:
     fake_run, calls = _make_fake_run(returncode=0)
     monkeypatch.setattr(governance_preflight.subprocess, "run", fake_run)
 
@@ -199,7 +201,9 @@ def test_skip_tests_skips_schema_check_only(monkeypatch) -> None:
 
     assert exit_code == 0
     assert len(calls) == 3
-    assert not any("test_contract_schemas.py" in part for call in calls for part in call)
+    assert not any(
+        "test_contract_schemas.py" in part for call in calls for part in call
+    )
 
 
 # --------------------------------------------------------------------------- #
