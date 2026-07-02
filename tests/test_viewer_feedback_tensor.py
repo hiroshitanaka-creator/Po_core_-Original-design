@@ -301,7 +301,10 @@ def test_decision_made_includes_viewer_fields():
     kernel = PoCoreKernel()
     kr = kernel.process(LOW_SEMANTIC_INPUT, request_id="req_demo")
     result = PoSelfController().evaluate(kr, viewer_feedback=[_feedback()])
-    payload = result.trace_events[-1].payload
+    decision_events = [
+        e for e in result.trace_events if e.event_type == "PoSelfDecisionMade"
+    ]
+    payload = decision_events[0].payload
     assert payload["viewer_feedback_count"] == 1
     assert payload["max_viewer_pressure"] == 0.8
     # PR-004 fields still present.
@@ -319,7 +322,13 @@ def test_event_order():
     result = PoSelfController().evaluate(kr, viewer_feedback=[_feedback()])
     types = [e.event_type for e in result.trace_events]
     assert types[:n_kernel] == [e.event_type for e in kr.trace_events]
-    assert types[n_kernel:] == ["ViewerFeedbackApplied", "PoSelfDecisionMade"]
+    # High viewer pressure -> viewer-triggered reconstruct, so PR-006 also
+    # appends PoSelfReconstructionPlanned after the decision event.
+    assert types[n_kernel:] == [
+        "ViewerFeedbackApplied",
+        "PoSelfDecisionMade",
+        "PoSelfReconstructionPlanned",
+    ]
 
 
 # --------------------------------------------------------------------------- #

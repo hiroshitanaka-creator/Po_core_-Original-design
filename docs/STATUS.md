@@ -7,6 +7,17 @@
 
 ## 現フェーズ
 
+**Phase 5: Reconstruction Planning Seed（PR-006）— 開始（明示的再構成計画の最初の起動）。**
+本PR（PR-006）にて、Po_self の `reconstruct` 判定を**明示的で追跡可能な再構成計画
+（ReconstructionPlan）** へ変換する計画層を起動した。これはコンテンツを書き換えない：
+`content_rewrite_allowed` は常に false、各 operation の constraints は
+`rewrite_allowed=false` / `preserve_trace=true` / `requires_future_executor=true` を要求する。
+`reconstruct` 判定時のみ `ReconstructionPlanner.create_plan()` が計画を生成し、
+`PoSelfReconstructionPlanned` trace イベントを発行、`PoSelfResult.reconstruction_plan` に保持。
+`preserve` では計画もイベントも生成しない。`jump` / `reject` / `reactivate` はスキーマ・
+ドキュメント上の将来の統制モードとして保存（振る舞い未実装）。実際の再構成実行
+（コンテンツ書き換え）は将来の統制 executor に委ねる（本PR未実装）。
+
 **Phase 4: Viewer Feedback Tensor First Activation（PR-005）— 開始（Viewer 層の最初の起動）。**
 本PR（PR-005）にて、Viewer を「将来の入力層」から「最初の実行可能な外部フィードバック
 テンソル源」へと起動した。これは UI でもダッシュボードでもソーシャル分析でもない。
@@ -122,7 +133,25 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-005（本エントリ）**: Phase 4 Viewer Feedback Tensor First Activation 開始 — Viewer 層の最初の起動。
+- **PR-006（本エントリ）**: Phase 5 Reconstruction Planning Seed 開始 — 明示的再構成計画の最初の起動。
+  `schemas/reconstruction_plan_v1.schema.json`（JSON Schema Draft 2020-12、
+  `content_rewrite_allowed` は const false）と `docs/contracts/RECONSTRUCTION_PLAN_V1.md`、
+  例 2件（`examples/contracts/reconstruction_plan.revise_steps.valid.json`、
+  `examples/contracts/po_trace.po_self_reconstruction_planned.valid.json`）を新規追加。
+  `models.py` に `ReconstructionOperationConstraints` / `ReconstructionOperation` /
+  `ReconstructionPlan` を追加（全て `to_dict()`）、`PoSelfResult` に `reconstruction_plan`
+  （任意）を追加。`self_controller/reconstruction_planner.py` の `ReconstructionPlanner` が
+  `reconstruct` 判定を計画へ変換（`preserve` は None）、target step ごとに `revise_step`
+  operation を生成（コンテンツ書き換えなし）。`controller.py` を拡張し、`reconstruct` 時に
+  `PoSelfReconstructionPlanned` を発行。trace イベント順：kernel events →
+  ViewerFeedbackApplied（feedback 有時）→ PoSelfDecisionMade →
+  PoSelfReconstructionPlanned（reconstruct 時）。`schemas/po_trace_event_v1.schema.json`
+  は enum に既存の `PoSelfReconstructionPlanned` を持つため無変更（$comment 追記のみ）。
+  `tests/test_reconstruction_planning.py`（13テスト、jsonschema 検証込み）→ 全パス。
+  `scripts/validate_contracts.py` は 6 schemas / 10 examples を検証。未実装（概念保存）：
+  実際のコンテンツ書き換え／再構成実行、jump / reject / reactivate の振る舞い、LLM / ML /
+  REST / UI / 哲学者モジュール。既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+- **PR-005**: Phase 4 Viewer Feedback Tensor First Activation 開始 — Viewer 層の最初の起動。
   `src/po_core_original/viewer_feedback/`（`store.py` / `service.py` / `pressure.py` /
   `__init__.py`）を新規追加。`ViewerFeedbackService.receive_feedback()` が `ViewerFeedback`
   を格納し `ViewerFeedbackReceived` を発行。`PoSelfController` を拡張し、明示引数

@@ -30,7 +30,8 @@
         "PoSelfReconstructionApplied",
         "PoSelfCycleLimitReached",
         "ConceptDriftGuardEvaluated"
-      ]
+      ],
+      "$comment": "PoSelfReconstructionPlanned is behaviorally emitted as of PR-006 (payload maps to reconstruction_plan_v1; see docs/contracts/PO_TRACE_EVENT_V1.md). The other event types remain as declared."
     },
     "payload": {
       "type": "object",

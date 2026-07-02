@@ -358,6 +358,7 @@ class PoSelfResult:
     kernel_result: KernelResult
     decision: PoSelfDecision
     trace_events: List[PoTraceEvent] = field(default_factory=list)
+    reconstruction_plan: Optional["ReconstructionPlan"] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -365,6 +366,11 @@ class PoSelfResult:
             "kernel_result": self.kernel_result.to_dict(),
             "decision": self.decision.to_dict(),
             "trace_events": [e.to_dict() for e in self.trace_events],
+            "reconstruction_plan": (
+                self.reconstruction_plan.to_dict()
+                if self.reconstruction_plan is not None
+                else None
+            ),
         }
 
 
@@ -461,4 +467,109 @@ class ViewerFeedbackReceipt:
         return {
             "feedback": self.feedback.to_dict(),
             "trace_event": self.trace_event.to_dict(),
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Reconstruction planning models — added in PR-006.
+#
+# A ReconstructionPlan converts a Po_self ``reconstruct`` decision into an
+# explicit, traceable plan of *planned operations*. It PLANS reconstruction; it
+# does NOT rewrite content. ``content_rewrite_allowed`` is always False and each
+# operation's constraints require a future controlled executor. ``jump`` /
+# ``reject`` / ``reactivate`` source types and their plan types are reserved for
+# future controlled modes and are not produced here
+# (docs/contracts/RECONSTRUCTION_PLAN_V1.md).
+# --------------------------------------------------------------------------- #
+RECONSTRUCTION_PLAN_SCHEMA_VERSION = "reconstruction_plan_v1"
+
+
+@dataclass(frozen=True)
+class ReconstructionOperationConstraints:
+    """Guardrails on a single planned reconstruction operation.
+
+    In PR-006 these are fixed: content is never rewritten, trace is always
+    preserved, and execution always requires a future controlled executor.
+    """
+
+    rewrite_allowed: bool = False
+    preserve_trace: bool = True
+    requires_future_executor: bool = True
+
+    def to_dict(self) -> Dict[str, bool]:
+        return {
+            "rewrite_allowed": self.rewrite_allowed,
+            "preserve_trace": self.preserve_trace,
+            "requires_future_executor": self.requires_future_executor,
+        }
+
+
+@dataclass(frozen=True)
+class ReconstructionOperation:
+    """One planned (not executed) operation over a target semantic step."""
+
+    operation_id: str
+    operation_type: (
+        str  # inspect_step / revise_step / preserve_context / request_human_review
+    )
+    target_step_id: str
+    rationale: str
+    constraints: ReconstructionOperationConstraints = field(
+        default_factory=ReconstructionOperationConstraints
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "operation_type": self.operation_type,
+            "target_step_id": self.target_step_id,
+            "rationale": self.rationale,
+            "constraints": self.constraints.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class ReconstructionPlan:
+    """Explicit, traceable plan for a future reconstruction (``reconstruction_plan_v1``).
+
+    Plans reconstruction; does not execute it. ``content_rewrite_allowed`` is
+    always False. References the ``PoSelfDecision`` that caused it via
+    ``decision_id``.
+    """
+
+    schema_version: str
+    plan_id: str
+    request_id: str
+    decision_id: str
+    source_decision_type: str
+    plan_type: str
+    plan_status: str
+    content_rewrite_allowed: bool
+    target_step_ids: List[str]
+    planning_reason: str
+    pressure_summary: Dict[str, Any]
+    planned_operations: List[ReconstructionOperation]
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+    viewer_feedback_refs: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "plan_id": self.plan_id,
+            "request_id": self.request_id,
+            "decision_id": self.decision_id,
+            "source_decision_type": self.source_decision_type,
+            "plan_type": self.plan_type,
+            "plan_status": self.plan_status,
+            "content_rewrite_allowed": self.content_rewrite_allowed,
+            "target_step_ids": list(self.target_step_ids),
+            "planning_reason": self.planning_reason,
+            "pressure_summary": dict(self.pressure_summary),
+            "planned_operations": [op.to_dict() for op in self.planned_operations],
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+            "viewer_feedback_refs": list(self.viewer_feedback_refs),
+            "notes": list(self.notes),
         }

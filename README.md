@@ -78,13 +78,17 @@ pip install -e ".[dev]"
   controller applies their pressure and emits `ViewerFeedbackApplied`. Viewer
   feedback is a tensor input to Po_self, not UI analytics — high disagreement /
   discomfort becomes traceable pressure, never an automatic deletion.
+- **`ReconstructionPlanner`** (PR-006) — converts a `reconstruct` decision into an
+  explicit, traceable `ReconstructionPlan` and emits `PoSelfReconstructionPlanned`.
+  Planning only: `content_rewrite_allowed` is always false and each operation
+  requires a future controlled executor. Content is never rewritten.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
+- actual content rewriting / reconstruction execution (`reconstruct` only *plans*; a future controlled executor would emit `PoSelfReconstructionApplied`)
+- `jump` / `reject` / `reactivate` decision behavior
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
-- actual reconstruction application (`reconstruct` only *marks* steps)
-- `jump` / `reject` / `reactivate` decision behavior
 - LLM / ML scoring
 
 ```python

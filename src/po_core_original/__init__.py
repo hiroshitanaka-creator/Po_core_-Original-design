@@ -22,11 +22,15 @@ Activated so far:
     * ``ViewerFeedbackService`` / ``InMemoryViewerFeedbackStore`` (PR-005) —
       receive Viewer feedback tensors, store them, emit ``ViewerFeedbackReceived``
       and (when applied) ``ViewerFeedbackApplied`` trace events.
+    * ``ReconstructionPlanner`` (PR-006) — converts a ``reconstruct`` decision
+      into an explicit, traceable ``ReconstructionPlan`` and emits a
+      ``PoSelfReconstructionPlanned`` event. Planning only — it never rewrites
+      content (``content_rewrite_allowed`` is always false).
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation; Po_self's
-``jump`` / ``reject`` / ``reactivate`` decisions, actual content
-reconstruction, the full Viewer UI / REST feedback API / long-term persistence,
+``jump`` / ``reject`` / ``reactivate`` decisions, actual content reconstruction
+*execution*, the full Viewer UI / REST feedback API / long-term persistence,
 philosopher deliberation, safety-gate runtime, LLM integration, and ML scoring
 are **not yet grown**. Those concepts are preserved in docs/ and remain the
 next stages of growth, not discarded simplifications.
@@ -53,20 +57,23 @@ from .models import (
     PoSelfResult,
     PoSelfTrigger,
     PoTraceEvent,
+    ReconstructionOperation,
+    ReconstructionOperationConstraints,
+    ReconstructionPlan,
     SemanticProfile,
     SemanticStep,
     SemanticStepSource,
     ViewerFeedback,
     ViewerFeedbackReceipt,
 )
-from .self_controller import PoSelfController
+from .self_controller import PoSelfController, ReconstructionPlanner
 from .viewer_feedback import (
     InMemoryViewerFeedbackStore,
     ViewerFeedbackService,
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 __all__ = [
     "PoCoreKernel",
@@ -88,5 +95,9 @@ __all__ = [
     "ViewerFeedbackService",
     "InMemoryViewerFeedbackStore",
     "compute_viewer_pressure",
+    "ReconstructionPlan",
+    "ReconstructionOperation",
+    "ReconstructionOperationConstraints",
+    "ReconstructionPlanner",
     "__version__",
 ]

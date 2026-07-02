@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(reconstruction): PR-006 — Reconstruction Planning Seed. A Po_self `reconstruct` decision is converted into an explicit, traceable `ReconstructionPlan` and a `PoSelfReconstructionPlanned` Po_trace event. This PLANS reconstruction; it never rewrites content.
+- `reconstruction_plan_v1` schema (`schemas/reconstruction_plan_v1.schema.json`, JSON Schema Draft 2020-12; `content_rewrite_allowed` is `const false`) and contract documentation (`docs/contracts/RECONSTRUCTION_PLAN_V1.md`), plus valid example fixtures for the plan and the `PoSelfReconstructionPlanned` trace event.
+- ReconstructionPlan runtime dataclasses (`ReconstructionPlan`, `ReconstructionOperation`, `ReconstructionOperationConstraints`; each `to_dict()`); `PoSelfResult` gains an optional `reconstruction_plan`.
+- `ReconstructionPlanner` (`src/po_core_original/self_controller/reconstruction_planner.py`) converting a `reconstruct` decision into planned `revise_step` operations (one per target step); returns `None` for `preserve`. Every operation's constraints require `rewrite_allowed=false`, `preserve_trace=true`, `requires_future_executor=true`.
+- `PoSelfReconstructionPlanned` Po_trace event emitted by `PoSelfController` after a `reconstruct` decision (summary-level payload). Trace event order: kernel events → ViewerFeedbackApplied (if any) → PoSelfDecisionMade → PoSelfReconstructionPlanned (reconstruct only).
+- Tests validating reconstruction plans and the trace event against v1 schemas (`tests/test_reconstruction_planning.py`, 13 tests). Package version `0.0.3 → 0.0.4`.
+
+### Not Implemented
+- Content rewriting / reconstruction execution remains intentionally unimplemented (a future controlled executor would emit `PoSelfReconstructionApplied`).
+- `jump` / `reject` / `reactivate` execution remains future controlled work (preserved in schema and docs, not behaviorally emitted).
+
+### Added
 - feat(viewer): PR-005 — Viewer Feedback Tensor First Activation (`src/po_core_original/viewer_feedback/`). The Viewer layer is activated as an external *feedback tensor source* (not a UI, not a dashboard, not social analytics): feedback is received, stored, traced, turned into deterministic pressure, and fed into Po_self's decision context.
 - ViewerFeedback tensor model runtime support (`ViewerFeedback`, `ViewerFeedbackReceipt` dataclasses; 0..1 validation in `__post_init__`; conforms to `viewer_feedback_v1`).
 - In-memory ViewerFeedback store (`InMemoryViewerFeedbackStore`; insertion-ordered, replace-in-place on duplicate `feedback_id`; no persistence, no DB dependency).

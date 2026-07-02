@@ -88,9 +88,11 @@ def test_result_contains_kernel_events_plus_decision_event():
     kernel_event_ids = {e.event_id for e in kernel_result.trace_events}
     result_event_ids = {e.event_id for e in result.trace_events}
     assert kernel_event_ids <= result_event_ids
-    assert len(result.trace_events) == len(kernel_result.trace_events) + 1
     types = [e.event_type for e in result.trace_events]
-    assert types[-1] == "PoSelfDecisionMade"
+    # Kernel events are preserved and a PoSelfDecisionMade is appended. (Since
+    # PR-006, a reconstruct decision also appends PoSelfReconstructionPlanned.)
+    assert "PoSelfDecisionMade" in types
+    assert len(result.trace_events) >= len(kernel_result.trace_events) + 1
 
 
 # --------------------------------------------------------------------------- #
@@ -159,8 +161,11 @@ def test_no_semantic_profile_event_yields_preserve():
 # --------------------------------------------------------------------------- #
 def test_decision_event_emitted_with_summary_payload():
     _, result = _run(HIGH_PRIORITY_INPUT)
-    event = result.trace_events[-1]
-    assert event.event_type == "PoSelfDecisionMade"
+    decision_events = [
+        e for e in result.trace_events if e.event_type == "PoSelfDecisionMade"
+    ]
+    assert len(decision_events) == 1
+    event = decision_events[0]
     for key in (
         "decision_id",
         "decision_type",

@@ -18,7 +18,7 @@ Per `docs/STRICT_CORE_RULES.md` ("Safety Floor / Concept Ceiling" and "Concept P
 Rules"), declaring these contracts now — even without runtime behavior — is how the intended
 architecture is protected from being quietly dropped for being "not implemented yet."
 
-## The five contracts
+## The contracts
 
 | Contract | Schema | Doc | Produced by | Consumed by |
 |---|---|---|---|---|
@@ -26,7 +26,12 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `semantic_step_v1` | `schemas/semantic_step_v1.schema.json` | `docs/contracts/SEMANTIC_STEP_V1.md` | Po_core (Layer 1) | Po_self (Layer 2) |
 | `viewer_feedback_v1` | `schemas/viewer_feedback_v1.schema.json` | `docs/contracts/VIEWER_FEEDBACK_V1.md` | Viewer (Layer 3) | Po_self (Layer 2) |
 | `po_self_decision_v1` | `schemas/po_self_decision_v1.schema.json` | `docs/contracts/PO_SELF_DECISION_V1.md` | Po_self (Layer 2) | next Po_core cycle / output reconstruction |
+| `reconstruction_plan_v1` | `schemas/reconstruction_plan_v1.schema.json` | `docs/contracts/RECONSTRUCTION_PLAN_V1.md` | Po_self (Layer 2, PR-006) | future controlled reconstruction executor |
 | `po_trace_event_v1` | `schemas/po_trace_event_v1.schema.json` | `docs/contracts/PO_TRACE_EVENT_V1.md` | all layers | all layers (via `Po_trace`) |
+
+> `reconstruction_plan_v1` (PR-006) is a design **and runtime** contract — unlike the
+> five PR-002 schema-only contracts above it, it is wired into
+> `src/po_core_original/self_controller/reconstruction_planner.py`.
 
 ## Data flow
 
@@ -41,11 +46,27 @@ Po_trace
 Po_self
   └─ emits PoSelfDecisionMade
                  ↓
+      (if decision_type == reconstruct)
+      ReconstructionPlan  ── emits PoSelfReconstructionPlanned
+                 ↓
+      Future controlled reconstruction executor  (not implemented)
+                 ↓
 Viewer
   └─ emits ViewerFeedbackReceived
                  ↓
 Po_self next cycle
 ```
+
+### Reconstruction planning (PR-006)
+
+A Po_self `reconstruct` decision is converted into an explicit
+`reconstruction_plan_v1` (`schemas/reconstruction_plan_v1.schema.json`,
+`docs/contracts/RECONSTRUCTION_PLAN_V1.md`) and recorded as a
+`PoSelfReconstructionPlanned` trace event. **A ReconstructionPlan is a plan, not
+execution:** `content_rewrite_allowed` is always `false`, it preserves trace
+continuity, and it prevents uncontrolled self-rewrite. Actual reconstruction
+execution (a future controlled executor emitting `PoSelfReconstructionApplied`)
+is deliberately not implemented yet.
 
 ### How `semantic_profile` flows from Po_core to Po_self
 
@@ -91,8 +112,9 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
 
 ## Validation
 
-- `tests/test_contract_schemas.py` — pytest suite (`@pytest.mark.unit`) validating all 5 schemas
-  and 8 example fixtures.
+- `tests/test_contract_schemas.py` — pytest suite (`@pytest.mark.unit`) validating all 6 schemas
+  and 10 example fixtures (incl. `reconstruction_plan_v1` and the
+  `PoSelfReconstructionPlanned` trace example added in PR-006).
 - `scripts/validate_contracts.py` — standalone script performing the same validation
   (including the `self_cycle_index <= max_self_cycles` invariant that JSON Schema cannot
   express), runnable without pytest: `python scripts/validate_contracts.py`.
