@@ -67,6 +67,21 @@
 - [ ] ADR不要（理由を記載）
 - [ ] ADR追加/更新あり: `docs/adr/XXXX-*.md`
 
+## ADR Requirement
+Complete this section if the PR changes any of:
+- SSOT / strict core rules
+- architecture north star
+- schema files
+- trace contracts
+- Po_core / Po_self / Viewer layer responsibilities
+- concept drift rules
+- governance rules
+- future controlled modes: jump / reject / reactivate
+
+- [ ] ADR required and added/updated: `docs/original_design_adr/ADR-####-*.md`
+- [ ] ADR not required because:
+- [ ] I ran `python scripts/check_adr_index.py`
+
 ## Determinism & Compatibility Checklist
 - [ ] 凍結golden（`case_001` / `case_009`）を変更していない
 - [ ] schema互換性を確認した（`tests/test_input_schema.py` / `tests/test_output_schema.py`）

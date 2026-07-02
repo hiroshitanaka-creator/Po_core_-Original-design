@@ -1,0 +1,48 @@
+# Governance-only check.
+# Validates ADR index consistency.
+# Does not test or change runtime behavior.
+#
+# Scope (PR-011): governance/CI validation for the Original Design ADR
+# system (docs/original_design_adr/), formalized by
+# scripts/check_adr_index.py. Standard-library only for the script itself;
+# pytest is installed only to run tests/test_adr_index_validator.py. No
+# network access, no secrets, no artifacts, no repository mutation.
+#
+# This check is scoped to ADR/governance paths and is NOT a required
+# release gate. See docs/GOVERNANCE.md ("ADR Governance Gate") and
+# docs/operations/adr_process.md.
+
+name: ADR Index
+
+on:
+  pull_request:
+    paths:
+      - "docs/original_design_adr/**"
+      - "docs/governance/adr_rules.json"
+      - "docs/GOVERNANCE.md"
+      - "docs/operations/adr_process.md"
+      - "scripts/check_adr_index.py"
+      - ".github/workflows/adr-index.yml"
+  workflow_dispatch:
+
+jobs:
+  adr-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.11"
+      - name: Install minimal dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Validate ADR index
+        run: python scripts/check_adr_index.py
+      - name: Run ADR index validator tests
+        # --noconftest: tests/conftest.py imports the full po_core package
+        # (numpy/torch/etc. transitively), which this scoped job deliberately
+        # does not install. test_adr_index_validator.py only needs the
+        # standard library, so conftest.py collection is skipped.
+        run: python -m pytest tests/test_adr_index_validator.py -v --noconftest -p no:cacheprovider

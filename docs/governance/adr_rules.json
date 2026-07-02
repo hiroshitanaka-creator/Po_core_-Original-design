@@ -1,0 +1,49 @@
+{
+  "schema_version": "adr_rules_v1",
+  "adr_directory": "docs/original_design_adr",
+  "index_file": "docs/original_design_adr/INDEX.md",
+  "template_file": "docs/original_design_adr/ADR-0000-template.md",
+  "non_adr_files_in_directory": [
+    "README.md",
+    "INDEX.md"
+  ],
+  "required_status_values": [
+    "Proposed",
+    "Accepted",
+    "Superseded",
+    "Deprecated",
+    "Rejected"
+  ],
+  "adr_required_path_patterns": [
+    "docs/STRICT_CORE_RULES.md",
+    "docs/ARCHITECTURE_NORTH_STAR.md",
+    "docs/CONCEPT_DRIFT_GUARD.md",
+    "docs/contracts/",
+    "schemas/",
+    "src/po_core_original/trace_validation/",
+    "docs/governance/concept_drift_rules.json",
+    "docs/governance/adr_rules.json"
+  ],
+  "adr_required_change_types": [
+    "SSOT",
+    "Architecture",
+    "Schema",
+    "Trace Contract",
+    "Concept Preservation",
+    "Governance",
+    "Controlled Mode"
+  ],
+  "required_sections": [
+    "Context",
+    "Decision",
+    "Scope",
+    "Architecture Impact",
+    "Concept Preservation",
+    "Alternatives Considered",
+    "Consequences",
+    "Validation",
+    "Rollback / Reversal"
+  ],
+  "required_first_adr": "ADR-0001",
+  "required_first_adr_status": "Accepted"
+}

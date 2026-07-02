@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-011)
+- ADR template and ADR directory (`docs/original_design_adr/`, kept separate from the pre-existing main-track `docs/adr/` — see ADR-0001 for why).
+- ADR index and first accepted ADR adopting ADR governance (`docs/original_design_adr/INDEX.md`, `ADR-0001-adopt-adr-system.md`, `Accepted`).
+- `scripts/check_adr_index.py` ADR index validator (standard library only, no network access, `--json` output supported).
+- Optional ADR Index GitHub Actions workflow (`.github/workflows/adr-index.yml`), scoped to `docs/original_design_adr/**` and related governance paths, not a required release gate.
+- PR template ADR requirement checklist (`## ADR Requirement` in `.github/PULL_REQUEST_TEMPLATE.md`; the pre-existing `## ADRチェック` section for the main-track ADR system is unchanged).
+- ADR process operations documentation (`docs/operations/adr_process.md`).
+- Tests for ADR index validation (`tests/test_adr_index_validator.py`, 17 tests).
+
+### Not Changed (PR-011)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, trace, reconstruction, concept-drift-validator, or philosopher behavior changed.
+- The pre-existing main-track ADR system (`docs/adr/`, 14 ADRs) is untouched.
+
 ### Changed (docs)
 - Renamed `docs/STATUS.md` to `docs/original_design_status.md` (governance/docs-only, no runtime behavior change). Case-only filenames (`status.md` vs. `STATUS.md`) collide on case-insensitive filesystems (macOS, Windows) and are easy for humans and tooling to confuse; the new name keeps the Original Design governance-layer status file distinct from `docs/status.md` (Release SSOT) without relying on case sensitivity. All in-repo cross-references updated (`README.md`, `docs/GOVERNANCE.md`, `docs/ROADMAP.md`, `docs/STRICT_CORE_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, `docs/AI_AGENT_INITIALIZATION_RULES.md`, `docs/contracts/CONTRACT_OVERVIEW.md`, `docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`); historical CHANGELOG entries describing past PRs are left unchanged since they are a log of what happened at the time, not current-state documentation.
 

@@ -32,6 +32,42 @@ Future work:
   外部向けテキストへの拡張）。
 - Add AI-agent prompt preflight check（ドキュメント編集セッション開始前の事前検証）。
 
+### ADR System for Architecture Changes（PR-011）— ✅ 完了
+
+SSOT・アーキテクチャ・スキーマ・trace contract・Po_core/Po_self/Viewer 責務・
+concept preservation ルール・ガバナンスルール・将来の統制モード（jump/reject/
+reactivate）に影響する変更に ADR を必須化した（**ガバナンス・ドキュメント・
+スクリプト・CIのみ、ランタイム挙動は無変更**）：
+
+- ADR template ✅（`docs/original_design_adr/ADR-0000-template.md`）
+- ADR index ✅（`docs/original_design_adr/INDEX.md`、最初の ADR
+  `ADR-0001-adopt-adr-system.md` を Accepted で登録）
+- ADR process ✅（`docs/operations/adr_process.md`）
+- ADR index validator ✅（`scripts/check_adr_index.py`、標準ライブラリのみ、
+  `docs/governance/adr_rules.json` に基づきディレクトリ/テンプレート/インデックス
+  存在・ファイル名・必須節・ステータス値・INDEX整合性・ADR-0001の存在とAccepted
+  状態を検証）
+- Optional ADR Index CI ✅（`.github/workflows/adr-index.yml`、
+  `docs/original_design_adr/**` 等のガバナンスパスにスコープ、`workflow_dispatch`
+  対応、必須リリースゲートではない）
+- PR template ADR Requirement section ✅（`.github/PULL_REQUEST_TEMPLATE.md` の
+  `## ADR Requirement` 節。既存の日本語 `## ADRチェック`（主系統向け）・
+  Concept Preservation・Concept Drift Check・Trace Continuity 等の節は
+  無変更のまま保持）
+
+主系統 `po_core` パッケージの既存 ADR システム（`docs/adr/`、14件）とは意図的に
+分離した独立ディレクトリ（`docs/original_design_adr/`）を採用（理由は ADR-0001 参照。
+大文字小文字のみが異なるファイル名の衝突を避けるための `docs/original_design_status.md`
+改名と同じ判断）。
+
+Future work:
+
+- Optional future: enforce ADR requirement based on changed file paths.
+- Optional future: integrate ADR checks with concept drift and trace
+  continuity governance.
+- Future: 検証器が安定した後、`ADR Index` ワークフローを branch protection の
+  required status check へ昇格させる。
+
 ## Phase 1: Domain Contracts — ✅ PR-002で完了（スキーマ／設計契約のみ）
 
 - `semantic_profile` — `schemas/semantic_profile_v1.schema.json`

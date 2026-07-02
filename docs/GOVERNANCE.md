@@ -158,3 +158,46 @@ formalizes. The `Concept Drift` GitHub Actions workflow
 (`.github/workflows/concept-drift.yml`) is scoped to `README.md` /
 `docs/**` / the PR template and can also be run manually via
 `workflow_dispatch`.
+
+## ADR Governance Gate
+
+This gate covers the **Original Design** ADR system
+(`docs/original_design_adr/`), independent from the pre-existing main-track
+ADR system referenced above (`docs/adr/`) — see "ADR（Architecture Decision
+Record）要件" for that one, and
+`docs/original_design_adr/ADR-0001-adopt-adr-system.md` for why the two are
+kept in separate directories.
+
+ADR is required when a PR changes:
+
+- `docs/STRICT_CORE_RULES.md`
+- `docs/ARCHITECTURE_NORTH_STAR.md`
+- `docs/CONCEPT_DRIFT_GUARD.md`
+- schema files under `schemas/`
+- trace contracts under `docs/contracts/`
+- Po_core / Po_self / Viewer layer responsibilities
+- concept drift rules
+- trace continuity rules
+- controlled mode semantics
+- public definition of Po_core identity
+
+Run:
+
+```bash
+python scripts/check_adr_index.py
+```
+
+ADR records the reason and impact of architecture decisions. ADR does not
+replace tests, schemas, trace validation, or concept drift validation.
+
+The check is **governance-only and does not modify runtime behavior**. It
+reads Markdown files under `docs/original_design_adr/`, using only the
+Python standard library, and reports structured issues (missing template,
+missing index, invalid ADR file names, duplicate ADR numbers, missing
+required sections, invalid status, ADRs missing from the index, index/file
+mismatches). See `docs/operations/adr_process.md` for the full operational
+guide, and `docs/original_design_adr/README.md` for how to add a new ADR.
+The optional `ADR Index` GitHub Actions workflow
+(`.github/workflows/adr-index.yml`) is scoped to
+`docs/original_design_adr/**` and related governance paths and can also be
+run manually via `workflow_dispatch`.

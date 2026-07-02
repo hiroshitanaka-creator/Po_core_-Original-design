@@ -136,6 +136,19 @@ examples for trace-related PRs (not a required release gate yet). See
 `docs/operations/trace_continuity_validation.md` for the full guide and
 `docs/contracts/TRACE_CONTINUITY_V1.md` for the underlying contract.
 
+### ADR governance
+
+Architecture-impacting changes to the Original Design track (SSOT, schemas,
+trace contracts, Po_core/Po_self/Viewer responsibilities, concept
+preservation, or controlled modes) require an ADR. Run:
+
+```bash
+python scripts/check_adr_index.py
+```
+
+See `docs/original_design_adr/README.md` and
+`docs/operations/adr_process.md`.
+
 ---
 
 ## Key Links

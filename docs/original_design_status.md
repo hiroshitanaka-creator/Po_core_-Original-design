@@ -10,6 +10,52 @@
 
 ## 現フェーズ
 
+**Phase 10: ADR System for Architecture Changes（PR-011）— 完了
+（アーキテクチャ変更を無言で行えないようにする ADR ガバナンスを追加。ランタイム挙動は無変更）。**
+本PR（PR-011）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / concept drift 検証 / 哲学者のいずれの
+ランタイム挙動も変更していない。SSOT・アーキテクチャ・スキーマ・trace contract・
+三層責務・concept preservation ルール・ガバナンスルール・将来の統制モード（jump/reject/
+reactivate）に影響する変更には ADR を必須とする。既存の `docs/adr/`（主系統 `po_core`
+パッケージの ADR、14件、小文字 `index.md`）は本PRの対象外・無変更のまま保持し、
+Original Design 専用の ADR システムを新規ディレクトリ `docs/original_design_adr/`
+に構築した（`docs/original_design_status.md` の改名前例と同じ理由：大文字小文字のみが
+異なるファイル名は大文字小文字を区別しないファイルシステムで衝突するため）。
+`docs/original_design_adr/README.md`（ADRとは何か・なぜ使うか・いつ必須か・番号付け・
+ステータスライフサイクル・追加方法・INDEX更新方法・検証器の実行方法）、
+`docs/original_design_adr/ADR-0000-template.md`（Status/Date/Deciders等のメタデータ、
+Context/Decision/Scope/Architecture Impact/Concept Preservation/Alternatives
+Considered/Consequences/Validation/Rollback/Notes の全節）、
+`docs/original_design_adr/ADR-0001-adopt-adr-system.md`（Accepted。ADR採用の決定と、
+なぜ `docs/adr/` を再利用せず新規ディレクトリにしたかの理由を記録）、
+`docs/original_design_adr/INDEX.md` を新規追加。`docs/governance/adr_rules.json`
+（JSON のみ、YAML依存なし：ADRディレクトリ・index/templateパス・許可ステータス値・
+ADR必須パスパターン・必須節一覧）、`scripts/check_adr_index.py`（標準ライブラリのみ、
+ネットワークアクセス不要、決定論的：ディレクトリ/テンプレート/インデックス存在確認、
+ファイル名パターン検証、ADR番号一意性、必須タイトル/ステータス/日付/9節の存在確認、
+ステータス値検証、INDEXとの整合性（欠落・テンプレート誤掲載・タイトル/ステータス/日付
+不一致・重複行）、ADR-0001の存在とAccepted状態を検証し、構造化された issue を返す）を
+新規追加。`.github/workflows/adr-index.yml`（`docs/original_design_adr/**` 等の
+ガバナンスパスにスコープされた任意のCI、`workflow_dispatch` 対応、pytest のみ
+インストール）、`.github/PULL_REQUEST_TEMPLATE.md` への `## ADR Requirement` 節追加
+（既存の日本語 `## ADRチェック` 節・Concept Preservation・Concept Drift Check・
+Trace Continuity 等の節は無変更のまま保持）、`docs/GOVERNANCE.md` への
+"ADR Governance Gate" 節（既存の主系統向け "ADR（Architecture Decision Record）要件"
+節は無変更のまま保持）、`docs/operations/adr_process.md`（12節：目的・必須/不要な場合・
+ライフサイクル・番号付け・追加方法・INDEX更新方法・検証器実行方法・よくある失敗3種
+（missing_adr/missing_section/index_mismatch）と修正法・concept drift検証との関係・
+trace continuity検証との関係・非検証対象）を新規追加。README.md に
+"### ADR governance" 小節を追加（Trace continuity validation 小節と同じ形式）。
+`tests/test_adr_index_validator.py`（17テスト：現行ADRセットのパス・欠落index・
+重複ADR番号・必須節欠落・不正ステータス・index欠落ADR・タイトル/ステータス/日付不一致・
+テンプレート非必須・テンプレート誤掲載・ADR-0001存在確認・ADR-0001がAccepted・JSON出力
+（成功/失敗双方）・非ゼロ終了・ランタイムパッケージ非依存）→ 全パス。
+**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・`docs/adr/`（主系統ADR）は
+無変更。ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+
 **Phase 9: Governance Enforcement for Concept Drift（PR-010）— 完了
 （README/PRD/PRテンプレートの概念ドリフト検証を機械的に強制。ランタイム挙動は無変更）。**
 本PR（PR-010）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
@@ -218,10 +264,19 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   branch protection の required status check へ昇格させる。
 - Future: concept drift 検証の対象を ADR・リリースドキュメントへ拡張する（表現が
   安定した後）。
+- Future: 検証器が安定した後、`ADR Index` ワークフローを branch protection の
+  required status check へ昇格させる。
 
 ## Completed ログ
 
-- **PR-010（本エントリ）**: Phase 9 Governance Enforcement for Concept Drift 完了 —
+- **PR-011（本エントリ）**: Phase 10 ADR System for Architecture Changes 完了 —
+  ADR テンプレート・ADR index・最初の ADR・ADR ガバナンスルール・ローカル ADR index
+  検証器・任意の ADR Index CI ワークフロー・PR テンプレート ADR チェックリスト・
+  ADR プロセスドキュメントを追加。**ガバナンスのみであり、ランタイム挙動は変更していない。**
+  既存の主系統 `docs/adr/`（14件のADR、小文字 `index.md`）との大文字小文字のみの
+  ファイル名衝突を避けるため、Original Design 専用の新規ディレクトリ
+  `docs/original_design_adr/` を採用（詳細は ADR-0001 参照）。
+- **PR-010**: Phase 9 Governance Enforcement for Concept Drift 完了 —
   README/PRD/PRテンプレートの概念ドリフトを機械的に検証するゲートを追加。
   **ガバナンス・ドキュメント・スクリプト・CIのみを追加し、ランタイム挙動は一切変更していない。**
   `docs/governance/concept_drift_rules.json`（正典アイデンティティ用語・禁止パターン・
