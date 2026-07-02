@@ -10,6 +10,62 @@
 
 ## 現フェーズ
 
+**Phase 12: AI Agent Bootstrap Preflight（PR-013）— 完了
+（コーディングエージェント向けの必須リーディング表示・ガバナンスファイル
+存在検証・プロンプトテンプレート生成・governance_preflight 実行を1コマンドに
+集約。ランタイム挙動は無変更）。**
+本PR（PR-013）は**ガバナンス・ドキュメント・スクリプト・CIのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / trace 検証 / concept drift 検証 / ADR 検証 /
+governance_preflight / 哲学者のいずれのランタイム挙動も変更していない。
+`docs/governance/ai_agent_bootstrap_rules.json`（標準ライブラリのみで読み込む
+JSON設定：必須リーディングファイル・必須ガバナンスファイル・必須スクリプト・
+必須ワークフロー・必須プロンプトテンプレート・governance_preflight実行コマンド・
+canonical identity の7項目）を新規追加。`scripts/ai_agent_bootstrap_preflight.py`
+（標準ライブラリのみ、subprocess経由で `scripts/governance_preflight.py`
+（PR-012）を呼び出すだけで検証ロジック自体は再実装していない）を新規追加。
+`--verify-only`（ファイル存在検証のみ、governance_preflight は実行しない）・
+`--skip-governance-preflight`（governance_preflight をスキップし警告を表示、
+最終PR検証には非推奨）・`--print-prompt`（`docs/prompts/
+CODING_AGENT_BOOTSTRAP_PROMPT.md` を検証後に標準出力へ表示）・`--write-prompt PATH`
+（唯一ファイル書き込みを行うオプション、明示的に指定しない限り書き込まない、
+ボイラープレートプロンプト+必須リーディング+canonical identity+governance
+コマンドを結合してPATHへ書き込み）・`--json`（機械可読サマリ）・
+`--list-required-reading`（必須リーディング一覧を表示しexit 0）・`--rules PATH`
+（代替ルール設定）に対応。終了コードは決定論的（0=全選択チェック通過、
+1=必須ファイル欠落、2=governance_preflight失敗、3=CLI/設定エラー、
+4=プロンプト書き込み失敗；必須ファイル欠落とgovernance_preflight失敗が両方
+発生する場合はbootstrap前提条件の失敗を優先しexit 1を返す）。
+`docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`（既存の日本語コピー用プロンプトは
+無変更のまま保持し、その下に英語版セクションを追加）、
+`docs/prompts/CODING_AGENT_TASK_PROMPT_TEMPLATE.md`（PR-ID・TITLE・Mission・Scope・
+Concept Preservation・Acceptance Criteria・Required Final Report のプレースホルダー
+付きタスクプロンプトシェル、新規追加）。任意の `AI Agent Bootstrap` CI ワークフロー
+（`.github/workflows/ai-agent-bootstrap.yml`、README/docs/schemas/examples/
+scripts関連パスにスコープ、`workflow_dispatch` 対応、pytest+jsonschemaのみ
+インストール、既存の `Governance Preflight`/`Concept Drift`/`Trace Continuity`/
+`ADR Index` ワークフローを置き換えない）、
+`docs/operations/ai_agent_bootstrap_preflight.md`（目的・AIエージェントが
+bootstrap preflightを必要とする理由・必須リーディングの儀式・ローカルコマンド・
+プロンプトテンプレート生成・CI説明・終了コード・オプション・よくある失敗・
+非検証対象・将来拡張の11節）、`.github/PULL_REQUEST_TEMPLATE.md` への
+`## AI Agent Bootstrap` 節追加（既存の Concept Preservation・Concept Drift
+Check・Trace Continuity・ADR Requirement・Governance Preflight の各チェックリストは
+無変更のまま保持）、`docs/GOVERNANCE.md` への "AI Agent Bootstrap Preflight" 節を
+新規追加。`tests/test_ai_agent_bootstrap_preflight.py`（12テスト：
+`--list-required-reading`・`--verify-only`・一時ルールfixtureによる必須ファイル
+欠落時のexit 1・JSON出力のパース可否・`--print-prompt`の出力確認・
+`--write-prompt`のファイル書き込み確認・`--skip-governance-preflight`の
+非実行と警告表示・デフォルト実行でのgovernance_preflight呼び出し確認・
+governance_preflight失敗時のexit 2・不正なrulesパスでのexit 3・
+プロンプト書き込み失敗時のexit 4・ランタイムパッケージ非依存、
+`run_governance_preflight` をモンキーパッチしてスクリプト本体は実行しない設計）
+→ 全パス。**ランタイム変更なし**の確認：`kernel.py`/`trace.py`/`controller.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`trace_validation/` のいずれも本PRでは変更していない。
+既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマ・既存の4検証器・
+`governance_preflight.py` の挙動は無変更。ランタイムフェーズを「完了」と
+主張していない——本PRはガバナンス層のみの完了。
+
 **Phase 11: Governance Preflight Aggregator（PR-012）— 完了
 （concept drift・trace continuity・ADR index・schema/example の4検証器を
 1コマンドに集約。ランタイム挙動は無変更）。**
@@ -302,10 +358,18 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
   required status check へ昇格させる。
 - Future: 安定化後、`Governance Preflight` を branch protection の required
   status check へ昇格させる。
+- Future: require AI Agent Bootstrap Preflight for AI-authored PRs after
+  workflow stabilizes.
 
 ## Completed ログ
 
-- **PR-012（本エントリ）**: Governance Preflight Aggregator added.
+- **PR-013（本エントリ）**: AI Agent Bootstrap Preflight added.
+  Added `scripts/ai_agent_bootstrap_preflight.py`, required-reading
+  verification, governance file verification, coding-agent prompt
+  templates, optional prompt generation, optional AI Agent Bootstrap CI
+  workflow, operations documentation, and tests. This is governance-only
+  and does not change runtime behavior.
+- **PR-012**: Governance Preflight Aggregator added.
   Added `scripts/governance_preflight.py`, optional Governance Preflight CI
   workflow, operations documentation, PR template checklist, and tests.
   The preflight aggregates concept drift, trace continuity, ADR index, and

@@ -161,6 +161,23 @@ python scripts/governance_preflight.py
 This aggregates concept drift, trace continuity, ADR index, and
 schema/example checks. See `docs/operations/governance_preflight.md`.
 
+### AI Agent Bootstrap
+
+Before AI-assisted work, run:
+
+```bash
+python scripts/ai_agent_bootstrap_preflight.py
+```
+
+To print the reusable coding-agent prompt:
+
+```bash
+python scripts/ai_agent_bootstrap_preflight.py --print-prompt
+```
+
+This verifies required governance files and runs governance preflight. See
+`docs/operations/ai_agent_bootstrap_preflight.md`.
+
 ---
 
 ## Key Links

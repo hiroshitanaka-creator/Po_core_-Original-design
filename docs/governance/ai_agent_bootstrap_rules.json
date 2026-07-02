@@ -1,0 +1,50 @@
+{
+  "schema_version": "ai_agent_bootstrap_rules_v1",
+  "required_reading_files": [
+    "docs/STRICT_CORE_RULES.md",
+    "docs/AI_AGENT_INITIALIZATION_RULES.md",
+    "docs/ARCHITECTURE_NORTH_STAR.md",
+    "docs/CONCEPT_DRIFT_GUARD.md",
+    "docs/GOVERNANCE.md",
+    "docs/ROADMAP.md",
+    "docs/original_design_status.md",
+    "README.md"
+  ],
+  "required_governance_files": [
+    "docs/operations/trace_continuity_validation.md",
+    "docs/operations/concept_drift_validation.md",
+    "docs/operations/adr_process.md",
+    "docs/operations/governance_preflight.md",
+    "docs/original_design_adr/INDEX.md",
+    "docs/original_design_adr/ADR-0000-template.md",
+    "docs/original_design_adr/ADR-0001-adopt-adr-system.md"
+  ],
+  "required_scripts": [
+    "scripts/check_concept_drift.py",
+    "scripts/validate_trace_continuity.py",
+    "scripts/check_adr_index.py",
+    "scripts/governance_preflight.py"
+  ],
+  "required_workflows": [
+    ".github/workflows/trace-continuity.yml",
+    ".github/workflows/concept-drift.yml",
+    ".github/workflows/adr-index.yml",
+    ".github/workflows/governance-preflight.yml"
+  ],
+  "required_prompt_templates": [
+    "docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md",
+    "docs/prompts/CODING_AGENT_TASK_PROMPT_TEMPLATE.md"
+  ],
+  "governance_preflight_command": [
+    "python",
+    "scripts/governance_preflight.py"
+  ],
+  "canonical_identity": {
+    "system": "Po_core is a three-layer tensor intelligence system for processing the meaning and responsibility of speech.",
+    "po_core": "Po_core is the tensor kernel.",
+    "po_self": "Po_self is the recursive trace-based self-reconstruction layer.",
+    "viewer": "Viewer is the external resonance and feedback tensor layer.",
+    "philosophers": "The 42 philosophers are deliberation modules inside Po_core, not the whole system.",
+    "safety": "Safety is a floor, not a concept ceiling."
+  }
+}

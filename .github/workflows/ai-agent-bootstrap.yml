@@ -1,0 +1,63 @@
+# Governance-only AI-agent bootstrap check.
+# Verifies required reading, governance files, prompt templates, and governance preflight.
+# Does not test or change runtime behavior.
+#
+# Scope (PR-013): verifies that scripts/ai_agent_bootstrap_preflight.py's
+# required reading list, governance files, governance scripts, CI
+# workflows, and coding-agent prompt templates all exist, prints the
+# reusable coding-agent prompt, and runs the full aggregate governance
+# preflight (scripts/governance_preflight.py: concept drift, trace
+# continuity, ADR index, schema/example validation). It does not
+# reimplement any validator logic and does not replace the individual
+# governance workflows. No network access, no secrets, no artifact
+# publishing, no repository mutation.
+#
+# This check is scoped to governance/docs/schema/example/script paths and
+# is NOT a required release gate. See docs/GOVERNANCE.md ("AI Agent
+# Bootstrap Preflight") and docs/operations/ai_agent_bootstrap_preflight.md.
+
+name: AI Agent Bootstrap
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/**"
+      - "schemas/**"
+      - "examples/contracts/**"
+      - "scripts/**"
+      - "tests/test_ai_agent_bootstrap_preflight.py"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/workflows/ai-agent-bootstrap.yml"
+      - ".github/workflows/governance-preflight.yml"
+  workflow_dispatch:
+
+jobs:
+  ai-agent-bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.11"
+      - name: Install minimal dependencies
+        # Governance-only: only pytest (schema check, run by
+        # governance_preflight.py) and jsonschema (schema validation) are
+        # needed. No runtime dependencies (numpy, torch, etc.) installed.
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest jsonschema
+      - name: Verify required reading, governance files, scripts, workflows, and prompt templates
+        run: python scripts/ai_agent_bootstrap_preflight.py --verify-only
+      - name: Print coding-agent bootstrap prompt (includes governance preflight)
+        run: python scripts/ai_agent_bootstrap_preflight.py --print-prompt
+      - name: Run AI agent bootstrap preflight (includes governance preflight)
+        run: python scripts/ai_agent_bootstrap_preflight.py
+      - name: Run AI agent bootstrap preflight tests
+        # --noconftest: tests/conftest.py imports the full po_core package
+        # (numpy/torch/etc. transitively), which this scoped job deliberately
+        # does not install. test_ai_agent_bootstrap_preflight.py only needs
+        # the standard library, so conftest.py collection is skipped.
+        run: python -m pytest tests/test_ai_agent_bootstrap_preflight.py -v --noconftest -p no:cacheprovider
