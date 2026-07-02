@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (docs)
+- Renamed `docs/STATUS.md` to `docs/original_design_status.md` (governance/docs-only, no runtime behavior change). Case-only filenames (`status.md` vs. `STATUS.md`) collide on case-insensitive filesystems (macOS, Windows) and are easy for humans and tooling to confuse; the new name keeps the Original Design governance-layer status file distinct from `docs/status.md` (Release SSOT) without relying on case sensitivity. All in-repo cross-references updated (`README.md`, `docs/GOVERNANCE.md`, `docs/ROADMAP.md`, `docs/STRICT_CORE_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, `docs/AI_AGENT_INITIALIZATION_RULES.md`, `docs/contracts/CONTRACT_OVERVIEW.md`, `docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`); historical CHANGELOG entries describing past PRs are left unchanged since they are a log of what happened at the time, not current-state documentation.
+
 ### Added (PR-010)
 - feat(governance): PR-010 — Governance Enforcement for Concept Drift. Makes `docs/CONCEPT_DRIFT_GUARD.md`'s manual checklist mechanically enforceable so README/PRD/PR-scaffolding wording can no longer quietly shrink Po_core into a generic chatbot, safety wrapper, or philosopher-roleplay demo: governance/docs/script/CI only, no runtime changes.
 - Concept drift rules configuration (`docs/governance/concept_drift_rules.json`, JSON only, no YAML dependency): required canonical identity terms (per-file, README vs. PRD), forbidden positive-identity literal phrases and regex patterns, allowed negation contexts, ignore-block/ignore-line markers, PR-template checklist items, and required governance docs.

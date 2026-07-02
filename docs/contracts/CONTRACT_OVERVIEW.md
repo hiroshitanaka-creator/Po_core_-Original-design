@@ -1,7 +1,7 @@
 # Contract Overview (PR-002)
 
 > This is the entry point for the PR-002 domain-contract layer. Read
-> `docs/STRICT_CORE_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, and `docs/STATUS.md` first —
+> `docs/STRICT_CORE_RULES.md`, `docs/ARCHITECTURE_NORTH_STAR.md`, and `docs/original_design_status.md` first —
 > this document assumes familiarity with the three-layer tensor intelligence model
 > (Po_core / Po_self / Viewer).
 

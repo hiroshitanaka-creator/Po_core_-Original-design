@@ -120,7 +120,7 @@ print(po_self_result.to_dict())
 `PoSelfResult` exposes `request_id`, `kernel_result`, `decision`, `trace_events`,
 and `to_dict()`. The `PoSelfDecision` and `PoSelfDecisionMade` trace event
 conform to the PR-002 v1 schemas. See `docs/ROADMAP.md` (Phases 2–3) and
-`docs/STATUS.md`.
+`docs/original_design_status.md`.
 
 ### Trace continuity validation
 

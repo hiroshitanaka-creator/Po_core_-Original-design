@@ -44,7 +44,7 @@ Policy Change Protocol・Determinism & Compatibility チェックリストは変
 3. 検討した代替案
 4. 実施したテスト／チェック
 5. `CHANGELOG.md` の更新
-6. `docs/STATUS.md` および `docs/status.md` の該当箇所の更新
+6. `docs/original_design_status.md` および `docs/status.md` の該当箇所の更新
 
 ## ADR（Architecture Decision Record）要件
 
@@ -59,7 +59,9 @@ ADR運用フローの詳細は既存の `docs/spec/adr_guide.md` を参照する
 
 ## ステータス更新ルール
 
-- ガバナンス層固有の現状は `docs/STATUS.md` に記録する。
+- ガバナンス層固有の現状は `docs/original_design_status.md` に記録する
+  （旧ファイル名 `docs/STATUS.md`。大文字小文字のみが異なるファイル名は
+  大文字小文字を区別しないファイルシステムで衝突するため改名した）。
 - リリース・実装面の現状は既存の `docs/status.md`（Release SSOT）に記録する。
 - 両者は役割が異なるため重複させず、相互リンクのみで整合を保つ。
 

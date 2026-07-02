@@ -1,6 +1,9 @@
 # Status（Original Design ガバナンス層）
 
-> 本書は **Original Design ガバナンス層自体の状態** を記録する。
+> 本書は **Original Design ガバナンス層自体の状態** を記録する
+> （旧ファイル名: `docs/STATUS.md`。大文字小文字のみが異なるファイル名は
+> 大文字小文字を区別しないファイルシステム（macOS/Windows）で衝突するため、
+> `docs/original_design_status.md` に改名した。内容・役割の変更はない）。
 > リリース・パッケージ公開・テスト件数などランタイム全体のリリース状態は
 > 引き続き [docs/status.md](./status.md)（Release SSOT）が単一真実を保持する。
 > 両者は役割が異なる別ファイルであり、意図的に分離している（`docs/GOVERNANCE.md` 参照）。
