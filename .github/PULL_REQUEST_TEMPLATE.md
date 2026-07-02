@@ -111,5 +111,15 @@ Complete this section if the PR changes README, PRD, architecture docs, governan
 - [ ] I confirmed this PR does not shrink Po_core into a generic chatbot, generic decision-support tool, safety wrapper, or philosopher roleplay system.
 - [ ] Not applicable because:
 
+## Governance Preflight
+Run this for PRs that affect governance, docs, schemas, contracts, trace events, ADRs, or public architecture wording.
+- [ ] I ran `python scripts/governance_preflight.py`
+- [ ] Or I ran targeted checks:
+  - [ ] `python scripts/check_concept_drift.py --check-pr-template`
+  - [ ] `python scripts/validate_trace_continuity.py --include-negative`
+  - [ ] `python scripts/check_adr_index.py`
+  - [ ] `python -m pytest tests/test_contract_schemas.py -v`
+- [ ] Not applicable because:
+
 ## Notes
 - 追加の注意事項・制約:

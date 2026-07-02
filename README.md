@@ -149,6 +149,18 @@ python scripts/check_adr_index.py
 See `docs/original_design_adr/README.md` and
 `docs/operations/adr_process.md`.
 
+### Governance preflight
+
+Before PRs that change docs, schemas, trace contracts, ADRs, or public
+architecture wording, run:
+
+```bash
+python scripts/governance_preflight.py
+```
+
+This aggregates concept drift, trace continuity, ADR index, and
+schema/example checks. See `docs/operations/governance_preflight.md`.
+
 ---
 
 ## Key Links
