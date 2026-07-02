@@ -58,7 +58,7 @@ Optional: `correlation_id`, `parent_event_id`, `trace_refs`.
 | `ViewerFeedbackApplied` | open — to be defined when Phase 4 (`docs/ROADMAP.md`) is implemented |
 | `PoSelfDecisionMade` | `{ "po_self_decision": <po_self_decision_v1> }` |
 | `PoSelfReconstructionPlanned` | **PR-006:** summary of a `reconstruction_plan_v1` — `{ plan_id, decision_id, source_decision_type, plan_type, plan_status, content_rewrite_allowed, target_step_ids, operation_count, trigger_type, max_priority_score, viewer_feedback_count, max_viewer_pressure }`. Full plan on `PoSelfResult.reconstruction_plan`. See `docs/contracts/RECONSTRUCTION_PLAN_V1.md`. |
-| `PoSelfReconstructionApplied` | open — to be defined when Phase 3 is implemented |
+| `PoSelfReconstructionApplied` | **PR-007:** summary of a `ControlledReconstructionExecutor` run — `{ plan_id, decision_id, patch_count, target_step_ids, execution_mode, original_content_preserved, original_content_mutated, content_rewrite_applied, cycle_guard_passed, self_cycle_index, max_self_cycles, trace_continuity_verified }`. Means the plan was applied to the *controlled executor* (patch proposals produced), NOT that content was rewritten — `content_rewrite_applied` is always `false`. Full result on `PoSelfResult.reconstruction_execution`; each patch conforms to `reconstruction_patch_v1`. See `docs/contracts/RECONSTRUCTION_PATCH_V1.md`. |
 | `PoSelfCycleLimitReached` | open — should include `max_self_cycles`/`self_cycle_index` at minimum |
 | `ConceptDriftGuardEvaluated` | open — should include the 7 Concept Drift Guard check answers |
 
@@ -81,17 +81,18 @@ future PRs).
 
 ## 8. Implementation status per event type
 
-- The `src/po_core_original/` seed runtime (PR-003…PR-006) emits
+- The `src/po_core_original/` seed runtime (PR-003…PR-007) emits
   `SemanticProfileComputed` (PR-003), `PoSelfDecisionMade` (PR-004),
-  `ViewerFeedbackReceived` / `ViewerFeedbackApplied` (PR-005), and
-  `PoSelfReconstructionPlanned` (PR-006). This envelope is still **not** wired into
-  the separate, pre-existing `src/po_core/trace/` `TraceEvent` / `InMemoryTracer`
-  stream (`docs/ENGINE_TRACE_CONTRACT.md`); reconciling the two remains an ADR-gated
+  `ViewerFeedbackReceived` / `ViewerFeedbackApplied` (PR-005),
+  `PoSelfReconstructionPlanned` (PR-006), and `PoSelfReconstructionApplied`
+  (PR-007). This envelope is still **not** wired into the separate,
+  pre-existing `src/po_core/trace/` `TraceEvent` / `InMemoryTracer` stream
+  (`docs/ENGINE_TRACE_CONTRACT.md`); reconciling the two remains an ADR-gated
   future runtime task (see below).
-- `PoSelfReconstructionApplied`, `PoSelfCycleLimitReached`, and
-  `ConceptDriftGuardEvaluated` are declared in the `event_type` enum only and have
-  no example payload yet — per the honesty requirement in
-  `docs/STRICT_CORE_RULES.md` (label unimplemented concepts, do not delete them).
+- `PoSelfCycleLimitReached` and `ConceptDriftGuardEvaluated` are declared in the
+  `event_type` enum only and have no example payload yet — per the honesty
+  requirement in `docs/STRICT_CORE_RULES.md` (label unimplemented concepts, do
+  not delete them).
 
 ## 9. Future implementation notes
 

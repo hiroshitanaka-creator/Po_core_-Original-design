@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/reconstruction_patch_v1.schema.json",
+  "title": "Po_core reconstruction_patch v1",
+  "description": "PR-007 design + runtime contract. Represents one deterministic patch PROPOSAL produced by the ControlledReconstructionExecutor (Layer 2) from a reconstruction_plan_v1 operation. A reconstruction_patch is not rewritten content: execution_mode is const 'patch_proposal_only', content_rewrite_applied is const false, and original_content_preserved is const true. It references the plan (plan_id), the causing decision (decision_id), and the source operation (operation_id). See docs/contracts/RECONSTRUCTION_PATCH_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "patch_id",
+    "request_id",
+    "plan_id",
+    "decision_id",
+    "operation_id",
+    "target_step_id",
+    "patch_type",
+    "patch_status",
+    "execution_mode",
+    "original_content_hash",
+    "original_content_preserved",
+    "original_content_mutated",
+    "content_rewrite_applied",
+    "proposed_patch",
+    "rationale",
+    "trace_refs",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "reconstruction_patch_v1" },
+    "patch_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "References the reconstruction_plan_v1 this patch was derived from."
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "References the po_self_decision that caused the plan."
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "References the planned_operation this patch fulfills."
+    },
+    "target_step_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The semantic_step targeted by the operation."
+    },
+    "patch_type": {
+      "type": "string",
+      "enum": [
+        "review_note",
+        "revision_placeholder",
+        "constraint_note",
+        "human_review_request"
+      ],
+      "description": "PR-007 behavior uses 'revision_placeholder'."
+    },
+    "patch_status": {
+      "type": "string",
+      "enum": ["proposed", "blocked", "not_applicable"],
+      "description": "'not_applicable' when the target semantic_step could not be found."
+    },
+    "execution_mode": {
+      "const": "patch_proposal_only",
+      "description": "This is critical: no content_rewrite mode exists in PR-007."
+    },
+    "original_content_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full SHA-256 hex digest (64 lowercase hex chars) of the target step's original content, computed before and re-verified after patch creation."
+    },
+    "original_content_preserved": {
+      "const": true,
+      "description": "Critical guarantee: the original semantic_step content was never touched."
+    },
+    "original_content_mutated": {
+      "const": false,
+      "description": "Critical guarantee: no mutation occurred."
+    },
+    "content_rewrite_applied": {
+      "const": false,
+      "description": "Critical guarantee: PR-007 never applies a content rewrite."
+    },
+    "proposed_patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_kind",
+        "summary",
+        "suggested_action",
+        "placeholder_text"
+      ],
+      "properties": {
+        "proposal_kind": {
+          "type": "string",
+          "enum": ["deterministic_placeholder", "patch_instruction", "review_request"],
+          "description": "PR-007 behavior uses 'deterministic_placeholder'."
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "suggested_action": {
+          "type": "string",
+          "enum": [
+            "inspect",
+            "revise_later",
+            "request_human_review",
+            "preserve_until_executor_available"
+          ],
+          "description": "PR-007 behavior uses 'revise_later'."
+        },
+        "placeholder_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic proposal-only text. Must not read as final rewritten content."
+        }
+      }
+    },
+    "rationale": { "type": "string", "minLength": 1 },
+    "trace_refs": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Should include the SemanticProfileComputed, PoSelfDecisionMade, and PoSelfReconstructionPlanned event IDs when available."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "viewer_feedback_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

@@ -12,6 +12,7 @@ from __future__ import annotations
 from .controller import PoSelfController
 from .cycle_guard import SelfCycleGuard
 from .decision_engine import RECONSTRUCT_THRESHOLD, PoSelfDecisionEngine
+from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
 from .trace_reader import PoTraceReader
 
@@ -21,5 +22,6 @@ __all__ = [
     "PoTraceReader",
     "SelfCycleGuard",
     "ReconstructionPlanner",
+    "ControlledReconstructionExecutor",
     "RECONSTRUCT_THRESHOLD",
 ]

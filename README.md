@@ -80,13 +80,18 @@ pip install -e ".[dev]"
   discomfort becomes traceable pressure, never an automatic deletion.
 - **`ReconstructionPlanner`** (PR-006) — converts a `reconstruct` decision into an
   explicit, traceable `ReconstructionPlan` and emits `PoSelfReconstructionPlanned`.
-  Planning only: `content_rewrite_allowed` is always false and each operation
-  requires a future controlled executor. Content is never rewritten.
+  Planning only: `content_rewrite_allowed` is always false. Content is never rewritten.
+- **`ControlledReconstructionExecutor`** (PR-007) — applies a `ReconstructionPlan`
+  and emits `PoSelfReconstructionApplied`. Produces deterministic **patch
+  proposals only** (`execution_mode` is always `patch_proposal_only`,
+  `content_rewrite_applied` is always false); original content is preserved and
+  proven unchanged by SHA-256 re-hash, not merely asserted. "Applied" means the
+  plan was applied to the controlled executor, not that content was rewritten.
 
 **Not yet implemented (preserved as concepts, honestly labeled):**
 
-- actual content rewriting / reconstruction execution (`reconstruct` only *plans*; a future controlled executor would emit `PoSelfReconstructionApplied`)
-- `jump` / `reject` / `reactivate` decision behavior
+- actual content rewriting / LLM-based reconstruction (the executor only ever produces patch *proposals*)
+- `jump` / `reject` / `reactivate` decision execution
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
 - LLM / ML scoring

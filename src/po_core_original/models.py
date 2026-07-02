@@ -359,6 +359,7 @@ class PoSelfResult:
     decision: PoSelfDecision
     trace_events: List[PoTraceEvent] = field(default_factory=list)
     reconstruction_plan: Optional["ReconstructionPlan"] = None
+    reconstruction_execution: Optional["ReconstructionExecutionResult"] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -369,6 +370,11 @@ class PoSelfResult:
             "reconstruction_plan": (
                 self.reconstruction_plan.to_dict()
                 if self.reconstruction_plan is not None
+                else None
+            ),
+            "reconstruction_execution": (
+                self.reconstruction_execution.to_dict()
+                if self.reconstruction_execution is not None
                 else None
             ),
         }
@@ -572,4 +578,134 @@ class ReconstructionPlan:
             "trace_refs": list(self.trace_refs),
             "viewer_feedback_refs": list(self.viewer_feedback_refs),
             "notes": list(self.notes),
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Controlled reconstruction executor models — added in PR-007.
+#
+# A ReconstructionPatch is a deterministic PATCH PROPOSAL derived from one
+# ReconstructionPlan operation. It is NOT rewritten content:
+# ``execution_mode`` is always ``"patch_proposal_only"``,
+# ``content_rewrite_applied`` is always False, and ``original_content_preserved``
+# is always True. ``PoSelfReconstructionApplied`` (the trace event this produces)
+# means the plan was applied to the *controlled executor* -- not that content was
+# applied/rewritten to the original output
+# (docs/contracts/RECONSTRUCTION_PATCH_V1.md).
+# --------------------------------------------------------------------------- #
+RECONSTRUCTION_PATCH_SCHEMA_VERSION = "reconstruction_patch_v1"
+EXECUTION_MODE_PATCH_PROPOSAL_ONLY = "patch_proposal_only"
+
+
+@dataclass(frozen=True)
+class ReconstructionPatchProposalBody:
+    """The proposal payload of one ``ReconstructionPatch``.
+
+    PR-007 behavior always uses ``proposal_kind="deterministic_placeholder"``
+    and ``suggested_action="revise_later"``. ``placeholder_text`` must read as
+    a proposal, never as final rewritten content.
+    """
+
+    proposal_kind: str
+    summary: str
+    suggested_action: str
+    placeholder_text: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "proposal_kind": self.proposal_kind,
+            "summary": self.summary,
+            "suggested_action": self.suggested_action,
+            "placeholder_text": self.placeholder_text,
+        }
+
+
+@dataclass(frozen=True)
+class ReconstructionPatch:
+    """One deterministic patch proposal (mirrors ``reconstruction_patch_v1``).
+
+    References the plan (``plan_id``), decision (``decision_id``), and source
+    operation (``operation_id``) that produced it. ``execution_mode``,
+    ``original_content_preserved``, ``original_content_mutated``, and
+    ``content_rewrite_applied`` are fixed constants asserting this patch never
+    touched the original content.
+    """
+
+    schema_version: str
+    patch_id: str
+    request_id: str
+    plan_id: str
+    decision_id: str
+    operation_id: str
+    target_step_id: str
+    patch_type: str
+    patch_status: str
+    execution_mode: str
+    original_content_hash: str
+    original_content_preserved: bool
+    original_content_mutated: bool
+    content_rewrite_applied: bool
+    proposed_patch: ReconstructionPatchProposalBody
+    rationale: str
+    trace_refs: List[str] = field(default_factory=list)
+    created_at: str = ""
+    viewer_feedback_refs: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "patch_id": self.patch_id,
+            "request_id": self.request_id,
+            "plan_id": self.plan_id,
+            "decision_id": self.decision_id,
+            "operation_id": self.operation_id,
+            "target_step_id": self.target_step_id,
+            "patch_type": self.patch_type,
+            "patch_status": self.patch_status,
+            "execution_mode": self.execution_mode,
+            "original_content_hash": self.original_content_hash,
+            "original_content_preserved": self.original_content_preserved,
+            "original_content_mutated": self.original_content_mutated,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "proposed_patch": self.proposed_patch.to_dict(),
+            "rationale": self.rationale,
+            "trace_refs": list(self.trace_refs),
+            "created_at": self.created_at,
+            "viewer_feedback_refs": list(self.viewer_feedback_refs),
+            "notes": list(self.notes),
+        }
+
+
+@dataclass
+class ReconstructionExecutionResult:
+    """Result of one ``ControlledReconstructionExecutor.execute()`` call.
+
+    Bundles the produced patch proposals with the ``PoSelfReconstructionApplied``
+    trace event and the executor's preservation/continuity/cycle guarantees.
+    """
+
+    request_id: str
+    plan_id: str
+    decision_id: str
+    patches: List[ReconstructionPatch]
+    trace_event: "PoTraceEvent"
+    original_content_preserved: bool
+    original_content_mutated: bool
+    content_rewrite_applied: bool
+    trace_continuity_verified: bool
+    cycle_guard_passed: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "plan_id": self.plan_id,
+            "decision_id": self.decision_id,
+            "patches": [p.to_dict() for p in self.patches],
+            "trace_event": self.trace_event.to_dict(),
+            "original_content_preserved": self.original_content_preserved,
+            "original_content_mutated": self.original_content_mutated,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "trace_continuity_verified": self.trace_continuity_verified,
+            "cycle_guard_passed": self.cycle_guard_passed,
         }

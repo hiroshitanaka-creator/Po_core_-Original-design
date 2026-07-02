@@ -1,14 +1,16 @@
 """po_core_original.self_controller.controller
 
 ``PoSelfController`` — the executable seed of the Po_self layer (PR-004),
-extended in PR-005 to consume Viewer feedback as external pressure.
+extended in PR-005 to consume Viewer feedback as external pressure, in PR-006
+to plan reconstruction, and in PR-007 to run the controlled (never-rewriting)
+reconstruction executor.
 
 This is the first activation of trace-based self-reconstruction, not a mini
 Po_core and not full self-evolution. Po_self reads the Po_trace emitted by the
-Po_core kernel (Layer 1), analyses semantic pressure (and, since PR-005, Viewer
-feedback pressure), produces a control decision, and emits a
-``PoSelfDecisionMade`` Po_trace event so that every decision is itself
-traceable.
+Po_core kernel (Layer 1), analyses semantic pressure (and Viewer feedback
+pressure), produces a control decision, plans reconstruction when needed, and
+runs a controlled executor that only ever produces deterministic patch
+*proposals* — never a rewritten answer.
 
 Flow::
 
@@ -20,21 +22,26 @@ Flow::
         -> PoTraceEvent("PoSelfDecisionMade")
         -> [if reconstruct] ReconstructionPlanner.create_plan()
                             -> PoTraceEvent("PoSelfReconstructionPlanned")
-        -> PoSelfResult (with optional reconstruction_plan)
+        -> [if reconstruct + enabled] ControlledReconstructionExecutor.execute()
+                            -> PoTraceEvent("PoSelfReconstructionApplied")
+        -> PoSelfResult (with optional reconstruction_plan / reconstruction_execution)
 
 Emitted event order in ``PoSelfResult.trace_events``:
     1. kernel trace events
-    2. ViewerFeedbackApplied       (only when feedback is present)
+    2. ViewerFeedbackApplied        (only when feedback is present)
     3. PoSelfDecisionMade
-    4. PoSelfReconstructionPlanned  (only when the decision is reconstruct)
+    4. PoSelfReconstructionPlanned   (only when the decision is reconstruct)
+    5. PoSelfReconstructionApplied   (only when the controlled executor ran)
 
 Scope (honesty requirement, docs/STRICT_CORE_RULES.md):
     Implemented: preserve / reconstruct decisions bounded by max_self_cycles;
     Viewer feedback applied as external pressure into the decision context;
     reconstruct decisions converted into an explicit, traceable reconstruction
-    *plan* (PR-006) — planning only, never content rewriting.
+    *plan* (PR-006); plans converted into deterministic patch *proposals* by a
+    controlled executor (PR-007) — planning and proposing only, never content
+    rewriting.
     Not yet grown (preserved as concepts): jump / reject / reactivate behavior,
-    actual content rewriting / reconstruction execution, full Viewer UI / REST /
+    actual content rewriting / LLM-based reconstruction, full Viewer UI / REST /
     long-term persistence, philosopher deliberation. No LLM, no ML. Viewer
     feedback never overrides safety or schemas.
 """
@@ -49,6 +56,7 @@ from ..viewer_feedback.pressure import compute_viewer_pressure
 from ..viewer_feedback.store import InMemoryViewerFeedbackStore
 from .cycle_guard import SelfCycleGuard
 from .decision_engine import PoSelfDecisionEngine
+from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
 from .trace_reader import PoTraceReader
 
@@ -67,6 +75,8 @@ class PoSelfController:
         max_self_cycles: int = 1,
         feedback_store: Optional[InMemoryViewerFeedbackStore] = None,
         reconstruction_planner: Optional[ReconstructionPlanner] = None,
+        reconstruction_executor: Optional[ControlledReconstructionExecutor] = None,
+        enable_controlled_reconstruction_execution: bool = True,
     ) -> None:
         self._decision_engine = decision_engine or PoSelfDecisionEngine()
         self._trace_reader = trace_reader or PoTraceReader()
@@ -75,6 +85,12 @@ class PoSelfController:
         self.max_self_cycles = self._cycle_guard.max_self_cycles
         self._feedback_store = feedback_store
         self._reconstruction_planner = reconstruction_planner or ReconstructionPlanner()
+        self._reconstruction_executor = reconstruction_executor or (
+            ControlledReconstructionExecutor(max_self_cycles=self.max_self_cycles)
+        )
+        self._enable_controlled_reconstruction_execution = (
+            enable_controlled_reconstruction_execution
+        )
 
     def _gather_feedback(
         self,
@@ -244,10 +260,30 @@ class PoSelfController:
             )
             combined_events.append(planned_event)
 
+        # --- controlled reconstruction execution (PR-007) -------------------
+        # A reconstruct plan is applied to the CONTROLLED EXECUTOR, which only
+        # ever produces deterministic patch proposals. It never rewrites
+        # content and never executes jump/reject/reactivate. preserve (and any
+        # decision without a plan) runs no executor and produces no event.
+        reconstruction_execution = None
+        if (
+            self._enable_controlled_reconstruction_execution
+            and reconstruction_plan is not None
+        ):
+            reconstruction_execution = self._reconstruction_executor.execute(
+                kernel_result=kernel_result,
+                decision=decision,
+                plan=reconstruction_plan,
+                source_trace_events=combined_events,
+                self_cycle_index=self_cycle_index,
+            )
+            combined_events.append(reconstruction_execution.trace_event)
+
         return PoSelfResult(
             request_id=kernel_result.request_id,
             kernel_result=kernel_result,
             decision=decision,
             trace_events=combined_events,
             reconstruction_plan=reconstruction_plan,
+            reconstruction_execution=reconstruction_execution,
         )

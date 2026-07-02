@@ -322,12 +322,14 @@ def test_event_order():
     result = PoSelfController().evaluate(kr, viewer_feedback=[_feedback()])
     types = [e.event_type for e in result.trace_events]
     assert types[:n_kernel] == [e.event_type for e in kr.trace_events]
-    # High viewer pressure -> viewer-triggered reconstruct, so PR-006 also
-    # appends PoSelfReconstructionPlanned after the decision event.
+    # High viewer pressure -> viewer-triggered reconstruct, so PR-006 appends
+    # PoSelfReconstructionPlanned and PR-007 appends PoSelfReconstructionApplied
+    # after the decision event.
     assert types[n_kernel:] == [
         "ViewerFeedbackApplied",
         "PoSelfDecisionMade",
         "PoSelfReconstructionPlanned",
+        "PoSelfReconstructionApplied",
     ]
 
 

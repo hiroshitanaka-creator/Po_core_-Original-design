@@ -26,12 +26,19 @@ Activated so far:
       into an explicit, traceable ``ReconstructionPlan`` and emits a
       ``PoSelfReconstructionPlanned`` event. Planning only — it never rewrites
       content (``content_rewrite_allowed`` is always false).
+    * ``ControlledReconstructionExecutor`` (PR-007) — converts a
+      ``ReconstructionPlan`` into deterministic ``ReconstructionPatch``
+      proposals and emits ``PoSelfReconstructionApplied``. "Applied" means the
+      plan was applied to the *controlled executor*, not that content was
+      rewritten: ``content_rewrite_applied`` is always false,
+      ``original_content_preserved`` is always true, and
+      ``SemanticStep.content`` is never mutated (verified by hash).
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation; Po_self's
-``jump`` / ``reject`` / ``reactivate`` decisions, actual content reconstruction
-*execution*, the full Viewer UI / REST feedback API / long-term persistence,
-philosopher deliberation, safety-gate runtime, LLM integration, and ML scoring
+``jump`` / ``reject`` / ``reactivate`` decisions, actual content rewriting,
+LLM-based reconstruction, the full Viewer UI / REST feedback API / long-term
+persistence, philosopher deliberation, safety-gate runtime, and ML scoring
 are **not yet grown**. Those concepts are preserved in docs/ and remain the
 next stages of growth, not discarded simplifications.
 
@@ -57,8 +64,11 @@ from .models import (
     PoSelfResult,
     PoSelfTrigger,
     PoTraceEvent,
+    ReconstructionExecutionResult,
     ReconstructionOperation,
     ReconstructionOperationConstraints,
+    ReconstructionPatch,
+    ReconstructionPatchProposalBody,
     ReconstructionPlan,
     SemanticProfile,
     SemanticStep,
@@ -66,14 +76,18 @@ from .models import (
     ViewerFeedback,
     ViewerFeedbackReceipt,
 )
-from .self_controller import PoSelfController, ReconstructionPlanner
+from .self_controller import (
+    ControlledReconstructionExecutor,
+    PoSelfController,
+    ReconstructionPlanner,
+)
 from .viewer_feedback import (
     InMemoryViewerFeedbackStore,
     ViewerFeedbackService,
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 __all__ = [
     "PoCoreKernel",
@@ -99,5 +113,9 @@ __all__ = [
     "ReconstructionOperation",
     "ReconstructionOperationConstraints",
     "ReconstructionPlanner",
+    "ControlledReconstructionExecutor",
+    "ReconstructionPatch",
+    "ReconstructionPatchProposalBody",
+    "ReconstructionExecutionResult",
     "__version__",
 ]

@@ -7,6 +7,23 @@
 
 ## 現フェーズ
 
+**Phase 6: Controlled Reconstruction Executor Seed（PR-007）— 開始
+（trace 保存型パッチ提案実行の最初の起動）。**
+本PR（PR-007）にて、`ReconstructionPlan` を**統制された実行器（Controlled
+Reconstruction Executor）** に適用し、決定論的な**パッチ提案（patch proposal）**
+のみを生成する層を起動した。**実際のコンテンツ書き換えは行わない**：
+`execution_mode` は常に `patch_proposal_only`、`content_rewrite_applied` は常に
+false、`original_content_preserved` は常に true、`original_content_mutated` は常に
+false。`SemanticStep.content` は変更前後でハッシュ（SHA-256）を再計算して不変を証明
+し、ミューテーションが検出された場合は `RuntimeError` を送出し成功 trace を発行しない。
+`reconstruct` 判定＋計画がある場合のみ実行、`preserve` では実行もイベントも発生しない。
+trace 継続性（`SemanticProfileComputed` / `PoSelfDecisionMade` /
+`PoSelfReconstructionPlanned` が source trace に含まれること）は既定で必須
+（`strict_trace_continuity=True`）、`SelfCycleGuard` で無制限再帰を防止。
+`PoSelfReconstructionApplied` trace イベントは「計画が統制実行器に適用された」ことを
+意味し、「コンテンツが書き換えられた」ことは意味しない（イベント名の誤読を防ぐため
+ドキュメントで明示）。`jump` / `reject` / `reactivate` は実行器が拒否（ValueError）。
+
 **Phase 5: Reconstruction Planning Seed（PR-006）— 開始（明示的再構成計画の最初の起動）。**
 本PR（PR-006）にて、Po_self の `reconstruct` 判定を**明示的で追跡可能な再構成計画
 （ReconstructionPlan）** へ変換する計画層を起動した。これはコンテンツを書き換えない：
@@ -133,7 +150,37 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 
 ## Completed ログ
 
-- **PR-006（本エントリ）**: Phase 5 Reconstruction Planning Seed 開始 — 明示的再構成計画の最初の起動。
+- **PR-007（本エントリ）**: Phase 6 Controlled Reconstruction Executor Seed 開始 —
+  trace 保存型パッチ提案実行の最初の起動。`schemas/reconstruction_patch_v1.schema.json`
+  （JSON Schema Draft 2020-12、`execution_mode`/`content_rewrite_applied`/
+  `original_content_preserved`/`original_content_mutated` は全て const）と
+  `docs/contracts/RECONSTRUCTION_PATCH_V1.md`、例2件
+  （`examples/contracts/reconstruction_patch.proposal_only.valid.json`、
+  `examples/contracts/po_trace.po_self_reconstruction_applied.valid.json`）を新規追加。
+  `models.py` に `ReconstructionPatchProposalBody` / `ReconstructionPatch` /
+  `ReconstructionExecutionResult` を追加（全て `to_dict()`）、`PoSelfResult` に
+  `reconstruction_execution`（任意）を追加。`self_controller/reconstruction_executor.py`
+  の `ControlledReconstructionExecutor.execute()` が `reconstruct`/`revise_steps`
+  プランのみを受理（`jump`/`reject`/`reactivate` や `content_rewrite_allowed=true`、
+  `decision_id` 不一致は `ValueError`）、各 planned operation を SHA-256 ハッシュで
+  original content を証明しつつ決定論的パッチ提案へ変換（対象 step 欠落時は
+  `patch_status=not_applicable`、全欠落時は `RuntimeError`）、trace 継続性
+  （既定 strict）と `SelfCycleGuard`（既定 max_self_cycles=1）を検証したうえで
+  `PoSelfReconstructionApplied` を発行。`controller.py` を拡張し、`reconstruct` 判定＋
+  計画がある場合のみ実行器を起動（`enable_controlled_reconstruction_execution`
+  で無効化可）。trace イベント順：kernel events → ViewerFeedbackApplied（feedback 有時）→
+  PoSelfDecisionMade → PoSelfReconstructionPlanned（reconstruct 時）→
+  PoSelfReconstructionApplied（実行器有効時）。既存の `po_trace_event_v1` enum に
+  `PoSelfReconstructionApplied` は既に存在したため $comment 追記のみ（enum変更なし）。
+  `tests/test_controlled_reconstruction_executor.py`（21テスト、jsonschema 検証込み、
+  コンテンツ不変性・trace継続性・cycle guard・全ターゲット欠落時の RuntimeError・
+  jump/reject/reactivate 拒否を網羅）→ 全パス。`scripts/validate_contracts.py` は
+  7 schemas / 12 examples を検証。未実装（概念保存）：実際のコンテンツ書き換え・
+  LLM ベースの再構成・jump / reject / reactivate の実行・REST・UI・哲学者モジュール。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。PR-004〜PR-006 の
+  既存テストは trace イベント順の変化（末尾に PoSelfReconstructionApplied が追加）に
+  合わせて3件のアサーションを更新、全て再パス。
+- **PR-006**: Phase 5 Reconstruction Planning Seed 開始 — 明示的再構成計画の最初の起動。
   `schemas/reconstruction_plan_v1.schema.json`（JSON Schema Draft 2020-12、
   `content_rewrite_allowed` は const false）と `docs/contracts/RECONSTRUCTION_PLAN_V1.md`、
   例 2件（`examples/contracts/reconstruction_plan.revise_steps.valid.json`、

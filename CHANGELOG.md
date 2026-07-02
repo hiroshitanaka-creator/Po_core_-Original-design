@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(reconstruction): PR-007 — Controlled Reconstruction Executor Seed. A `ReconstructionPlan` is applied to a `ControlledReconstructionExecutor`, which converts each planned operation into a deterministic **patch proposal** and emits a `PoSelfReconstructionApplied` Po_trace event. The executor does not rewrite the answer: `execution_mode` is always `"patch_proposal_only"`, `content_rewrite_applied` is always `false`, and original content is preserved (proven by SHA-256 re-hash after patch creation, not merely asserted).
+- `reconstruction_patch_v1` schema (`schemas/reconstruction_patch_v1.schema.json`, JSON Schema Draft 2020-12; `execution_mode`/`content_rewrite_applied`/`original_content_preserved`/`original_content_mutated` are all `const`) and contract documentation (`docs/contracts/RECONSTRUCTION_PATCH_V1.md`), plus valid example fixtures for the patch and the `PoSelfReconstructionApplied` trace event.
+- ControlledReconstructionExecutor (`src/po_core_original/self_controller/reconstruction_executor.py`) for deterministic patch proposal generation: rejects non-`reconstruct`/`revise_steps` plans, `content_rewrite_allowed=True` plans, and decision/plan `decision_id` mismatches (`ValueError`); produces a `not_applicable` patch when a target step is missing, and raises `RuntimeError` if every target is missing or mutation is detected.
+- ReconstructionPatch runtime dataclasses (`ReconstructionPatch`, `ReconstructionPatchProposalBody`, `ReconstructionExecutionResult`; each `to_dict()`); `PoSelfResult` gains an optional `reconstruction_execution`.
+- `PoSelfReconstructionApplied` Po_trace event emitted by `PoSelfController` after a `reconstruct` plan is executed (summary-level payload incl. `patch_count`, `original_content_preserved`, `content_rewrite_applied`, `cycle_guard_passed`, `trace_continuity_verified`). Trace event order: kernel events → ViewerFeedbackApplied (if any) → PoSelfDecisionMade → PoSelfReconstructionPlanned → PoSelfReconstructionApplied (reconstruct only; `enable_controlled_reconstruction_execution` can disable).
+- Trace continuity verification (`SemanticProfileComputed` / `PoSelfDecisionMade` / `PoSelfReconstructionPlanned` must be present in the source trace; strict by default, `ValueError` on violation, overridable via `strict_trace_continuity=False`).
+- Cycle guard enforcement for reconstruction execution (`SelfCycleGuard`, `max_self_cycles` default 1, invalid `self_cycle_index` raises `ValueError`).
+- Tests proving original content preservation and covering all of the above (`tests/test_controlled_reconstruction_executor.py`, 21 tests, jsonschema-backed). Package version `0.0.4 → 0.0.5`.
+
+### Not Implemented
+- Actual content rewriting remains intentionally unimplemented (patches are proposals only).
+- LLM-based reconstruction is not implemented.
+- `jump` / `reject` / `reactivate` execution remains future controlled work (the executor raises `ValueError` if handed anything else).
+
+### Added
 - feat(reconstruction): PR-006 — Reconstruction Planning Seed. A Po_self `reconstruct` decision is converted into an explicit, traceable `ReconstructionPlan` and a `PoSelfReconstructionPlanned` Po_trace event. This PLANS reconstruction; it never rewrites content.
 - `reconstruction_plan_v1` schema (`schemas/reconstruction_plan_v1.schema.json`, JSON Schema Draft 2020-12; `content_rewrite_allowed` is `const false`) and contract documentation (`docs/contracts/RECONSTRUCTION_PLAN_V1.md`), plus valid example fixtures for the plan and the `PoSelfReconstructionPlanned` trace event.
 - ReconstructionPlan runtime dataclasses (`ReconstructionPlan`, `ReconstructionOperation`, `ReconstructionOperationConstraints`; each `to_dict()`); `PoSelfResult` gains an optional `reconstruction_plan`.

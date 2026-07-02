@@ -59,11 +59,16 @@ CONTRACTS = {
             "po_trace.viewer_feedback_received.valid.json",
             "po_trace.po_self_decision_made.valid.json",
             "po_trace.po_self_reconstruction_planned.valid.json",
+            "po_trace.po_self_reconstruction_applied.valid.json",
         ],
     },
     "reconstruction_plan_v1": {
         "schema": "reconstruction_plan_v1.schema.json",
         "examples": ["reconstruction_plan.revise_steps.valid.json"],
+    },
+    "reconstruction_patch_v1": {
+        "schema": "reconstruction_patch_v1.schema.json",
+        "examples": ["reconstruction_patch.proposal_only.valid.json"],
     },
 }
 

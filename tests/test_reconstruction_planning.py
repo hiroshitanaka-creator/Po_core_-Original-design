@@ -249,6 +249,7 @@ def test_event_order_with_feedback():
         "ViewerFeedbackApplied",
         "PoSelfDecisionMade",
         "PoSelfReconstructionPlanned",
+        "PoSelfReconstructionApplied",
     ]
     # viewer-triggered plan carries the real viewer pressure + refs
     plan = result.reconstruction_plan
@@ -264,8 +265,13 @@ def test_event_order_semantic_only():
     n_kernel = len(kr.trace_events)
     result = PoSelfController().evaluate(kr)
     types = [e.event_type for e in result.trace_events]
-    # No feedback -> no ViewerFeedbackApplied between decision and plan.
-    assert types[n_kernel:] == ["PoSelfDecisionMade", "PoSelfReconstructionPlanned"]
+    # No feedback -> no ViewerFeedbackApplied between decision and plan; PR-007
+    # appends PoSelfReconstructionApplied after the plan.
+    assert types[n_kernel:] == [
+        "PoSelfDecisionMade",
+        "PoSelfReconstructionPlanned",
+        "PoSelfReconstructionApplied",
+    ]
 
 
 # --------------------------------------------------------------------------- #
