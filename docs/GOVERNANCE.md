@@ -235,3 +235,34 @@ including CLI options (`--json`, `--only`, `--fail-fast`,
 governance/docs/schema/example paths, does not replace the individual
 `Concept Drift`, `Trace Continuity`, or `ADR Index` workflows, and can also
 be run manually via `workflow_dispatch`.
+
+## AI Agent Bootstrap Preflight
+
+AI-assisted work should begin with:
+
+```bash
+python scripts/ai_agent_bootstrap_preflight.py
+```
+
+This command prints required reading, verifies governance files, and runs
+governance preflight.
+
+It is not a runtime test. It is an operational discipline for preserving
+Po_core Original Design before an agent starts making changes.
+
+It is **governance-only and does not modify runtime behavior**. It prints
+the required-reading list and a canonical-identity reminder from
+`docs/governance/ai_agent_bootstrap_rules.json`, verifies that required
+reading files, governance docs, governance scripts, CI workflows, and
+coding-agent prompt templates (`docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`,
+`docs/prompts/CODING_AGENT_TASK_PROMPT_TEMPLATE.md`) all exist, and then
+runs `scripts/governance_preflight.py` via `subprocess` (unless explicitly
+skipped with `--verify-only` or `--skip-governance-preflight`). See
+`docs/operations/ai_agent_bootstrap_preflight.md` for the full operational
+guide, including CLI options (`--print-prompt`, `--write-prompt`, `--json`,
+`--list-required-reading`) and exit codes. The optional `AI Agent
+Bootstrap` GitHub Actions workflow
+(`.github/workflows/ai-agent-bootstrap.yml`) is scoped to
+governance/docs/schema/example/script paths, does not replace `Governance
+Preflight` or the individual `Concept Drift` / `Trace Continuity` / `ADR
+Index` workflows, and can also be run manually via `workflow_dispatch`.

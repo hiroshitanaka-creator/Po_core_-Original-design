@@ -95,6 +95,42 @@ Future work:
 - Optional future: AI-agent preflight wrapper that prints required reading
   before checks.
 
+### Governance Enforcement: AI Agent Bootstrap Preflight（PR-013）— ✅ 完了
+
+コーディングエージェント（および人間の contributor）がファイルを触る前に
+実行する1コマンドを追加した（**ガバナンス・ドキュメント・スクリプト・CIのみ、
+ランタイム挙動は無変更**）：
+
+- AI Agent Bootstrap Preflight ✅（`scripts/ai_agent_bootstrap_preflight.py`、
+  標準ライブラリのみ、subprocess経由で既存の `scripts/governance_preflight.py`
+  （PR-012）を呼び出すだけで検証ロジックは再実装しない。必須リーディング一覧・
+  canonical identity reminder の表示、必須ガバナンスファイル・スクリプト・
+  ワークフロー・プロンプトテンプレートの存在検証、`--verify-only` /
+  `--skip-governance-preflight` / `--print-prompt` / `--write-prompt PATH` /
+  `--json` / `--list-required-reading` / `--rules PATH` に対応。
+  終了コードは決定論的：0=全パス、1=必須ファイル欠落、
+  2=governance_preflight失敗、3=CLI/設定エラー、4=プロンプト書き込み失敗）
+- Required reading verification ✅（`docs/governance/ai_agent_bootstrap_rules.json`
+  に基づき必須リーディングファイル・必須ガバナンスファイル・必須スクリプト・
+  必須ワークフロー・必須プロンプトテンプレートを検証）
+- Coding-agent prompt templates ✅（`docs/prompts/CODING_AGENT_BOOTSTRAP_PROMPT.md`
+  に英語版セクションを追加、`docs/prompts/CODING_AGENT_TASK_PROMPT_TEMPLATE.md`
+  を新規追加）
+- Optional AI Agent Bootstrap CI workflow ✅（`.github/workflows/ai-agent-bootstrap.yml`、
+  README/docs/schemas/examples/scripts関連パスにスコープ、`workflow_dispatch` 対応、
+  必須リリースゲートではない、既存の `Governance Preflight`/`Concept Drift`/
+  `Trace Continuity`/`ADR Index` ワークフローを置き換えない）
+- PR template checklist ✅（`.github/PULL_REQUEST_TEMPLATE.md` の
+  `## AI Agent Bootstrap` 節。既存の Concept Preservation・Concept Drift Check・
+  Trace Continuity・ADR Requirement・Governance Preflight 等の節は無変更のまま保持）
+
+Future work:
+
+- Optional future: AI-agent preflight log attached to PRs.
+- Optional future: generated task prompt includes changed-file-specific
+  validators.
+- Optional future: branch protection for AI Agent Bootstrap.
+
 ## Phase 1: Domain Contracts — ✅ PR-002で完了（スキーマ／設計契約のみ）
 
 - `semantic_profile` — `schemas/semantic_profile_v1.schema.json`

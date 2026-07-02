@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-013)
+- `scripts/ai_agent_bootstrap_preflight.py` AI-agent bootstrap command.
+- Required-reading and governance-file verification for AI-assisted work.
+- Coding-agent bootstrap and task prompt templates.
+- Optional prompt generation support.
+- Optional AI Agent Bootstrap GitHub Actions workflow.
+- Operations documentation for AI Agent Bootstrap Preflight.
+- PR template checklist for AI-assisted work.
+- Tests for bootstrap preflight behavior.
+
+### Not Changed (PR-013)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, trace, reconstruction, or philosopher behavior changed.
+
 ### Added (PR-012)
 - `scripts/governance_preflight.py` aggregate governance validator.
 - Optional Governance Preflight GitHub Actions workflow.

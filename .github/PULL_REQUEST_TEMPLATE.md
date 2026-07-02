@@ -121,5 +121,13 @@ Run this for PRs that affect governance, docs, schemas, contracts, trace events,
   - [ ] `python -m pytest tests/test_contract_schemas.py -v`
 - [ ] Not applicable because:
 
+## AI Agent Bootstrap
+For AI-assisted PRs, complete this before making changes.
+- [ ] I ran `python scripts/ai_agent_bootstrap_preflight.py --verify-only`
+- [ ] I read the required files printed by the bootstrap command
+- [ ] I preserved Po_core as a three-layer tensor intelligence system
+- [ ] I did not shrink Po_core into a generic chatbot, decision-support tool, safety wrapper, or philosopher demo
+- [ ] Not applicable because:
+
 ## Notes
 - 追加の注意事項・制約:
