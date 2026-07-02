@@ -73,5 +73,22 @@
 - [ ] golden契約を確認した（`tests/test_golden_e2e.py`）
 - [ ] 互換性に影響がある場合、`docs/operations/migration_guide_v1.md` を更新した
 
+## Trace Continuity
+Complete this section if the PR changes any of:
+- `PoTraceEvent`
+- trace event payloads
+- `schemas/po_trace_event_v1.schema.json`
+- `docs/contracts/PO_TRACE_EVENT_V1.md`
+- `docs/contracts/TRACE_CONTINUITY_V1.md`
+- Po_self decision events
+- reconstruction planning/application events
+- Viewer feedback trace events
+
+- [ ] I ran `python scripts/validate_trace_continuity.py --include-negative`
+- [ ] I ran `python -m pytest tests/test_trace_continuity_validator.py -v`
+- [ ] I updated trace examples if event shape changed
+- [ ] I updated trace contract docs if event semantics changed
+- [ ] Not applicable because:
+
 ## Notes
 - 追加の注意事項・制約:

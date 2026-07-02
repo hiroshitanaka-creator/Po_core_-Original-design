@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-009)
+- feat(governance): PR-009 — CI/Governance Trace Gate. Makes trace continuity validation part of the repository's operational discipline without forcing runtime changes: governance/CI/docs/script only.
+- Optional Trace Continuity GitHub Actions workflow (`.github/workflows/trace-continuity.yml`): scoped to trace-related paths, supports manual `workflow_dispatch`, installs only `jsonschema` + `pytest` (no heavy ML dependencies), runs `scripts/validate_trace_continuity.py --include-negative` and `pytest tests/test_trace_continuity_validator.py -v`. Not a required release gate yet.
+- `scripts/validate_trace_continuity.py` local validation command: validates `examples/contracts/trace_chain.valid.json` by default; `--include-negative` also validates the 3 known-invalid examples and requires them to fail; `--path`, `--strict`/`--no-strict`, and `--json` flags. Exit code 0 iff all expected validations pass.
+- Trace continuity PR checklist requirements: new `## Trace Continuity` section in `.github/PULL_REQUEST_TEMPLATE.md` (applies when a PR changes `PoTraceEvent`, trace payloads, trace schemas/contracts, or Po_self/reconstruction/Viewer-feedback trace events); existing Concept Preservation, M4-gate, Policy Change Protocol, and Determinism & Compatibility checklist items are unchanged.
+- Operations documentation for running `TraceContinuityValidator` (`docs/operations/trace_continuity_validation.md`): when to run, local commands, CI workflow explanation, triggering paths, how to interpret failures, 6 common failure modes with fixes, what this validation does not test, and future extension notes.
+- `docs/GOVERNANCE.md` "Trace Continuity Gate" section documenting the policy.
+- Tests for the CLI script (`tests/test_validate_trace_continuity_script.py`, 5 tests, subprocess-based).
+
+### Not Changed (PR-009)
+- No runtime behavior changed.
+- No Po_core, Po_self, Viewer, reconstruction, or philosopher behavior changed.
+- `src/po_core_original/trace_validation/` (the PR-008 validator itself) is unchanged — this PR only adds tooling/docs around it.
+
 ### Added (PR-008)
 - feat(trace): PR-008 — Trace Continuity Contract Hardening. Contract-hardening and validator PR only: no new Po_core, Po_self, Viewer, or reconstruction-executor runtime behavior was added.
 - Trace continuity contract documentation (`docs/contracts/TRACE_CONTINUITY_V1.md`): trace graph terminology, required event chain (`SemanticProfileComputed` → `PoSelfDecisionMade` → `PoSelfReconstructionPlanned` → `PoSelfReconstructionApplied`, optional `ViewerFeedbackReceived` → `ViewerFeedbackApplied` branch), required parent/child relationships, validation modes, 10-rule error taxonomy, and a reserved future extension point for `jump`/`reject`/`reactivate`.

@@ -74,3 +74,47 @@ ADR運用フローの詳細は既存の `docs/spec/adr_guide.md` を参照する
 - pipeline マーク付きテスト（`pytest tests/test_run_turn_e2e.py tests/test_philosopher_bridge.py
   tests/test_smoke_pipeline.py -v`）は CI必須ゲートであり、既存の必須テストレポート要件を
   ガバナンス変更PRであっても省略しない。
+
+## Trace Continuity Gate
+
+Trace continuity validation is required when a PR changes trace contracts, trace
+event payloads, Po_self decision events, reconstruction planning/application
+events, or Viewer feedback trace events (see `.github/PULL_REQUEST_TEMPLATE.md`
+"Trace Continuity" section).
+
+Run:
+
+```bash
+python scripts/validate_trace_continuity.py --include-negative
+python -m pytest tests/test_trace_continuity_validator.py -v
+```
+
+The `Trace Continuity` GitHub Actions workflow
+(`.github/workflows/trace-continuity.yml`) is scoped to trace-related paths
+(see the `paths:` filter in that workflow) and can also be run manually via
+`workflow_dispatch`. It is **not** a required release gate today — it is
+scoped/optional CI, promoted to a required status check only after the
+validator has stabilized (see `docs/ROADMAP.md`).
+
+**Trace validation is a governance gate, not a new runtime behavior** — it
+reads already-emitted `PoTraceEvent` objects and never changes Po_core,
+Po_self, Viewer, or reconstruction-executor behavior
+(`docs/contracts/TRACE_CONTINUITY_V1.md`).
+
+- Valid examples (`examples/contracts/trace_chain.valid.json`) must pass.
+- Invalid examples (`examples/contracts/trace_chain.invalid.*.json`) are
+  **negative fixtures** — they are expected to fail validation in tests and
+  in `scripts/validate_trace_continuity.py --include-negative`; they must
+  never appear in a CI success path as if they were valid.
+- Unresolved `trace_refs` (an entry pointing to an `event_id` absent from the
+  validated set) indicate broken continuity.
+- Orphan Po_self events (a `PoSelfDecisionMade` / `PoSelfReconstructionPlanned`
+  / `PoSelfReconstructionApplied` with no traceable origin) are not
+  acceptable in strict mode.
+- Future `jump` / `reject` / `reactivate` trace branches must extend
+  `docs/contracts/TRACE_CONTINUITY_V1.md` (new required parent/child rows, a
+  new numbered validation rule) **before** — not after — the corresponding
+  runtime behavior ships.
+
+See `docs/operations/trace_continuity_validation.md` for the full operational
+guide (when to run, how to interpret failures, common fixes).

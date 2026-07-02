@@ -100,7 +100,7 @@ pip install -e ".[dev]"
 - Viewer UI / REST feedback API / long-term feedback persistence (store is in-memory only)
 - philosopher deliberation modules
 - LLM / ML scoring
-- automatic CI enforcement of trace continuity (the validator is a library today, not yet a build gate)
+- trace continuity as a *required* CI gate (PR-009 adds a scoped, optional workflow — see below)
 
 ```python
 from po_core_original import PoCoreKernel, PoSelfController
@@ -118,6 +118,20 @@ print(po_self_result.to_dict())
 and `to_dict()`. The `PoSelfDecision` and `PoSelfDecisionMade` trace event
 conform to the PR-002 v1 schemas. See `docs/ROADMAP.md` (Phases 2–3) and
 `docs/STATUS.md`.
+
+### Trace continuity validation
+
+When changing trace events or trace contracts, run:
+
+```bash
+python scripts/validate_trace_continuity.py --include-negative
+python -m pytest tests/test_trace_continuity_validator.py -v
+```
+
+The scoped GitHub Actions workflow `Trace Continuity` also validates trace
+examples for trace-related PRs (not a required release gate yet). See
+`docs/operations/trace_continuity_validation.md` for the full guide and
+`docs/contracts/TRACE_CONTINUITY_V1.md` for the underlying contract.
 
 ---
 

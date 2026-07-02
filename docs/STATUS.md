@@ -7,6 +7,22 @@
 
 ## 現フェーズ
 
+**Phase 8: CI/Governance Trace Gate（PR-009）— 完了
+（trace continuity 検証をリポジトリの運用規律に組み込み。ランタイム挙動は無変更）。**
+本PR（PR-009）は**ガバナンス・CI・ドキュメント・スクリプトのみ**の PR である。
+Po_core / Po_self / Viewer / 再構成 / 哲学者のいずれのランタイム挙動も変更していない。
+`scripts/validate_trace_continuity.py`（ローカル CLI、`TraceContinuityValidator` を
+`examples/contracts/trace_chain*.json` に適用、`--include-negative` で無効フィクスチャの
+期待される失敗も検証）、`.github/workflows/trace-continuity.yml`（trace 関連パスに
+スコープされた任意の CI ワークフロー、`workflow_dispatch` 対応、`jsonschema`/`pytest`
+のみインストール — 重い ML 依存は導入しない）、`.github/PULL_REQUEST_TEMPLATE.md` への
+`Trace Continuity` チェックリスト節（trace 関連の変更時のみ必須）、
+`docs/GOVERNANCE.md` への "Trace Continuity Gate" 節、
+`docs/operations/trace_continuity_validation.md`（いつ実行するか・ローカルコマンド・
+CI 説明・失敗の読み方・よくある失敗と修正法・このテストが検証しないもの・将来拡張）を
+新規追加。この CI ワークフローは**必須リリースゲートではない**——安定後に branch
+protection の required check へ昇格させる計画を明記。
+
 **Phase 7: Trace Continuity Contract Hardening（PR-008）— 完了
 （trace チェーンの形式化とグラフ検証器の追加。新規ランタイム挙動は追加していない）。**
 本PR（PR-008）は**契約強化・検証器追加のみ**の PR である。Po_core / Po_self / Viewer /
@@ -167,10 +183,35 @@ Po_core は三層テンソル知性システムである（`docs/STRICT_CORE_RUL
 - 既存 `docs/status.md` の "Next" 節と歩調を合わせる（本PRの完了をもって
   「PR-002: introduce SemanticProfile / SemanticStep / PoSelfDecision / ViewerFeedback
   domain models + schemas（no pipeline wiring yet）」を充足）。
+- Future: `Trace Continuity` ワークフローを、任意/スコープ限定の検証から安定化後に
+  branch protection の required status check へ昇格させる。
 
 ## Completed ログ
 
-- **PR-008（本エントリ）**: Phase 7 Trace Continuity Contract Hardening 完了 —
+- **PR-009（本エントリ）**: Phase 8 CI/Governance Trace Gate 完了 —
+  ローカル trace continuity 検証スクリプト、スコープ限定 GitHub Actions ワークフロー、
+  PR チェックリスト要件、運用ドキュメントを追加。**ガバナンス・検証のみを追加し、
+  ランタイム挙動は一切変更していない。**
+  `scripts/validate_trace_continuity.py`（`--path` / `--include-negative` /
+  `--strict`・`--no-strict` / `--json`）を新規追加、有効例1件・無効例3件すべてに対し
+  期待通りの pass/fail を確認。`.github/workflows/trace-continuity.yml`（trace 関連
+  9パスにスコープ、`workflow_dispatch` 対応、`jsonschema`/`pytest` のみインストール、
+  full suite やリリース/公開タスクは実行しない、secrets 不要、artifact 発行なし、
+  リポジトリ状態を変更しない）を新規追加。`.github/PULL_REQUEST_TEMPLATE.md` に
+  `## Trace Continuity` 節を追加（既存の Concept Preservation・M4ゲート・
+  Determinism & Compatibility 等のチェックリストは無変更のまま保持）。
+  `docs/GOVERNANCE.md` に "Trace Continuity Gate" 節、
+  `docs/operations/trace_continuity_validation.md`（10節：目的・実行タイミング・
+  ローカルコマンド・CI説明・トリガーファイル・失敗の読み方・よくある失敗5種と修正法・
+  非検証対象・将来拡張）を新規追加。`tests/test_validate_trace_continuity_script.py`
+  （5テスト、subprocess 経由でスクリプトの終了コード・出力を検証）を追加。
+  `tests/test_trace_continuity_validator.py`（既存29テスト）は無変更のまま全パス確認。
+  **ランタイム変更なし**の確認：`kernel.py` / `trace.py` / `controller.py` /
+  `decision_engine.py` / `reconstruction_planner.py` / `reconstruction_executor.py` /
+  `viewer_feedback/` / `trace_validation/` のいずれも本PRでは変更していない。
+  既存 `src/po_core/` ランタイム・哲学者ロスター・スキーマは無変更。
+  ランタイムフェーズを「完了」と主張していない——本PRはガバナンス層のみの完了。
+- **PR-008**: Phase 7 Trace Continuity Contract Hardening 完了 —
   契約強化・検証器追加のみ、新規ランタイム挙動なし。`docs/contracts/TRACE_CONTINUITY_V1.md`
   を新規追加（trace グラフ用語・必須イベントチェーン・必須 parent/child 関係・Viewer 分岐・
   reconstruction planning/application 分岐・検証モード・エラー taxonomy・有効/無効例・
