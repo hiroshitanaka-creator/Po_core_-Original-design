@@ -1,0 +1,49 @@
+{
+  "schema_version": "po_trace_reactivation_proposal_v1",
+  "proposal_id": "rtprop_reqdemo_001",
+  "request_id": "req_demo",
+  "reactivation_plan_id": "rtp_reqdemo_seed001",
+  "seedling_id": "seed_reqdemo_blockedt",
+  "blocked_trace_ids": ["btr_reqdemo_a1b2c3d4"],
+  "proposal_status": "proposed",
+  "execution_mode": "reactivation_proposal_only",
+  "reactivation_executed": false,
+  "content_rewrite_applied": false,
+  "state_mutation_applied": false,
+  "safety_bypass_applied": false,
+  "original_blocked_content_hashes": {
+    "btr_reqdemo_a1b2c3d4": "ba5b36861ac1ad00bfbb2d04098111335fc6bac2fc24826b4dbb2e4b27a66625"
+  },
+  "source_trace_refs": [
+    "evt_po_trace_blocked_reactivation_planned_001"
+  ],
+  "proposed_operations": [
+    {
+      "operation_id": "op_rtpropre_btra1b2c3",
+      "operation_type": "prepare_reactivation_proposal",
+      "blocked_trace_id": "btr_reqdemo_a1b2c3d4",
+      "proposal_text": "[REACTIVATION_PROPOSAL_ONLY] Blocked trace btr_reqdemo_a1b2c3d4 is prepared as a future reactivation candidate by plan rtp_reqdemo_seed001. No reactivation, content rewrite, state mutation, or safety bypass has been applied.",
+      "rationale": "PoTraceReactivationPlan rtp_reqdemo_seed001 listed blocked trace btr_reqdemo_a1b2c3d4 as a reactivation candidate. PR-016 only creates a deterministic reactivation proposal.",
+      "constraints": {
+        "reactivation_allowed": false,
+        "content_rewrite_allowed": false,
+        "state_mutation_allowed": false,
+        "safety_bypass_allowed": false,
+        "preserve_original_blocked_content": true,
+        "preserve_source_trace": true,
+        "requires_future_executor": true
+      }
+    }
+  ],
+  "safety_constraints": {
+    "requires_trace_continuity": true,
+    "requires_human_review_for_execution": true,
+    "requires_future_executor": true,
+    "forbids_content_rewrite": true,
+    "forbids_state_mutation": true,
+    "forbids_safety_bypass": true
+  },
+  "rationale": "Controlled proposal execution for reactivation plan rtp_reqdemo_seed001 (1/1 blocked trace(s) resolved). Proposal only; no reactivation is ever executed by this PR.",
+  "created_at": "2026-07-04T00:00:00Z",
+  "trace_refs": ["evt_po_trace_blocked_reactivation_planned_001"]
+}

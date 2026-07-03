@@ -48,6 +48,8 @@ SEMANTIC_JUMP_PLANNED = "SemanticJumpPlanned"
 # PR-015 (seed-level): Blocked trace reactivation planning.
 PO_TRACE_BLOCKED_REACTIVATION_EVALUATED = "PoTraceBlockedReactivationEvaluated"
 PO_TRACE_BLOCKED_REACTIVATION_PLANNED = "PoTraceBlockedReactivationPlanned"
+# PR-016 (seed-level): Blocked trace reactivation proposal execution.
+PO_TRACE_BLOCKED_REACTIVATION_PROPOSED = "PoTraceBlockedReactivationProposed"
 
 # Reserved future event types (docs/contracts/RECONSTRUCTION_PLAN_V1.md §11,
 # RECONSTRUCTION_PATCH_V1.md §11): jump / reject / reactivate are preserved as
@@ -93,6 +95,9 @@ _ISSUE_EXCEPTIONS: Dict[str, type] = {
     "reactivation_plan_without_seedling": MissingParentEventError,
     "reactivation_plan_without_evaluation": MissingParentEventError,
     "reactivation_plan_missing_safety_flags": InvalidTraceTransitionError,
+    # PR-016 (seed-level): Blocked trace reactivation proposal execution.
+    "reactivation_proposed_without_plan": MissingParentEventError,
+    "reactivation_proposed_missing_safety_flags": InvalidTraceTransitionError,
 }
 
 
@@ -184,6 +189,7 @@ class TraceContinuityValidator:
         specific_issues.extend(self._check_jump_decision_ancestry(graph))
         specific_issues.extend(self._check_reactivation_evaluated(graph))
         specific_issues.extend(self._check_reactivation_planned(graph))
+        specific_issues.extend(self._check_reactivation_proposed(graph))
         issues.extend(specific_issues)
 
         already_flagged = {i.event_id for i in specific_issues if i.event_id}
@@ -536,6 +542,64 @@ class TraceContinuityValidator:
                 )
         return issues
 
+    # -- Rule 19 (PR-016): PoTraceBlockedReactivationProposed requires
+    # PoTraceBlockedReactivationPlanned ancestry, plus the four
+    # safety-invariant payload flags all being False.
+    def _check_reactivation_proposed(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_TRACE_BLOCKED_REACTIVATION_PROPOSED):
+            if not has_ancestor_of_type(
+                graph, node.event_id, PO_TRACE_BLOCKED_REACTIVATION_PLANNED
+            ):
+                issues.append(
+                    TraceValidationIssue(
+                        code="reactivation_proposed_without_plan",
+                        message=(
+                            f"PoTraceBlockedReactivationProposed event "
+                            f"{node.event_id} is orphaned: no "
+                            "PoTraceBlockedReactivationPlanned reference "
+                            "found. A proposal must always trace back to the "
+                            "plan it was generated from "
+                            "(docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md §11)."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+
+            required_false_flags = (
+                "reactivation_executed",
+                "content_rewrite_applied",
+                "state_mutation_applied",
+                "safety_bypass_applied",
+            )
+            bad_flags = [
+                flag
+                for flag in required_false_flags
+                if node.payload.get(flag) is not False
+            ]
+            if bad_flags:
+                issues.append(
+                    TraceValidationIssue(
+                        code="reactivation_proposed_missing_safety_flags",
+                        message=(
+                            f"PoTraceBlockedReactivationProposed event "
+                            f"{node.event_id} has missing or incorrect "
+                            f"safety-invariant flags: {bad_flags}. payload "
+                            "must include reactivation_executed=false, "
+                            "content_rewrite_applied=false, "
+                            "state_mutation_applied=false, and "
+                            "safety_bypass_applied=false -- this event never "
+                            "reactivates a blocked trace."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+        return issues
+
     # -- Rule 9: strict-mode catch-all orphan detection ----------------------
     def _check_orphan_events(
         self, graph: TraceGraph, already_flagged: "set[Optional[str]]"
@@ -563,6 +627,7 @@ class TraceContinuityValidator:
             SEMANTIC_JUMP_PLANNED,
             PO_TRACE_BLOCKED_REACTIVATION_EVALUATED,
             PO_TRACE_BLOCKED_REACTIVATION_PLANNED,
+            PO_TRACE_BLOCKED_REACTIVATION_PROPOSED,
         }
         for node in graph.nodes.values():
             if node.event_type not in non_root_types:

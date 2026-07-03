@@ -10,6 +10,109 @@
 
 ## 現フェーズ
 
+**Phase 15: Controlled Blocked Trace Reactivation Proposal Executor Seed（PR-016）— 完了
+（`read` / `verify` / `propose` / `trace` / `validate` のみ。
+`actual reactivation` / `semantic jump execution` / `content rewrite` /
+`state mutation` / `safety bypass` / `LLM reconstruction` /
+`philosopher tensor execution` / `autonomous seedling growth loop` は
+一切実装していない）。**
+
+本PR（PR-016）は、PR-015 が確立した `PoTraceReactivationPlan` の上に、
+blocked trace の再賦活を決定論的な**提案**へ変換する制御層を追加した。
+`ControlledReconstructionExecutor`（PR-007）のパッチ提案パターンを踏襲し、
+`PoTraceReactivationPlan` を proposal-only executor に渡すことで、実際の
+再賦活実行ではなく提案を生成する。
+
+契約：`docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` を新規追加。
+既存の `docs/contracts/CONTRACT_OVERVIEW.md`・
+`docs/contracts/PO_TRACE_EVENT_V1.md`・
+`docs/contracts/TRACE_CONTINUITY_V1.md`・
+`docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` を更新（正直な実装済み/
+未実装区分を維持）。`schemas/po_trace_reactivation_proposal_v1.schema.json`
+を新規追加（`reactivation_executed`/`content_rewrite_applied`/
+`state_mutation_applied`/`safety_bypass_applied` はいずれも `const
+false`）。`schemas/po_trace_event_v1.schema.json` の `event_type` enum に
+`PoTraceBlockedReactivationProposed` を追加（`PoTraceBlockedReactivated`
+は意図的に追加しない）。
+
+実装：`src/po_core_original/self_controller/blocked_reactivation_proposal_executor.py`
+（新規）— `ControlledBlockedTraceReactivationProposalExecutor.execute()` が
+`PoTraceReactivationPlan` の4つの安全不変フラグ
+（`reactivation_execution_allowed`/`content_rewrite_allowed`/
+`state_mutation_allowed`/`safety_bypass_allowed`）を再検証し、いずれかが
+`True` なら `ValueError` で実行を拒否。`blocked_traces` に含まれる各
+blocked trace について、`PoTraceBlocked` の安定フィールド（
+`blocked_trace_id`/`request_id`/`source_step_ids`/`blocked_reason`/
+`blocked_type`/`pressure_snapshot`）を正規化 JSON 化して SHA-256ハッシュ化
+し、提案生成の前後で再計算して不変性を証明（
+`ControlledReconstructionExecutor` のコンテンツハッシュ検証パターンと
+同一）。`reactivation_plan.blocked_trace_ids` が `blocked_traces` に
+解決できない場合は空文字列の SHA-256（documented sentinel）を使用し、
+`preserve_blocked_trace` operation を生成。`models.py` に
+`PoTraceReactivationProposal`/`PoTraceReactivationProposalOperation`/
+`PoTraceReactivationProposalConstraints`/`PoTraceReactivationProposalResult`
+dataclass を追加、`PoSelfResult` に対応する任意フィールドを追加。
+`PoSelfController` に `enable_blocked_trace_reactivation_proposal_execution`
+（既定 `False`）を追加、reactivation planning 直後に配線 — 既存の4フラグ
+すべてが有効な場合のみ発火する。
+
+検証：`src/po_core_original/trace_validation/` — `TraceContinuityValidator`
+に新規ルール19（`docs/contracts/TRACE_CONTINUITY_V1.md` §8c・§10）を追加：
+`PoTraceBlockedReactivationProposed` は `PoTraceBlockedReactivationPlanned`
+祖先必須、さらに4つの安全不変フラグがすべて `false` であることを
+ペイロードレベルでも検証する。これは
+`docs/contracts/TRACE_CONTINUITY_V1.md` §14 が要求する「実装前の契約拡張」
+を満たす。`tests/test_po_trace_reactivation_proposal_contract.py`（12件）・
+`tests/test_blocked_trace_reactivation_proposal_executor.py`（14件）・
+`tests/test_trace_continuity_blocked_reactivation_proposal.py`（8件）を
+新規追加（計34件、全パス）。`examples/contracts/` に有効例2件・有効チェーン
+例1件・無効チェーン例1件を追加。`scripts/validate_contracts.py`（13
+schemas / 21 examples）・`scripts/validate_trace_continuity.py`
+（`--include-negative` で12ファイル：有効3件+無効9件）を更新。
+`tests/test_contract_schemas.py` の `event_type` enum カバレッジ
+アサーションと `tests/test_validate_trace_continuity_script.py` の
+チェック件数アサーション（10→12）を新規イベント型・新規ファイルを含む
+よう更新（PR-016固有の変更ではなく、PR-015から存在した既存テストの定数
+更新）。ADR-0004
+（`docs/original_design_adr/ADR-0004-blocked-trace-reactivation-proposal-executor.md`、
+Accepted）を新規追加。
+
+**結果:** 本PRの新規34件全パス。既存の全PR-014/PR-015回帰テスト
+（`test_po_trace_blocked_contract.py`・`test_po_self_seedling_contract.py`・
+`test_semantic_jump_tensor_contract.py`・`test_semantic_jump_seed_wiring.py`・
+`test_trace_continuity_seedling_jump.py`・`test_trace_continuity_validator.py`・
+`test_contract_schemas.py`・`test_validate_trace_continuity_script.py`・
+`test_po_trace_reactivation_plan_contract.py`・
+`test_po_trace_blocked_reactivation_planner.py`・
+`test_trace_continuity_blocked_reactivation.py`）→ 全パス（新規34件と
+合わせ計256件超）。`python scripts/validate_contracts.py` → 13 schemas /
+21 examples 全て有効。`python scripts/validate_trace_continuity.py
+--include-negative` → 有効チェーン3件 + 無効チェーン9件すべて期待通り。
+`python scripts/check_concept_drift.py --check-pr-template` → PASS。
+`python scripts/check_adr_index.py` → PASS（ADR-0004含む）。
+`python scripts/governance_preflight.py` → PASS。
+
+**明示的に未実装（正直な区分）：**
+- 実際のblocked trace再賦活実行（`PoTraceBlockedReactivated` イベント自体
+  がスキーマに未宣言）
+- blocked trace の status を `reactivated` へ変更すること
+- semantic jump 実行
+- 内容書き換え
+- 自律的な seedling 自己成長ループ
+- LLM ベース再構成
+- 哲学者テンソル実行
+- 長期永続化
+
+既存 `kernel.py`/`step_decomposer.py`/`semantic_profile_engine.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`blocked_trace/`/`seedling_evaluator.py`/
+`semantic_jump_tensor.py`/`semantic_jump_planner.py`/
+`reactivation_planner.py`・哲学者ロスター・`run_turn` パイプラインは
+無変更。`PoSelfController` への変更は既存動作に対して完全に加算的・
+feature-flagged であり、既定フラグでの通常リクエストフローは PR-016
+以前とイベント型の観点でバイト同一であることをテストで確認済み
+（`test_controller_default_flags_produce_no_proposal_event`）。
+
 **Phase 14: Po_trace_blocked Reactivation Planning Seed（PR-015）— 完了
 （`record` / `read` / `score` / `plan` / `trace` / `validate` のみ。
 `reactivate` / `rewrite` / `execute jump` / `mutate state` / `delete trace` /

@@ -45,6 +45,7 @@ PO_SELF_SEEDLING_SCHEMA_VERSION = "po_self_seedling_v1"
 SEMANTIC_JUMP_TENSOR_SCHEMA_VERSION = "semantic_jump_tensor_v1"
 SEMANTIC_JUMP_PLAN_SCHEMA_VERSION = "semantic_jump_plan_v1"
 PO_TRACE_REACTIVATION_PLAN_SCHEMA_VERSION = "po_trace_reactivation_plan_v1"
+PO_TRACE_REACTIVATION_PROPOSAL_SCHEMA_VERSION = "po_trace_reactivation_proposal_v1"
 
 # Fixed, required core axes of a viewer feedback_tensor (schema: 5 axes, plus
 # optional normalized 0..1 extension axes).
@@ -372,6 +373,7 @@ class PoSelfResult:
     seedling: Optional["PoSelfSeedling"] = None
     reactivation_evaluation: Optional["ReactivationEvaluationResult"] = None
     reactivation_plan: Optional["PoTraceReactivationPlan"] = None
+    reactivation_proposal: Optional["PoTraceReactivationProposal"] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -414,6 +416,11 @@ class PoSelfResult:
             "reactivation_plan": (
                 self.reactivation_plan.to_dict()
                 if self.reactivation_plan is not None
+                else None
+            ),
+            "reactivation_proposal": (
+                self.reactivation_proposal.to_dict()
+                if self.reactivation_proposal is not None
                 else None
             ),
         }
@@ -1110,4 +1117,170 @@ class ReactivationEvaluationResult:
             "plan_eligible": self.plan_eligible,
             "created_at": self.created_at,
             "trace_refs": list(self.trace_refs),
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Blocked trace reactivation proposal models — PR-016.
+#
+# ControlledBlockedTraceReactivationProposalExecutor reads a
+# PoTraceReactivationPlan (PR-015) and its referenced Po_trace_blocked
+# records and produces a deterministic reactivation PROPOSAL -- it never
+# reactivates a blocked trace: ``reactivation_executed`` /
+# ``content_rewrite_applied`` / ``state_mutation_applied`` /
+# ``safety_bypass_applied`` are always False. See
+# docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md.
+# --------------------------------------------------------------------------- #
+
+EXECUTION_MODE_REACTIVATION_PROPOSAL_ONLY = "reactivation_proposal_only"
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationProposalConstraints:
+    """Guardrails on a single proposed reactivation operation.
+
+    In PR-016 these are fixed: reactivation is never allowed, content is
+    never rewritten, state is never mutated, safety is never bypassed, and
+    both the original blocked content and its source trace are always
+    preserved for a future controlled executor.
+    """
+
+    reactivation_allowed: bool = False
+    content_rewrite_allowed: bool = False
+    state_mutation_allowed: bool = False
+    safety_bypass_allowed: bool = False
+    preserve_original_blocked_content: bool = True
+    preserve_source_trace: bool = True
+    requires_future_executor: bool = True
+
+    def to_dict(self) -> Dict[str, bool]:
+        return {
+            "reactivation_allowed": self.reactivation_allowed,
+            "content_rewrite_allowed": self.content_rewrite_allowed,
+            "state_mutation_allowed": self.state_mutation_allowed,
+            "safety_bypass_allowed": self.safety_bypass_allowed,
+            "preserve_original_blocked_content": self.preserve_original_blocked_content,
+            "preserve_source_trace": self.preserve_source_trace,
+            "requires_future_executor": self.requires_future_executor,
+        }
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationProposalOperation:
+    """One deterministic proposal (not execution) over a blocked trace."""
+
+    operation_id: str
+    operation_type: (
+        str  # inspect_blocked_trace / prepare_reactivation_proposal /
+        # link_to_seedling / request_human_review / preserve_blocked_trace
+    )
+    blocked_trace_id: str
+    proposal_text: str
+    rationale: str
+    constraints: PoTraceReactivationProposalConstraints = field(
+        default_factory=PoTraceReactivationProposalConstraints
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "operation_type": self.operation_type,
+            "blocked_trace_id": self.blocked_trace_id,
+            "proposal_text": self.proposal_text,
+            "rationale": self.rationale,
+            "constraints": self.constraints.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationProposal:
+    """Deterministic reactivation proposal (mirrors
+    ``po_trace_reactivation_proposal_v1``).
+
+    Converts a ``PoTraceReactivationPlan`` into a proposal; never reactivates
+    anything. ``reactivation_executed``, ``content_rewrite_applied``,
+    ``state_mutation_applied``, and ``safety_bypass_applied`` are always
+    False. References the plan this proposal was generated from via
+    ``reactivation_plan_id``.
+    """
+
+    schema_version: str
+    proposal_id: str
+    request_id: str
+    reactivation_plan_id: str
+    seedling_id: str
+    blocked_trace_ids: List[str]
+    proposal_status: str
+    execution_mode: str
+    reactivation_executed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    original_blocked_content_hashes: Dict[str, str]
+    source_trace_refs: List[str]
+    proposed_operations: List[PoTraceReactivationProposalOperation]
+    safety_constraints: Dict[str, bool]
+    rationale: str
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "proposal_id": self.proposal_id,
+            "request_id": self.request_id,
+            "reactivation_plan_id": self.reactivation_plan_id,
+            "seedling_id": self.seedling_id,
+            "blocked_trace_ids": list(self.blocked_trace_ids),
+            "proposal_status": self.proposal_status,
+            "execution_mode": self.execution_mode,
+            "reactivation_executed": self.reactivation_executed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "original_blocked_content_hashes": dict(
+                self.original_blocked_content_hashes
+            ),
+            "source_trace_refs": list(self.source_trace_refs),
+            "proposed_operations": [op.to_dict() for op in self.proposed_operations],
+            "safety_constraints": dict(self.safety_constraints),
+            "rationale": self.rationale,
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }
+
+
+@dataclass
+class PoTraceReactivationProposalResult:
+    """Result of one
+    ``ControlledBlockedTraceReactivationProposalExecutor.execute()`` call.
+
+    Bundles the produced proposal with the
+    ``PoTraceBlockedReactivationProposed`` trace event and the executor's
+    preservation/continuity/cycle guarantees.
+    """
+
+    request_id: str
+    reactivation_plan_id: str
+    proposal: PoTraceReactivationProposal
+    trace_event: "PoTraceEvent"
+    reactivation_executed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_continuity_verified: bool
+    cycle_guard_passed: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "reactivation_plan_id": self.reactivation_plan_id,
+            "proposal": self.proposal.to_dict(),
+            "trace_event": self.trace_event.to_dict(),
+            "reactivation_executed": self.reactivation_executed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_continuity_verified": self.trace_continuity_verified,
+            "cycle_guard_passed": self.cycle_guard_passed,
         }

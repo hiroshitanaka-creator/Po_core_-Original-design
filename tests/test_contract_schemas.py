@@ -225,5 +225,7 @@ def test_po_trace_event_type_enum_covers_all_contract_events() -> None:
         # PR-015 (seed-level): Blocked trace reactivation planning.
         "PoTraceBlockedReactivationEvaluated",
         "PoTraceBlockedReactivationPlanned",
+        # PR-016 (seed-level): Blocked trace reactivation proposal execution.
+        "PoTraceBlockedReactivationProposed",
     }
     assert event_types == expected

@@ -9,6 +9,9 @@ a mini Po_core and not full self-evolution.
 
 from __future__ import annotations
 
+from .blocked_reactivation_proposal_executor import (
+    ControlledBlockedTraceReactivationProposalExecutor,
+)
 from .controller import PoSelfController
 from .cycle_guard import SelfCycleGuard
 from .decision_engine import RECONSTRUCT_THRESHOLD, PoSelfDecisionEngine
@@ -38,4 +41,5 @@ __all__ = [
     "SemanticJumpPlanner",
     "PoTraceReactivationPlanner",
     "REACTIVATION_THRESHOLD_DEFAULT",
+    "ControlledBlockedTraceReactivationProposalExecutor",
 ]

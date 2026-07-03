@@ -41,8 +41,10 @@ from po_core_original.trace_validation import TraceContinuityValidator  # noqa: 
 
 VALID_EXAMPLE = EXAMPLES_DIR / "trace_chain.valid.json"
 # PR-015 (seed-level): Blocked trace reactivation planning.
+# PR-016 (seed-level): Blocked trace reactivation proposal execution.
 ADDITIONAL_VALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.valid.blocked_reactivation_plan.json",
+    EXAMPLES_DIR / "trace_chain.valid.blocked_reactivation_proposal.json",
 ]
 INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.orphan_decision.json",
@@ -55,6 +57,8 @@ INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.jump_decision_without_plan.json",
     # PR-015 (seed-level): Blocked trace reactivation planning.
     EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_reactivation_plan.json",
+    # PR-016 (seed-level): Blocked trace reactivation proposal execution.
+    EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_reactivation_proposal.json",
 ]
 
 

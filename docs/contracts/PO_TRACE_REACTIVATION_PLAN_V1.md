@@ -197,14 +197,16 @@ default, the default request flow is unaffected — verified by test.
 
 ## 12. Future work
 
-- **`PoTraceBlockedReactivationProposed`** (PR-016, recommended next task) —
-  a controlled, still non-destructive executor that reads a
-  `PoTraceReactivationPlan` and produces a deterministic reactivation
-  *proposal* (mirroring `ControlledReconstructionExecutor` /
+- ~~`PoTraceBlockedReactivationProposed`~~ — **done, PR-016**: see
+  `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`. A controlled, still
+  non-destructive executor (`ControlledBlockedTraceReactivationProposalExecutor`)
+  reads a `PoTraceReactivationPlan` and produces a deterministic
+  reactivation *proposal* (mirroring `ControlledReconstructionExecutor` /
   `reconstruction_patch_v1`, PR-007) — proposal only, `reactivation_executed`
   always `false`.
 - Actual blocked-trace reactivation execution (`Po_trace_blocked.status`
   transitioning to `reactivated`) remains a reserved future controlled mode,
   requiring its own ADR before any runtime implements it
   (`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` §9,
+  `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` §13,
   `docs/contracts/TRACE_CONTINUITY_V1.md` §14).

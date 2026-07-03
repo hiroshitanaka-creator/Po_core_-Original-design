@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-016)
+- `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` — new design + runtime contract for blocked trace reactivation proposal execution.
+- `schemas/po_trace_reactivation_proposal_v1.schema.json` (`reactivation_executed`/`content_rewrite_applied`/`state_mutation_applied`/`safety_bypass_applied` are all `const false`).
+- `src/po_core_original/self_controller/blocked_reactivation_proposal_executor.py` — `ControlledBlockedTraceReactivationProposalExecutor`, converting an already-created `PoTraceReactivationPlan` into a deterministic reactivation *proposal* via `execute()` (mirrors `ControlledReconstructionExecutor`'s patch-proposal pattern). Refuses to run against a plan whose safety-invariant flags are inconsistent; preserves each blocked trace's content hash and source trace refs; never reactivates anything.
+- `PoSelfController` feature flag: `enable_blocked_trace_reactivation_proposal_execution` (default `False`); only fires when a reactivation plan was created (i.e. all four flags — `enable_trace_blocked_recording`, `enable_seedling_evaluation`, `enable_blocked_trace_reactivation_planning`, `enable_blocked_trace_reactivation_proposal_execution` — are enabled together).
+- New trace event type: `PoTraceBlockedReactivationProposed` (added to `schemas/po_trace_event_v1.schema.json`; `PoTraceBlockedReactivated` remains deliberately not declared).
+- New dataclasses in `models.py`: `PoTraceReactivationProposal`, `PoTraceReactivationProposalOperation`, `PoTraceReactivationProposalConstraints`, `PoTraceReactivationProposalResult`.
+- `TraceContinuityValidator` rule 19 (`docs/contracts/TRACE_CONTINUITY_V1.md` §8c, §10).
+- `docs/original_design_adr/ADR-0004-blocked-trace-reactivation-proposal-executor.md` (Accepted).
+- Tests: `tests/test_po_trace_reactivation_proposal_contract.py`, `tests/test_blocked_trace_reactivation_proposal_executor.py`, `tests/test_trace_continuity_blocked_reactivation_proposal.py` (34 tests).
+- 2 new valid schema/event examples + 1 new valid trace-chain fixture + 1 new invalid trace-chain fixture under `examples/contracts/`.
+
+### Changed (PR-016)
+- `PoSelfResult` gains an optional field: `reactivation_proposal`.
+- `scripts/validate_contracts.py` and `scripts/validate_trace_continuity.py` register the new schema/examples.
+- `tests/test_contract_schemas.py`'s `event_type` enum coverage assertion and `tests/test_validate_trace_continuity_script.py`'s check-count assertion updated for the 1 new event type / 2 new example files.
+
+### Not Changed (PR-016)
+- No actual blocked-trace reactivation execution (`PoTraceBlockedReactivated` has no schema surface at all); no semantic jump execution; no content rewriting; no state mutation; no safety-gate bypass; no LLM reconstruction; no philosopher tensor execution; no autonomous seedling growth loop.
+- `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`, `ControlledReconstructionExecutor`, `ViewerFeedbackService`, `BlockedTraceService`/`BlockedTraceReader`, `SeedlingEvaluator`, `SemanticJumpTensorComputer`/`SemanticJumpPlanner`, `PoTraceReactivationPlanner` are untouched.
+- Default-flag request flow (`enable_blocked_trace_reactivation_proposal_execution=False`) produces no new trace event types, verified by test.
+
 ### Added (PR-015)
 - `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` — new design + runtime contract for blocked trace reactivation planning.
 - `schemas/po_trace_reactivation_plan_v1.schema.json` (`reactivation_execution_allowed`/`content_rewrite_allowed`/`state_mutation_allowed`/`safety_bypass_allowed` are all `const false`).
