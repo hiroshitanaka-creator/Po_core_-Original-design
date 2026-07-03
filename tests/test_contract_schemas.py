@@ -222,5 +222,8 @@ def test_po_trace_event_type_enum_covers_all_contract_events() -> None:
         "PoSelfSeedlingEvaluated",
         "SemanticJumpTensorComputed",
         "SemanticJumpPlanned",
+        # PR-015 (seed-level): Blocked trace reactivation planning.
+        "PoTraceBlockedReactivationEvaluated",
+        "PoTraceBlockedReactivationPlanned",
     }
     assert event_types == expected

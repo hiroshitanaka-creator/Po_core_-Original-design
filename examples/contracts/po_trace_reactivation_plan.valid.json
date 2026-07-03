@@ -1,0 +1,38 @@
+{
+  "schema_version": "po_trace_reactivation_plan_v1",
+  "reactivation_plan_id": "rtp_reqdemo_seed001",
+  "request_id": "req_demo",
+  "seedling_id": "seed_reqdemo_blockedt",
+  "blocked_trace_ids": ["btr_reqdemo_a1b2c3d4"],
+  "trigger_source": "blocked_trace_pressure",
+  "reactivation_pressure": 0.775,
+  "reactivation_threshold": 0.5,
+  "plan_status": "planned",
+  "reactivation_execution_allowed": false,
+  "content_rewrite_allowed": false,
+  "state_mutation_allowed": false,
+  "safety_bypass_allowed": false,
+  "planned_operations": [
+    {
+      "operation_id": "op_rtpreqde_btra1b2c3",
+      "operation_type": "prepare_reactivation_candidate",
+      "blocked_trace_id": "btr_reqdemo_a1b2c3d4",
+      "rationale": "Blocked trace btr_reqdemo_a1b2c3d4 (reactivation_score=0.775) is a reactivation candidate under seedling seed_reqdemo_blockedt (trigger_source='blocked_trace_pressure'). Prepared for a future, still unimplemented, controlled reactivation executor -- no reactivation is performed by this plan.",
+      "constraints": {
+        "reactivation_allowed": false,
+        "content_rewrite_allowed": false,
+        "state_mutation_allowed": false,
+        "preserve_trace": true,
+        "requires_future_executor": true
+      }
+    }
+  ],
+  "safety_constraints": {
+    "requires_trace_continuity": true,
+    "requires_human_review_for_execution": true,
+    "requires_future_executor": true,
+    "forbids_safety_bypass": true
+  },
+  "created_at": "2026-07-03T00:00:00Z",
+  "trace_refs": ["evt_po_self_seedling_evaluated_001", "evt_po_trace_blocked_reactivation_evaluated_001"]
+}

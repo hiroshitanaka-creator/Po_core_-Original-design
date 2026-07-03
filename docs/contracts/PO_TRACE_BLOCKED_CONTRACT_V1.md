@@ -129,6 +129,11 @@ etc.) as those upstream signals become available in
 - Long-term/persistent storage (DB).
 - Any interaction with a safety-gate runtime (none exists yet in
   `src/po_core_original/`).
+- **(As of PR-015)** Blocked traces can be read into a
+  `PoTraceReactivationPlan` (`docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`)
+  proposing which are reactivation *candidates* — this is planning only, not
+  reactivation. `status` is still never set to anything but `blocked` by any
+  runtime in this repository.
 
 ## 10. Trace event relations
 
@@ -150,7 +155,11 @@ etc.) as those upstream signals become available in
 
 - Trigger points beyond `reconstruction_deferred` (`safety_block`,
   `viewer_disagreement_pressure`, `unresolved_contradiction`).
-- A controlled reactivation *planning* phase (`status: reactivation_candidate`
-  → `reactivated_planned`), still short of actual reactivation execution.
+- ~~A controlled reactivation *planning* phase~~ — **done, PR-015**: see
+  `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`. This still does not
+  change `status` on the underlying `PoTraceBlocked` record.
+- A controlled reactivation *proposal* executor (PR-016, recommended) that
+  reads a `PoTraceReactivationPlan` and produces a deterministic proposal —
+  still not reactivation execution.
 - Actual reactivation execution — remains a reserved future controlled mode
   (`docs/contracts/PO_SELF_DECISION_V1.md`, `reactivate` decision type).

@@ -10,6 +10,7 @@
 |---|---|---|---|---|
 | ADR-0001 | Adopt ADR System for Original Design Architecture Changes | Accepted | 2026-07-02 | Establishes ADR governance for Original Design architecture-impacting changes, in a directory separate from the main-track `docs/adr/` to avoid a case-only filename collision. |
 | ADR-0002 | Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor — Seed-Level Contracts | Accepted | 2026-07-02 | Grows `jump`, blocked-trace preservation, and Po_self bootstrap evaluation from documentation-only into seed-level, feature-flagged, non-destructive runtime; extends `TRACE_CONTINUITY_V1.md` with 6 new rules before the corresponding runtime shipped. |
+| ADR-0003 | Blocked Trace Reactivation Planning — Seed-Level Contract | Accepted | 2026-07-03 | Adds `PoTraceReactivationPlanner`, the first control layer converting a blocked trace + seedling reading into a traceable reactivation-candidate plan (never reactivation execution); extends `TRACE_CONTINUITY_V1.md` with 2 new rules (+1 broadened) before the corresponding runtime shipped. |
 
 `ADR-0000-template.md` is the template and is intentionally **not** listed
 above as a decision.

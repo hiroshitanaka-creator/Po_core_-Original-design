@@ -30,10 +30,11 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `reconstruction_patch_v1` | `schemas/reconstruction_patch_v1.schema.json` | `docs/contracts/RECONSTRUCTION_PATCH_V1.md` | `ControlledReconstructionExecutor` (Layer 2, PR-007) | future controlled reconstruction execution phase |
 | `po_trace_event_v1` | `schemas/po_trace_event_v1.schema.json` | `docs/contracts/PO_TRACE_EVENT_V1.md` | all layers | all layers (via `Po_trace`) |
 | trace continuity (no new schema) | n/a — validates `po_trace_event_v1` instances as a graph | `docs/contracts/TRACE_CONTINUITY_V1.md` | consumes trace emitted by all layers (PR-008) | tests, future CI / governance tooling |
-| `po_trace_blocked_v1` | `schemas/po_trace_blocked_v1.schema.json` | `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level) | Po_self (`Po_self_seedling` evaluation input) |
-| `po_self_seedling_v1` | `schemas/po_self_seedling_v1.schema.json` | `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level bootstrap evaluation) | future self-growth governance (not implemented) |
+| `po_trace_blocked_v1` | `schemas/po_trace_blocked_v1.schema.json` | `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level) | Po_self (`Po_self_seedling` evaluation input; `PoTraceReactivationPlanner` input, PR-015) |
+| `po_self_seedling_v1` | `schemas/po_self_seedling_v1.schema.json` | `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level bootstrap evaluation) | `PoTraceReactivationPlanner` (PR-015); future self-growth governance (not implemented) |
 | `semantic_jump_tensor_v1` | `schemas/semantic_jump_tensor_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_core/Po_self boundary (Layer 1/2, PR-014, feature-flagged off by default) | `SemanticJumpPlanner` (PR-014) |
-| `semantic_jump_plan_v1` | `schemas/semantic_jump_plan_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, feature-flagged off by default) | future controlled jump execution (not implemented) |
+| `semantic_jump_plan_v1` | `schemas/semantic_jump_plan_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, feature-flagged off by default) | `PoTraceReactivationPlanner` (optional pressure input, PR-015); future controlled jump execution (not implemented) |
+| `po_trace_reactivation_plan_v1` | `schemas/po_trace_reactivation_plan_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` | Po_self (Layer 2, PR-015, feature-flagged off by default) | future controlled reactivation proposal executor (PR-016, not implemented) |
 
 > `po_trace_blocked_v1`, `po_self_seedling_v1`, `semantic_jump_tensor_v1`, and
 > `semantic_jump_plan_v1` (PR-014) are design **and** runtime contracts, like
@@ -43,7 +44,12 @@ architecture is protected from being quietly dropped for being "not implemented 
 > `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md` §8); `enable_seedling_evaluation`
 > and `enable_semantic_jump` both default `False`. None of the three ever
 > rewrite content, execute a jump, reactivate a blocked trace, or start an
-> autonomous self-growth loop.
+> autonomous self-growth loop. `po_trace_reactivation_plan_v1` (PR-015) is
+> the same kind of contract: seed-level, feature-flagged off by default
+> (`enable_blocked_trace_reactivation_planning`), and never reactivates,
+> rewrites, mutates state, or bypasses safety
+> (`reactivation_execution_allowed`/`content_rewrite_allowed`/
+> `state_mutation_allowed`/`safety_bypass_allowed` are all `const false`).
 
 > `reconstruction_plan_v1` (PR-006) and `reconstruction_patch_v1` (PR-007) are design
 > **and runtime** contracts — unlike the five PR-002 schema-only contracts above
@@ -134,6 +140,31 @@ SemanticProfileComputed
   └─ SemanticJumpTensorComputed → SemanticJumpPlanned → PoSelfDecisionMade(jump)
 ```
 
+### Blocked trace reactivation planning (PR-015, seed-level)
+
+A fourth concept extends the chain above one step further, still
+feature-flagged and still never executing anything:
+
+- **`PoTraceReactivationPlan`** (`docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`):
+  `PoTraceReactivationPlanner` reads an already-evaluated `Po_self_seedling`
+  and its associated `Po_trace_blocked` records (plus, optionally, a
+  `SemanticJumpPlan`), computes a deterministic `reactivation_pressure`, and
+  — only when that pressure clears `reactivation_threshold` and the seedling
+  is candidate/planned/active — proposes which blocked traces are
+  reactivation *candidates*. `PoTraceBlockedReactivationEvaluated` is always
+  emitted when planning runs; `PoTraceBlockedReactivationPlanned` only when a
+  plan was actually created. `enable_blocked_trace_reactivation_planning`
+  defaults `False`; `reactivation_execution_allowed` /
+  `content_rewrite_allowed` / `state_mutation_allowed` /
+  `safety_bypass_allowed` are all `const false` — no reactivation is ever
+  executed.
+
+```text
+SemanticProfileComputed
+  └─ PoTraceBlockedRecorded → PoSelfSeedlingEvaluated
+       → PoTraceBlockedReactivationEvaluated → PoTraceBlockedReactivationPlanned
+```
+
 ### Trace continuity chain (PR-008)
 
 `docs/contracts/TRACE_CONTINUITY_V1.md` formalizes the chain every one of the
@@ -216,3 +247,8 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
   the per-event schema checks above. Exercises `examples/contracts/trace_chain.valid.json` and
   the three `trace_chain.invalid.*.json` fixtures, plus real trace chains generated by
   `PoCoreKernel` + `PoSelfController` (with and without Viewer feedback / reconstruction).
+- `tests/test_po_trace_reactivation_plan_contract.py`,
+  `tests/test_po_trace_blocked_reactivation_planner.py`,
+  `tests/test_trace_continuity_blocked_reactivation.py` (PR-015) — schema validation,
+  deterministic `PoTraceReactivationPlanner` behavior, and the new
+  `TraceContinuityValidator` rules for `po_trace_reactivation_plan_v1`.
