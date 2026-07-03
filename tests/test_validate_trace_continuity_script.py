@@ -89,4 +89,6 @@ def test_script_json_output():
     json_start = result.stdout.index("{")
     payload = json.loads(result.stdout[json_start:])
     assert payload["ok"] is True
-    assert len(payload["checks"]) == 4
+    # 1 valid example + 7 invalid examples (3 pre-PR-014 + 4 added by PR-014
+    # for Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor).
+    assert len(payload["checks"]) == 8

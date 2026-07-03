@@ -10,6 +10,106 @@
 
 ## 現フェーズ
 
+**Phase 13: Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor — Hybrid Contract + Seed Implementation（PR-014）— 完了
+（契約策定 + seed-level 実装。record / evaluate / plan / trace / validate のみ。
+実際のコンテンツ書き換え・destructive jump 実行・自律自己成長ループ・reject/reactivate
+実行は一切実装していない）。**
+
+本PR（PR-014）は、Po_core Original Design の思想中核である `Po_trace_blocked`・
+`Po_self_seedling`・Semantic Jump Tensor を、契約のみの状態から
+**seed-level・feature-flagged・非破壊的なランタイム**へ前進させた。
+
+契約：`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`・
+`docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`・
+`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` を新規追加。対応する
+`schemas/po_trace_blocked_v1.schema.json`・`schemas/po_self_seedling_v1.schema.json`・
+`schemas/semantic_jump_tensor_v1.schema.json`・`schemas/semantic_jump_plan_v1.schema.json`
+を新規追加。`schemas/po_trace_event_v1.schema.json` の `event_type` enum に
+`PoTraceBlockedRecorded`/`PoTraceBlockedRead`/`PoSelfSeedlingEvaluated`/
+`SemanticJumpTensorComputed`/`SemanticJumpPlanned` の5件を追加。
+`schemas/po_self_decision_v1.schema.json` の `trigger.trigger_type` に
+`semantic_jump_pressure`/`blocked_trace_pressure`/`seedling_activation`、
+`action_plan.action` に `plan_semantic_jump`/`evaluate_seedling`/
+`record_blocked_trace` を追加（`semantic_jump_pressure`/`plan_semantic_jump`
+のみ実際に発行、残りは正直に「宣言済み・未発行」として保存）。
+
+実装：`src/po_core_original/blocked_trace/`（`store.py`/`service.py`/
+`reader.py`）— `BlockedTraceService.record_blocked()` が拒否・保留・
+再構成不能な path を `PoTraceBlocked`（`status` は常に `"blocked"`、
+自動再賦活なし）として記録し `PoTraceBlockedRecorded` を発行、
+`BlockedTraceReader` が読み取り `PoTraceBlockedRead` を発行。
+`src/po_core_original/self_controller/seedling_evaluator.py` —
+`SeedlingEvaluator` が blocked-trace/Viewer/semantic-jump/ethical の4圧力の
+`max()` から `activation_score` を決定論的に評価（自律成長ループなし）。
+`src/po_core_original/self_controller/semantic_jump_tensor.py` /
+`semantic_jump_planner.py` — `SemanticJumpTensorComputer` が
+`semantic_profile` 由来の5指標の `max()` から `jump_pressure` を評価
+（閾値 0.85、reconstruct の 0.75 より高く設定）、推奨時のみ
+`SemanticJumpPlanner` が `SemanticJumpPlan`（`requires_human_review` は常に
+`true`）を生成。`PoSelfController` に3つの feature flag を追加：
+`enable_trace_blocked_recording`（既定 `True`、ただし現行
+`PoSelfDecisionEngine` では reconstruct の `target_step_ids` が常に非空の
+ため実質発火しない）・`enable_semantic_jump`（既定 `False`）・
+`enable_seedling_evaluation`（既定 `False`、blocked trace 存在時のみ発火）。
+`enable_semantic_jump=True` かつ jump 推奨時のみ、副次的・情報提供のみの
+`PoSelfDecisionMade(decision_type="jump", action="plan_semantic_jump")` を
+追加発行（`ReconstructionPlanner`/`ControlledReconstructionExecutor` には
+一切渡さない・実行しない）。`models.py` に `PoTraceBlocked`/`PoSelfSeedling`/
+`SemanticJumpTensor`/`SemanticJumpPlan` dataclass を追加、`PoSelfResult` に
+対応する任意フィールドを追加。
+
+検証：`src/po_core_original/trace_validation/` — `TraceContinuityValidator`
+に新規ルール11〜16（`docs/contracts/TRACE_CONTINUITY_V1.md` §8a・§10）を
+追加：`PoTraceBlockedRecorded`/`SemanticJumpTensorComputed` は
+`SemanticProfileComputed` 祖先必須、`PoTraceBlockedRead` は
+`PoTraceBlockedRecorded` 祖先または `payload.blocked_trace_ids` 必須、
+`PoSelfSeedlingEvaluated` は `PoTraceBlockedRecorded` 祖先必須、
+`SemanticJumpPlanned` は jump 推奨済み `SemanticJumpTensorComputed` 祖先必須、
+`decision_type="jump"` の `PoSelfDecisionMade` は `SemanticJumpPlanned` 祖先
+必須。これらは `docs/contracts/TRACE_CONTINUITY_V1.md` §14 が要求する
+「実装前の契約拡張」を満たす。`graph.py` に `ancestors_of_type()` を追加
+（ノード自体を返す、`has_ancestor_of_type()` のbool版に対して）。
+`tests/test_po_trace_blocked_contract.py`（10件）・
+`tests/test_po_self_seedling_contract.py`（10件）・
+`tests/test_semantic_jump_tensor_contract.py`（13件）・
+`tests/test_semantic_jump_seed_wiring.py`（8件）・
+`tests/test_trace_continuity_seedling_jump.py`（15件）を新規追加（計56件、
+全パス）。`examples/contracts/` に有効例4件・無効チェーン例4件を追加。
+`scripts/validate_contracts.py`（11 schemas / 16 examples）・
+`scripts/validate_trace_continuity.py`（`--include-negative` で8ファイル）を
+更新。`tests/test_contract_schemas.py` の `event_type` enum カバレッジ
+アサーションを新規5イベント型を含むよう更新。ADR-0002
+（`docs/original_design_adr/ADR-0002-po-trace-blocked-seedling-jump-tensor.md`、
+Accepted）を新規追加。
+
+**結果:** 既存の全回帰テスト（`test_po_self_controller.py`・
+`test_kernel_semantic_profile_trace.py`・`test_reconstruction_planning.py`・
+`test_controlled_reconstruction_executor.py`・`test_viewer_feedback_tensor.py`・
+`test_trace_continuity_validator.py`・`test_contract_schemas.py`・
+`test_validate_trace_continuity_script.py`）→ 全パス（本PRの新規56件と合わせ
+計210件）。`python scripts/validate_contracts.py` → 11 schemas / 16 examples
+全て有効。`python scripts/validate_trace_continuity.py --include-negative` →
+有効チェーン1件 + 無効チェーン7件すべて期待通り。
+`python scripts/check_concept_drift.py --check-pr-template` → PASS。
+`python scripts/check_adr_index.py` → PASS（ADR-0002含む）。
+`python scripts/governance_preflight.py` → PASS。
+
+**明示的に未実装（正直な区分）：**
+- 実際のコンテンツ書き換え
+- destructive semantic jump 実行
+- 自律的自己成長ループ（`Po_self_seedling` は評価のみ）
+- `reject` / `reactivate` の実行
+- blocked trace の自動再賦活
+- LLM ベース再構成・哲学者テンソル実行
+
+既存 `kernel.py`/`step_decomposer.py`/`semantic_profile_engine.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`・哲学者ロスター・`run_turn` パイプラインは無変更。
+`PoSelfController` への変更は既存動作に対して完全に加算的・feature-flagged
+であり、既定フラグでの通常リクエストフローは PR-014 以前とイベント型の
+観点でバイト同一であることをテストで確認済み
+（`test_default_flags_produce_no_new_event_types`）。
+
 **Phase 12: AI Agent Bootstrap Preflight（PR-013）— 完了
 （コーディングエージェント向けの必須リーディング表示・ガバナンスファイル
 存在検証・プロンプトテンプレート生成・governance_preflight 実行を1コマンドに

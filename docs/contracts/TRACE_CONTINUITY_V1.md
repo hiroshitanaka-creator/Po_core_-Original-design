@@ -57,11 +57,27 @@ SemanticProfileComputed
     ├─ ViewerFeedbackReceived
     │    └─ ViewerFeedbackApplied
     │
-    └─ PoSelfDecisionMade
-          └─ PoSelfReconstructionPlanned
-                └─ PoSelfReconstructionApplied
-                      └─ ReconstructionPatchProposal[]
+    ├─ PoSelfDecisionMade
+    │     └─ PoSelfReconstructionPlanned
+    │           └─ PoSelfReconstructionApplied
+    │                 └─ ReconstructionPatchProposal[]
+    │
+    ├─ PoTraceBlockedRecorded              (PR-014, seed-level; root-side OR
+    │     └─ PoTraceBlockedRead             chained from PoSelfDecisionMade)
+    │           └─ PoSelfSeedlingEvaluated
+    │
+    └─ SemanticJumpTensorComputed          (PR-014, seed-level, feature-flagged)
+          └─ SemanticJumpPlanned
+                └─ PoSelfDecisionMade (decision_type="jump")
 ```
+
+`PoTraceBlockedRecorded`, `PoSelfSeedlingEvaluated`, `SemanticJumpTensorComputed`,
+and `SemanticJumpPlanned` are added by PR-014
+(`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`,
+`docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`,
+`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`) — see §15 below for
+their required parent/child rules, added *before* the corresponding runtime
+shipped, per §14's own requirement.
 
 `ReconstructionPatchProposal[]` (the `reconstruction_patch_v1` objects on
 `PoSelfResult.reconstruction_execution.patches`) are not themselves
@@ -78,6 +94,12 @@ same chain (see `docs/contracts/RECONSTRUCTION_PATCH_V1.md` §7).
 | `ViewerFeedbackApplied` (if present) | its feedback source | `trace_refs`/ancestry to a `ViewerFeedbackReceived` event, **or** non-empty `payload.feedback_ids` |
 | `PoSelfReconstructionPlanned` | its causing `PoSelfDecisionMade` | `parent_event_id` and/or `trace_refs`, directly or through ancestry; `payload.source_decision_type` must be `"reconstruct"` |
 | `PoSelfReconstructionApplied` | its `PoSelfReconstructionPlanned` | `parent_event_id` and/or `trace_refs`, directly or through ancestry; `payload` must include `content_rewrite_applied: false`, `original_content_preserved: true`, `trace_continuity_verified: true` |
+| `PoTraceBlockedRecorded` (PR-014) | a `SemanticProfileComputed` event | `parent_event_id` and/or `trace_refs`, directly or through ancestry (root-side, or transitively through a `PoSelfDecisionMade` that referenced it) |
+| `PoTraceBlockedRead` (PR-014) | its feedback source | ancestry to a `PoTraceBlockedRecorded` event, **or** non-empty `payload.blocked_trace_ids` |
+| `PoSelfSeedlingEvaluated` (PR-014) | a `PoTraceBlockedRecorded` event | `parent_event_id` and/or `trace_refs`, directly or through ancestry |
+| `SemanticJumpTensorComputed` (PR-014) | a `SemanticProfileComputed` event | `parent_event_id` and/or `trace_refs`, directly or through ancestry |
+| `SemanticJumpPlanned` (PR-014) | its `SemanticJumpTensorComputed` | `parent_event_id` and/or `trace_refs`, directly or through ancestry; `payload.plan_status` must not be absent |
+| `PoSelfDecisionMade` with `payload.decision_type == "jump"` (PR-014) | its `SemanticJumpPlanned` | `parent_event_id` and/or `trace_refs`, directly or through ancestry, **in addition to** the general `SemanticProfileComputed` root rule above |
 
 "Through ancestry" means: the reference need not be *direct* — a node one or
 more `trace_refs`/`parent_event_id` hops away that itself has the required
@@ -117,6 +139,53 @@ this PR's non-negotiable guarantee holds: no content was rewritten, original
 content was preserved, and trace continuity was verified by the executor
 itself before it emitted this event (`docs/contracts/RECONSTRUCTION_PATCH_V1.md`).
 
+## 8a. Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor branches (PR-014)
+
+Three more branches were added in PR-014, each seed-level and
+feature-flagged (`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`,
+`docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`,
+`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`):
+
+- **`PoTraceBlockedRecorded`** is root-side like `ViewerFeedbackReceived` when
+  emitted directly off `SemanticProfileComputed`, but in this PR's actual
+  wiring it is chained from the `PoSelfDecisionMade` event whose
+  reconstruction plan could not be concretely planned
+  (`plan_status` `not_applicable`/`blocked`) — either way it must resolve a
+  `SemanticProfileComputed` ancestor (Rule 11).
+- **`PoTraceBlockedRead`** mirrors `ViewerFeedbackApplied`'s "feedback
+  source" pattern (§5, §6): it must reference the `PoTraceBlockedRecorded`
+  event(s) it read, either via ancestry or via non-empty
+  `payload.blocked_trace_ids` (Rule 12).
+- **`PoSelfSeedlingEvaluated`** always requires a `PoTraceBlockedRecorded`
+  ancestor in this PR's runtime (Rule 13) — `PoSelfController`
+  (`enable_seedling_evaluation`) only evaluates a seedling when at least one
+  blocked trace exists for the request, so this is not merely a validator
+  rule but a runtime invariant the controller wiring itself upholds.
+- **`SemanticJumpTensorComputed`** requires `SemanticProfileComputed`
+  ancestry (Rule 14), exactly like `PoSelfDecisionMade` (Rule 4) — in this
+  PR's wiring its `parent_event_id` is the main `PoSelfDecisionMade` event
+  (itself already rooted), which satisfies the rule transitively.
+- **`SemanticJumpPlanned`** requires a `SemanticJumpTensorComputed` ancestor
+  whose `payload.jump_pressure` cleared the jump threshold — the validator
+  checks this by requiring the tensor's implied recommendation via the
+  plan's own presence (a plan is only ever emitted when
+  `jump_recommended == true`; the validator additionally rejects a plan
+  whose ancestor tensor's payload contradicts this, `jump_plan_without_recommendation`)
+  (Rule 15).
+- **A secondary `PoSelfDecisionMade` with `payload.decision_type == "jump"`**
+  requires a `SemanticJumpPlanned` ancestor, on top of the general root rule
+  every `PoSelfDecisionMade` already satisfies (Rule 16). This is never the
+  *only* `PoSelfDecisionMade` in a chain — it is always additional to the
+  primary preserve/reconstruct decision, so `reconstruct` and `jump` are
+  never mixed into one event (`docs/contracts/PO_SELF_DECISION_V1.md` §10).
+
+None of these four event types are ever produced as free-floating orphans by
+the runtime; Rule 9's strict catch-all also now scans
+`PoTraceBlockedRecorded` / `PoSelfSeedlingEvaluated` /
+`SemanticJumpTensorComputed` / `SemanticJumpPlanned` for a bare
+`parent_event_id`/`trace_refs` presence check, same as the pre-existing
+non-root types.
+
 ## 9. Validation modes
 
 `TraceContinuityValidator(strict: bool = True)`:
@@ -124,9 +193,12 @@ itself before it emitted this event (`docs/contracts/RECONSTRUCTION_PATCH_V1.md`
 - **Core rules — always enforced, both modes**: root event required (§10
   Rule 3); `PoSelfDecisionMade` / `ViewerFeedbackApplied` /
   `PoSelfReconstructionPlanned` / `PoSelfReconstructionApplied` ancestry and
-  payload-contract rules (§10 Rules 4–7); duplicate `event_id` (§10 Rule 1).
-  Non-strict mode is for validating a deliberately **partial** trace slice —
-  it does not waive genuine structural violations.
+  payload-contract rules (§10 Rules 4–7); duplicate `event_id` (§10 Rule 1);
+  the PR-014 `PoTraceBlockedRecorded` / `PoTraceBlockedRead` /
+  `PoSelfSeedlingEvaluated` / `SemanticJumpTensorComputed` /
+  `SemanticJumpPlanned` / jump-decision ancestry and payload-contract rules
+  (§10 Rules 11–16, §8a). Non-strict mode is for validating a deliberately
+  **partial** trace slice — it does not waive genuine structural violations.
 - **Strict-only**: mixed `request_id` values become errors instead of
   warnings (§10 Rule 2); unresolved `trace_refs` become errors instead of
   warnings (§10 Rule 10); reserved future controlled-mode event types
@@ -147,9 +219,9 @@ Defined in `src/po_core_original/trace_validation/errors.py`:
 |---|---|---|
 | `TraceContinuityError` | `ValueError` | (base class) |
 | `MissingRootEventError` | `TraceContinuityError` | `missing_root_event` |
-| `OrphanTraceEventError` | `TraceContinuityError` | `orphan_po_self_decision`, `viewer_feedback_applied_without_feedback_source`, `orphan_trace_event` |
-| `MissingParentEventError` | `TraceContinuityError` | `missing_trace_ref`, `reconstruction_plan_without_decision`, `reconstruction_applied_without_plan` |
-| `InvalidTraceTransitionError` | `TraceContinuityError` | `invalid_reconstruction_plan_source`, `reconstruction_applied_missing_preservation_flags`, `unsupported_future_controlled_mode_event` |
+| `OrphanTraceEventError` | `TraceContinuityError` | `orphan_po_self_decision`, `viewer_feedback_applied_without_feedback_source`, `orphan_trace_event`, `orphan_po_trace_blocked`, `trace_blocked_read_without_source`, `orphan_semantic_jump_tensor` |
+| `MissingParentEventError` | `TraceContinuityError` | `missing_trace_ref`, `reconstruction_plan_without_decision`, `reconstruction_applied_without_plan`, `seedling_without_blocked_trace`, `jump_plan_without_tensor` |
+| `InvalidTraceTransitionError` | `TraceContinuityError` | `invalid_reconstruction_plan_source`, `reconstruction_applied_missing_preservation_flags`, `unsupported_future_controlled_mode_event`, `jump_plan_without_recommendation`, `jump_decision_without_plan` |
 | `RequestIdMismatchError` | `TraceContinuityError` | `request_id_mismatch` |
 | `DuplicateEventIdError` | `TraceContinuityError` | `duplicate_event_id` |
 
@@ -183,6 +255,20 @@ Numbered validation rules (implemented in `validator.py`):
    `orphan_trace_event`.
 10. **`trace_refs` must resolve** — `missing_trace_ref` (error in strict
     mode, warning otherwise).
+11. **`PoTraceBlockedRecorded` requires `SemanticProfileComputed` ancestry**
+    (PR-014) — `orphan_po_trace_blocked`.
+12. **`PoTraceBlockedRead` continuity** (PR-014) —
+    `trace_blocked_read_without_source`.
+13. **`PoSelfSeedlingEvaluated` requires `PoTraceBlockedRecorded` ancestry**
+    (PR-014) — `seedling_without_blocked_trace`.
+14. **`SemanticJumpTensorComputed` requires `SemanticProfileComputed`
+    ancestry** (PR-014) — `orphan_semantic_jump_tensor`.
+15. **`SemanticJumpPlanned` requires `SemanticJumpTensorComputed` ancestry,
+    and the source tensor must have recommended a jump** (PR-014) —
+    `jump_plan_without_tensor`, `jump_plan_without_recommendation`.
+16. **`PoSelfDecisionMade` with `payload.decision_type == "jump"` requires
+    `SemanticJumpPlanned` ancestry** (PR-014, in addition to Rule 4's general
+    root requirement) — `jump_decision_without_plan`.
 
 ## 11. Valid example path
 
@@ -215,15 +301,36 @@ arrays of events, wrapped in a small documentation envelope) — but every
 individual event inside them still validates against
 `schemas/po_trace_event_v1.schema.json` on its own.
 
+**PR-014 adds four more invalid fixtures** exercised by
+`tests/test_trace_continuity_seedling_jump.py`:
+
+- `examples/contracts/trace_chain.invalid.orphan_blocked_trace.json` →
+  `orphan_po_trace_blocked`.
+- `examples/contracts/trace_chain.invalid.seedling_without_blocked_trace.json`
+  → `seedling_without_blocked_trace`.
+- `examples/contracts/trace_chain.invalid.orphan_jump_tensor.json` →
+  `orphan_semantic_jump_tensor`.
+- `examples/contracts/trace_chain.invalid.jump_decision_without_plan.json` →
+  `jump_decision_without_plan`.
+
 ## 13. What this contract does NOT implement
 
-- No new trace event types are added to `schemas/po_trace_event_v1.schema.json`
-  by this PR (the `event_type` enum is unchanged).
-- No runtime behavior changes: `PoCoreKernel`, `PoSelfController`,
-  `PoSelfDecisionEngine`, `ReconstructionPlanner`,
+- PR-008 through PR-013 added no new trace event types to
+  `schemas/po_trace_event_v1.schema.json`. **PR-014 is the first PR under
+  this contract to add new event types** (`PoTraceBlockedRecorded`,
+  `PoTraceBlockedRead`, `PoSelfSeedlingEvaluated`,
+  `SemanticJumpTensorComputed`, `SemanticJumpPlanned`) — each is seed-level,
+  feature-flagged, and documented in its own contract doc
+  (`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`,
+  `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`,
+  `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`) rather than added
+  silently.
+- No runtime behavior changes **to the pre-existing preserve/reconstruct
+  flow**: `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`,
   `ControlledReconstructionExecutor`, and `ViewerFeedbackService` are
-  untouched by this PR. `TraceContinuityValidator` only *reads*
-  already-emitted `PoTraceEvent` objects; it never mutates them.
+  untouched by PR-014; `PoSelfController` gains new, additive,
+  feature-flagged wiring only (§8a above). `TraceContinuityValidator` only
+  *reads* already-emitted `PoTraceEvent` objects; it never mutates them.
 - Event-id-level continuity from `ViewerFeedbackApplied` back to the specific
   `ViewerFeedbackReceived` event that produced the applied feedback is
   **not** established by the runtime today — `InMemoryViewerFeedbackStore`
@@ -239,17 +346,26 @@ individual event inside them still validates against
 
 ## 14. Future extension for jump / reject / reactivate
 
-`jump`, `reject`, and `reactivate` remain reserved, documented-but-unimplemented
+`reject` and `reactivate` remain fully reserved, documented-but-unimplemented
 decision types (`docs/contracts/PO_SELF_DECISION_V1.md`,
-`docs/contracts/RECONSTRUCTION_PLAN_V1.md` §11). This contract explicitly does
-**not** grant them free-floating trace legitimacy: `strict` validation rejects
-the placeholder future event types
+`docs/contracts/RECONSTRUCTION_PLAN_V1.md` §11) — no runtime code emits
+them. This contract explicitly does **not** grant them free-floating trace
+legitimacy: `strict` validation rejects the placeholder future event types
 `PoSelfJumpPlanned` / `PoSelfRejectPlanned` / `PoSelfReactivatePlanned` /
 `PoSelfJumpApplied` / `PoSelfRejectApplied` / `PoSelfReactivateApplied`
 outright (`unsupported_future_controlled_mode_event`, Rule 8) if they ever
-appear in a validated trace set, *even though none of them are added to
-`schemas/po_trace_event_v1.schema.json`'s enum by this PR*. When a future PR
-implements one of these modes, it must extend this contract (new required
-parent/child rows in §5, a new numbered rule in §10) *before* — not after —
-the corresponding runtime behavior ships, so that self-reconstruction never
-outpaces its own traceability.
+appear in a validated trace set — these names remain deliberately
+*different* from PR-014's `SemanticJumpTensorComputed`/`SemanticJumpPlanned`,
+which are a distinct, now-implemented evaluation-and-plan-only concept (§8a),
+never an execution.
+
+`jump` itself is **partially** implemented as of PR-014: `decision_type:
+"jump"` is now behaviorally emitted, but only as a secondary, informational
+decision tied to a `SemanticJumpPlan` — never as an execution, and this
+contract's rules (§5, §8a, Rule 16) were extended *before* that runtime
+behavior shipped, per this section's own requirement. Any future PR that
+implements **jump execution** (or `reject`/`reactivate` in any form) must
+likewise extend this contract (new required parent/child rows in §5, a new
+numbered rule in §10) *before* — not after — the corresponding runtime
+behavior ships, so that self-reconstruction never outpaces its own
+traceability.

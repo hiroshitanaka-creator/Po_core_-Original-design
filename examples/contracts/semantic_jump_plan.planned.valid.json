@@ -1,0 +1,18 @@
+{
+  "schema_version": "semantic_jump_plan_v1",
+  "jump_plan_id": "sjp_reqdemo_sjtreqde",
+  "request_id": "req_demo",
+  "semantic_jump_tensor_id": "sjt_reqdemo_psdreqde",
+  "decision_id": "psd_req_demo_1",
+  "source_jump_type": "ethical_frame_shift",
+  "plan_status": "planned",
+  "target_step_ids": ["step_002"],
+  "planning_reason": "SemanticJumpTensor sjt_reqdemo_psdreqde recommended a jump (jump_pressure=0.9, jump_type='ethical_frame_shift'); proposing a semantic frame change for human review. No jump is executed by this plan.",
+  "jump_pressure": 0.9,
+  "requires_human_review": true,
+  "created_at": "2026-07-02T07:22:35Z",
+  "trace_refs": ["evt_semantic_jump_tensor_computed_001"],
+  "notes": [
+    "PR-014 plans a possible semantic frame change only; execution belongs to a future, ADR-gated controlled jump phase."
+  ]
+}

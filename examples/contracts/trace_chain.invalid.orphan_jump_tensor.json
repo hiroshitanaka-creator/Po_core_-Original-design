@@ -1,0 +1,51 @@
+{
+  "description": "PR-014 INVALID trace chain example: SemanticJumpTensorComputed has no parent_event_id or trace_refs pointing back to a SemanticProfileComputed root (or anything). Fails TraceContinuityValidator with issue code 'orphan_semantic_jump_tensor'. See docs/contracts/TRACE_CONTINUITY_V1.md §10 (error taxonomy, Rule 14) and §12.",
+  "expected_validation_result": {
+    "valid": false,
+    "issue_codes": ["orphan_semantic_jump_tensor"]
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_ojt",
+      "request_id": "req_orphan_jump_tensor",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_orphan_jump_tensor",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_orphan_jump_tensor_1",
+            "primary_axis": "ethical_axis",
+            "priority_score": 8.0,
+            "alert_level": "critical"
+          }
+        ]
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_tensor_computed_ojt",
+      "request_id": "req_orphan_jump_tensor",
+      "event_type": "SemanticJumpTensorComputed",
+      "payload": {
+        "semantic_jump_tensor_id": "sjt_orphan_jump_tensor_1",
+        "request_id": "req_orphan_jump_tensor",
+        "source_step_ids": ["step_001"],
+        "jump_pressure": 0.9,
+        "jump_recommended": true,
+        "jump_type": "unresolved_contradiction_jump",
+        "semantic_delta": 0.8,
+        "discontinuity_score": 0.6,
+        "novelty_score": 0.4,
+        "contradiction_score": 0.9,
+        "responsibility_shift_score": 0.5,
+        "viewer_disagreement_pressure": 0.0
+      },
+      "created_at": "2026-07-02T07:22:35Z"
+    }
+  ]
+}

@@ -179,6 +179,36 @@ def has_ancestor_of_type(graph: TraceGraph, event_id: str, event_type: str) -> b
     return False
 
 
+def ancestors_of_type(
+    graph: TraceGraph, event_id: str, event_type: str
+) -> List[TraceNode]:
+    """Return every ancestor of ``event_id`` whose ``event_type`` matches.
+
+    Same backward traversal as ``has_ancestor_of_type``, but returns the
+    matching nodes themselves (e.g. so a caller can inspect their payload)
+    instead of a bool. Excludes ``event_id`` itself. Deterministic order
+    (traversal order); returns an empty list for an unknown ``event_id``.
+    """
+    if event_id not in graph.nodes:
+        return []
+
+    visited: Set[str] = set()
+    result: List[TraceNode] = []
+    stack: List[str] = [event_id]
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        node = graph.nodes.get(current)
+        if node is not None and current != event_id and node.event_type == event_type:
+            result.append(node)
+        for edge in graph.edges:
+            if edge.target_event_id == current and edge.source_event_id not in visited:
+                stack.append(edge.source_event_id)
+    return result
+
+
 def referenced_event_types(graph: TraceGraph, event_id: str) -> Set[str]:
     """Return the set of ``event_type`` values among all ancestors of ``event_id``.
 

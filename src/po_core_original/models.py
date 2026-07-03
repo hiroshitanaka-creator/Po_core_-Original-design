@@ -40,6 +40,10 @@ SEMANTIC_STEP_SCHEMA_VERSION = "semantic_step_v1"
 PO_TRACE_EVENT_SCHEMA_VERSION = "po_trace_event_v1"
 PO_SELF_DECISION_SCHEMA_VERSION = "po_self_decision_v1"
 VIEWER_FEEDBACK_SCHEMA_VERSION = "viewer_feedback_v1"
+PO_TRACE_BLOCKED_SCHEMA_VERSION = "po_trace_blocked_v1"
+PO_SELF_SEEDLING_SCHEMA_VERSION = "po_self_seedling_v1"
+SEMANTIC_JUMP_TENSOR_SCHEMA_VERSION = "semantic_jump_tensor_v1"
+SEMANTIC_JUMP_PLAN_SCHEMA_VERSION = "semantic_jump_plan_v1"
 
 # Fixed, required core axes of a viewer feedback_tensor (schema: 5 axes, plus
 # optional normalized 0..1 extension axes).
@@ -360,6 +364,11 @@ class PoSelfResult:
     trace_events: List[PoTraceEvent] = field(default_factory=list)
     reconstruction_plan: Optional["ReconstructionPlan"] = None
     reconstruction_execution: Optional["ReconstructionExecutionResult"] = None
+    blocked_traces: List["PoTraceBlocked"] = field(default_factory=list)
+    semantic_jump_tensor: Optional["SemanticJumpTensor"] = None
+    semantic_jump_plan: Optional["SemanticJumpPlan"] = None
+    jump_decision: Optional["PoSelfDecision"] = None
+    seedling: Optional["PoSelfSeedling"] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -376,6 +385,23 @@ class PoSelfResult:
                 self.reconstruction_execution.to_dict()
                 if self.reconstruction_execution is not None
                 else None
+            ),
+            "blocked_traces": [b.to_dict() for b in self.blocked_traces],
+            "semantic_jump_tensor": (
+                self.semantic_jump_tensor.to_dict()
+                if self.semantic_jump_tensor is not None
+                else None
+            ),
+            "semantic_jump_plan": (
+                self.semantic_jump_plan.to_dict()
+                if self.semantic_jump_plan is not None
+                else None
+            ),
+            "jump_decision": (
+                self.jump_decision.to_dict() if self.jump_decision is not None else None
+            ),
+            "seedling": (
+                self.seedling.to_dict() if self.seedling is not None else None
             ),
         }
 
@@ -709,3 +735,213 @@ class ReconstructionExecutionResult:
             "trace_continuity_verified": self.trace_continuity_verified,
             "cycle_guard_passed": self.cycle_guard_passed,
         }
+
+
+# --------------------------------------------------------------------------- #
+# Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor models — PR-014.
+#
+# These are seed-level, feature-flagged concepts:
+#   * PoTraceBlocked preserves a diverted semantic step / decision path as a
+#     future reactivation CANDIDATE -- it is not a deletion log and this PR
+#     never automatically reactivates anything (status is always "blocked").
+#   * PoSelfSeedling is a bootstrap-evaluation record only -- evaluating one
+#     never starts a self-growth loop.
+#   * SemanticJumpTensor / SemanticJumpPlan evaluate and PROPOSE that a
+#     semantic FRAME change may be warranted -- never execute one. A jump
+#     plan always requires human review (requires_human_review is always
+#     True) and is never handed to ReconstructionPlanner /
+#     ControlledReconstructionExecutor.
+# See docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md,
+# docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md,
+# docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md.
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class PoTraceBlocked:
+    """A diverted semantic step / decision path preserved as a future
+    reactivation candidate (mirrors ``po_trace_blocked_v1``).
+
+    PR-014 seed runtime only ever creates ``status == "blocked"``;
+    ``reactivation_score`` / ``reactivation_eligibility`` are deterministic
+    metadata that never trigger an automatic status transition.
+    """
+
+    schema_version: str
+    blocked_trace_id: str
+    request_id: str
+    source_step_ids: List[str]
+    blocked_reason: str
+    blocked_type: str
+    pressure_snapshot: Dict[str, float]
+    reactivation_eligibility: bool
+    reactivation_score: float
+    status: str
+    created_at: str
+    source_event_id: Optional[str] = None
+    semantic_profile_refs: List[str] = field(default_factory=list)
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "blocked_trace_id": self.blocked_trace_id,
+            "request_id": self.request_id,
+            "source_step_ids": list(self.source_step_ids),
+            "blocked_reason": self.blocked_reason,
+            "blocked_type": self.blocked_type,
+            "pressure_snapshot": dict(self.pressure_snapshot),
+            "reactivation_eligibility": self.reactivation_eligibility,
+            "reactivation_score": self.reactivation_score,
+            "status": self.status,
+            "created_at": self.created_at,
+        }
+        if self.source_event_id is not None:
+            out["source_event_id"] = self.source_event_id
+        if self.semantic_profile_refs:
+            out["semantic_profile_refs"] = list(self.semantic_profile_refs)
+        if self.trace_refs:
+            out["trace_refs"] = list(self.trace_refs)
+        return out
+
+
+@dataclass(frozen=True)
+class PoSelfSeedling:
+    """Po_self's bootstrap-evaluation record (mirrors ``po_self_seedling_v1``).
+
+    Evaluating a seedling never starts a self-growth loop -- it produces a
+    ``status`` label only. PR-014 seed runtime only ever produces
+    ``inactive``/``candidate``/``seed_planned``.
+    """
+
+    schema_version: str
+    seedling_id: str
+    request_id: str
+    activation_source: str
+    activation_score: float
+    activation_threshold: float
+    input_pressures: Dict[str, float]
+    status: str
+    created_at: str
+    blocked_trace_refs: List[str] = field(default_factory=list)
+    viewer_feedback_refs: List[str] = field(default_factory=list)
+    semantic_profile_refs: List[str] = field(default_factory=list)
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "seedling_id": self.seedling_id,
+            "request_id": self.request_id,
+            "activation_source": self.activation_source,
+            "activation_score": self.activation_score,
+            "activation_threshold": self.activation_threshold,
+            "input_pressures": dict(self.input_pressures),
+            "status": self.status,
+            "created_at": self.created_at,
+        }
+        if self.blocked_trace_refs:
+            out["blocked_trace_refs"] = list(self.blocked_trace_refs)
+        if self.viewer_feedback_refs:
+            out["viewer_feedback_refs"] = list(self.viewer_feedback_refs)
+        if self.semantic_profile_refs:
+            out["semantic_profile_refs"] = list(self.semantic_profile_refs)
+        if self.trace_refs:
+            out["trace_refs"] = list(self.trace_refs)
+        return out
+
+
+@dataclass(frozen=True)
+class SemanticJumpTensor:
+    """Evaluates whether a semantic FRAME change may be warranted (mirrors
+    ``semantic_jump_tensor_v1``).
+
+    Computing this tensor never performs a jump -- it is an evaluation only.
+    See docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md for the seed
+    scoring formulas and the reconstruct-vs-jump distinction.
+    """
+
+    schema_version: str
+    semantic_jump_tensor_id: str
+    request_id: str
+    source_step_ids: List[str]
+    semantic_delta: float
+    discontinuity_score: float
+    novelty_score: float
+    contradiction_score: float
+    responsibility_shift_score: float
+    viewer_disagreement_pressure: float
+    jump_pressure: float
+    jump_recommended: bool
+    jump_type: str
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "semantic_jump_tensor_id": self.semantic_jump_tensor_id,
+            "request_id": self.request_id,
+            "source_step_ids": list(self.source_step_ids),
+            "semantic_delta": self.semantic_delta,
+            "discontinuity_score": self.discontinuity_score,
+            "novelty_score": self.novelty_score,
+            "contradiction_score": self.contradiction_score,
+            "responsibility_shift_score": self.responsibility_shift_score,
+            "viewer_disagreement_pressure": self.viewer_disagreement_pressure,
+            "jump_pressure": self.jump_pressure,
+            "jump_recommended": self.jump_recommended,
+            "jump_type": self.jump_type,
+            "created_at": self.created_at,
+        }
+        if self.trace_refs:
+            out["trace_refs"] = list(self.trace_refs)
+        return out
+
+
+@dataclass(frozen=True)
+class SemanticJumpPlan:
+    """A proposal that a semantic frame change be reviewed (mirrors
+    ``semantic_jump_plan_v1``).
+
+    Never executes a jump; ``requires_human_review`` is always ``True``. Only
+    ever created from a ``SemanticJumpTensor`` whose ``jump_recommended`` is
+    ``True``.
+    """
+
+    schema_version: str
+    jump_plan_id: str
+    request_id: str
+    semantic_jump_tensor_id: str
+    source_jump_type: str
+    plan_status: str
+    target_step_ids: List[str]
+    planning_reason: str
+    jump_pressure: float
+    requires_human_review: bool
+    created_at: str
+    decision_id: Optional[str] = None
+    trace_refs: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "jump_plan_id": self.jump_plan_id,
+            "request_id": self.request_id,
+            "semantic_jump_tensor_id": self.semantic_jump_tensor_id,
+            "source_jump_type": self.source_jump_type,
+            "plan_status": self.plan_status,
+            "target_step_ids": list(self.target_step_ids),
+            "planning_reason": self.planning_reason,
+            "jump_pressure": self.jump_pressure,
+            "requires_human_review": self.requires_human_review,
+            "created_at": self.created_at,
+        }
+        if self.decision_id is not None:
+            out["decision_id"] = self.decision_id
+        if self.trace_refs:
+            out["trace_refs"] = list(self.trace_refs)
+        if self.notes:
+            out["notes"] = list(self.notes)
+        return out

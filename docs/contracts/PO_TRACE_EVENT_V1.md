@@ -61,6 +61,11 @@ Optional: `correlation_id`, `parent_event_id`, `trace_refs`.
 | `PoSelfReconstructionApplied` | **PR-007:** summary of a `ControlledReconstructionExecutor` run — `{ plan_id, decision_id, patch_count, target_step_ids, execution_mode, original_content_preserved, original_content_mutated, content_rewrite_applied, cycle_guard_passed, self_cycle_index, max_self_cycles, trace_continuity_verified }`. Means the plan was applied to the *controlled executor* (patch proposals produced), NOT that content was rewritten — `content_rewrite_applied` is always `false`. Full result on `PoSelfResult.reconstruction_execution`; each patch conforms to `reconstruction_patch_v1`. See `docs/contracts/RECONSTRUCTION_PATCH_V1.md`. |
 | `PoSelfCycleLimitReached` | open — should include `max_self_cycles`/`self_cycle_index` at minimum |
 | `ConceptDriftGuardEvaluated` | open — should include the 7 Concept Drift Guard check answers |
+| `PoTraceBlockedRecorded` | **PR-014 (seed-level):** summary of a `po_trace_blocked_v1` — `{ blocked_trace_id, request_id, source_event_id, source_step_ids, blocked_reason, blocked_type, status, reactivation_score, reactivation_eligibility }`. Full record on the `BlockedTraceService`/`InMemoryBlockedTraceStore`. See `docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`. |
+| `PoTraceBlockedRead` | **PR-014 (seed-level):** `{ request_id, read_count, blocked_trace_ids }`. Emitted by `BlockedTraceReader.read_and_trace()`. |
+| `PoSelfSeedlingEvaluated` | **PR-014 (seed-level, `enable_seedling_evaluation` default `False`):** summary of a `po_self_seedling_v1` — `{ seedling_id, request_id, activation_source, activation_score, activation_threshold, status, input_pressures, blocked_trace_refs }`. Evaluation only; no self-growth loop. See `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`. |
+| `SemanticJumpTensorComputed` | **PR-014 (seed-level, `enable_semantic_jump` default `False`):** summary of a `semantic_jump_tensor_v1` — `{ semantic_jump_tensor_id, request_id, source_step_ids, jump_pressure, jump_recommended, jump_type, semantic_delta, discontinuity_score, novelty_score, contradiction_score, responsibility_shift_score, viewer_disagreement_pressure }`. See `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`. |
+| `SemanticJumpPlanned` | **PR-014 (seed-level, `enable_semantic_jump` default `False`):** summary of a `semantic_jump_plan_v1` — `{ jump_plan_id, request_id, semantic_jump_tensor_id, source_jump_type, plan_status, target_step_ids, requires_human_review }`. Proposal only; jump is never executed. See `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`. |
 
 `payload` is intentionally `additionalProperties: true` at the envelope level because its shape
 depends on `event_type`; it must validate against the corresponding contract-specific schema
@@ -93,6 +98,14 @@ future PRs).
   `event_type` enum only and have no example payload yet — per the honesty
   requirement in `docs/STRICT_CORE_RULES.md` (label unimplemented concepts, do
   not delete them).
+- `PoTraceBlockedRecorded` / `PoTraceBlockedRead` / `PoSelfSeedlingEvaluated` /
+  `SemanticJumpTensorComputed` / `SemanticJumpPlanned` are behaviorally emitted
+  as of PR-014, each seed-level and feature-flagged
+  (`docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md`,
+  `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md`,
+  `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`). None of them rewrite
+  content, execute a jump, reactivate a blocked trace, or start a self-growth
+  loop.
 - **PR-008** adds a formal *trace graph* semantics on top of this envelope
   (no schema/enum change): `parent_event_id` and `trace_refs` are the only
   fields that form continuity edges — `created_at` is never used for this

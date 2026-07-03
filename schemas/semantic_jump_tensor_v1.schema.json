@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/semantic_jump_tensor_v1.schema.json",
+  "title": "Po_core semantic_jump_tensor v1",
+  "description": "PR-014 design + runtime contract (seed-level). Evaluates whether a semantic_step / decision path shows enough discontinuity, novelty, contradiction, responsibility-shift, or Viewer-disagreement pressure that a semantic FRAME change (not a same-frame patch) may be warranted. Computing this tensor never performs a jump: it is an evaluation only. See docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md for the distinction between reconstruct (same-frame patch) and jump (frame change).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_jump_tensor_id",
+    "request_id",
+    "source_step_ids",
+    "semantic_delta",
+    "discontinuity_score",
+    "novelty_score",
+    "contradiction_score",
+    "responsibility_shift_score",
+    "viewer_disagreement_pressure",
+    "jump_pressure",
+    "jump_recommended",
+    "jump_type",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "semantic_jump_tensor_v1" },
+    "semantic_jump_tensor_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "source_step_ids": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "semantic_delta": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Seed proxy: normalized max semantic_profile.priority_score across source_step_ids. Not the mature src/po_core/tensors semantic_delta computation (that remains a separate, unreconciled track -- docs/contracts/PO_TRACE_EVENT_V1.md §9)."
+    },
+    "discontinuity_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Seed proxy: max(abs(semantic_profile.ethics_delta)) across source_step_ids -- ethics_delta already represents fluctuation from a prior baseline (schemas/semantic_profile_v1.schema.json), so its magnitude is reused as a discontinuity proxy."
+    },
+    "novelty_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Seed proxy: 1 - mean(semantic_profile.confidence) across source_step_ids -- lower deterministic-scorer confidence stands in for higher novelty/unfamiliarity in this seed."
+    },
+    "contradiction_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Seed proxy: proportion of source steps at alert_level == 'critical'."
+    },
+    "responsibility_shift_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Seed proxy: max(semantic_profile.responsibility_pressure) across source_step_ids."
+    },
+    "viewer_disagreement_pressure": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "max_disagreement_level from the Viewer pressure summary, or 0.0 when no Viewer feedback was supplied."
+    },
+    "jump_pressure": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "max(semantic_delta, discontinuity_score, contradiction_score, responsibility_shift_score, viewer_disagreement_pressure). See docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md for why max() was chosen."
+    },
+    "jump_recommended": {
+      "type": "boolean",
+      "description": "jump_pressure >= the jump threshold (0.85 in this seed -- deliberately higher than the reconstruct threshold of 0.75, since a jump is a frame change, not a same-frame patch). This flag is an evaluation only; it never triggers execution."
+    },
+    "jump_type": {
+      "type": "string",
+      "enum": [
+        "none",
+        "reframing",
+        "context_shift",
+        "responsibility_shift",
+        "ethical_frame_shift",
+        "blocked_trace_reactivation",
+        "unresolved_contradiction_jump"
+      ],
+      "description": "'none' whenever jump_recommended is false. Otherwise the type is chosen deterministically from whichever component tied the jump_pressure maximum, in priority order contradiction > responsibility > discontinuity > viewer-disagreement > semantic_delta (see contract doc). 'blocked_trace_reactivation' is reserved for a future computation path that is not produced by this PR's SemanticJumpTensorComputer."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

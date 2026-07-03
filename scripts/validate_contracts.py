@@ -59,6 +59,22 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
         "schema": "reconstruction_patch_v1.schema.json",
         "examples": ["reconstruction_patch.proposal_only.valid.json"],
     },
+    "po_trace_blocked_v1": {
+        "schema": "po_trace_blocked_v1.schema.json",
+        "examples": ["po_trace_blocked.blocked.valid.json"],
+    },
+    "po_self_seedling_v1": {
+        "schema": "po_self_seedling_v1.schema.json",
+        "examples": ["po_self_seedling.candidate.valid.json"],
+    },
+    "semantic_jump_tensor_v1": {
+        "schema": "semantic_jump_tensor_v1.schema.json",
+        "examples": ["semantic_jump_tensor.recommended.valid.json"],
+    },
+    "semantic_jump_plan_v1": {
+        "schema": "semantic_jump_plan_v1.schema.json",
+        "examples": ["semantic_jump_plan.planned.valid.json"],
+    },
 }
 
 

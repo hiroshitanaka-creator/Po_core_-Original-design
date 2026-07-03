@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/po_self_seedling_v1.schema.json",
+  "title": "Po_core po_self_seedling v1",
+  "description": "PR-014 design + runtime contract (seed-level). Represents Po_self's 'seedling' state -- a bootstrap-evaluation record of whether accumulated pressure (blocked-trace / Viewer / semantic-jump / ethical) is high enough to warrant treating Po_self as a candidate for future self-growth. This is NOT an autonomous self-growth loop: evaluating a seedling only ever produces a status label, never a running growth process. See docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "seedling_id",
+    "request_id",
+    "activation_source",
+    "activation_score",
+    "activation_threshold",
+    "input_pressures",
+    "status",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "po_self_seedling_v1" },
+    "seedling_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "activation_source": {
+      "type": "string",
+      "enum": [
+        "blocked_trace_pressure",
+        "viewer_resonance_pressure",
+        "semantic_jump_pressure",
+        "ethical_pressure",
+        "manual_seed",
+        "none"
+      ],
+      "description": "Which input pressure was dominant (equal to activation_score) when this seedling was evaluated. 'none' when every input pressure is 0."
+    },
+    "activation_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "max(blocked_trace_pressure, viewer_resonance_pressure, semantic_jump_pressure, ethical_pressure). See docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md for why max() was chosen over a multiplicative formula."
+    },
+    "activation_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The threshold activation_score was compared against to decide status='seed_planned' vs 'candidate'."
+    },
+    "input_pressures": {
+      "type": "object",
+      "description": "Open key set of the individual pressures considered (e.g. blocked_trace_pressure, viewer_pressure, semantic_jump_pressure, ethics_delta_pressure). Every value is normalized 0..1.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "blocked_trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "viewer_feedback_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "semantic_profile_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["inactive", "candidate", "seed_planned", "active_seed", "archived"],
+      "description": "PR-014 seed runtime only ever produces 'inactive' (activation_score == 0), 'candidate' (0 < activation_score < activation_threshold), or 'seed_planned' (activation_score >= activation_threshold). 'active_seed' and 'archived' are reserved for a future autonomous-growth phase and are never set by this PR's runtime -- no self-growth loop is started here."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

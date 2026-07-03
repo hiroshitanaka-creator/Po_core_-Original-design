@@ -1,0 +1,20 @@
+{
+  "schema_version": "po_self_seedling_v1",
+  "seedling_id": "seed_reqdemo_blockedt",
+  "request_id": "req_demo",
+  "activation_source": "blocked_trace_pressure",
+  "activation_score": 0.775,
+  "activation_threshold": 0.75,
+  "input_pressures": {
+    "blocked_trace_pressure": 0.775,
+    "viewer_pressure": 0.8,
+    "semantic_jump_pressure": 0.0,
+    "ethics_delta_pressure": 0.4
+  },
+  "blocked_trace_refs": ["btr_reqdemo_a1b2c3d4"],
+  "viewer_feedback_refs": ["vf_001"],
+  "semantic_profile_refs": ["sp_req_demo_2"],
+  "status": "seed_planned",
+  "created_at": "2026-07-02T07:22:35Z",
+  "trace_refs": ["evt_po_trace_blocked_read_001"]
+}

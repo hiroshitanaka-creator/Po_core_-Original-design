@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/po_trace_blocked_v1.schema.json",
+  "title": "Po_core po_trace_blocked v1",
+  "description": "PR-014 design + runtime contract (seed-level). Represents a semantic step / decision path / trace fragment that was diverted from the normal output path (safety block, suppression, deferred reconstruction/jump, rejected path, unresolved contradiction, viewer disagreement) and preserved as a future reactivation candidate. This is NOT a deletion log: Po_trace_blocked is an evolution-resource substrate, not an audit trash bin. Recording never executes reactivation, never bypasses the safety gate, and never rewrites content. See docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "blocked_trace_id",
+    "request_id",
+    "source_step_ids",
+    "blocked_reason",
+    "blocked_type",
+    "pressure_snapshot",
+    "reactivation_eligibility",
+    "reactivation_score",
+    "status",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "po_trace_blocked_v1" },
+    "blocked_trace_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "source_event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The Po_trace event (e.g. SemanticProfileComputed or PoSelfDecisionMade) this blocked trace originated from."
+    },
+    "source_step_ids": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "blocked_reason": { "type": "string", "minLength": 1 },
+    "blocked_type": {
+      "type": "string",
+      "enum": [
+        "safety_block",
+        "low_pressure_suppressed",
+        "reconstruction_deferred",
+        "jump_deferred",
+        "rejected_path",
+        "unresolved_contradiction",
+        "viewer_disagreement_pressure",
+        "unknown"
+      ]
+    },
+    "semantic_profile_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "pressure_snapshot": {
+      "type": "object",
+      "description": "Deterministic snapshot of the pressures observed at block-time (open key set, e.g. max_priority_score, max_viewer_pressure, jump_pressure). Every value is normalized 0..1.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "reactivation_eligibility": {
+      "type": "boolean",
+      "description": "Whether this blocked trace meets the deterministic reactivation-candidate score threshold. This flag is metadata only -- it never triggers automatic reactivation (docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md)."
+    },
+    "reactivation_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Deterministic seed score (mean of pressure_snapshot values) estimating future reactivation worth. Never used to auto-reactivate in this PR."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "blocked",
+        "reactivation_candidate",
+        "reactivated_planned",
+        "reactivated",
+        "archived"
+      ],
+      "description": "PR-014 seed runtime only ever creates status='blocked'. The remaining states are reserved for future controlled modes and are never set by this PR's runtime (see docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md)."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

@@ -29,9 +29,14 @@
         "PoSelfReconstructionPlanned",
         "PoSelfReconstructionApplied",
         "PoSelfCycleLimitReached",
-        "ConceptDriftGuardEvaluated"
+        "ConceptDriftGuardEvaluated",
+        "PoTraceBlockedRecorded",
+        "PoTraceBlockedRead",
+        "PoSelfSeedlingEvaluated",
+        "SemanticJumpTensorComputed",
+        "SemanticJumpPlanned"
       ],
-      "$comment": "PoSelfReconstructionPlanned is behaviorally emitted as of PR-006 (payload maps to reconstruction_plan_v1). PoSelfReconstructionApplied is behaviorally emitted as of PR-007 (payload summarizes reconstruction_patch_v1 proposals; means the plan was applied to the CONTROLLED EXECUTOR, not that content was rewritten -- content_rewrite_applied is always false). See docs/contracts/PO_TRACE_EVENT_V1.md. The other event types remain as declared."
+      "$comment": "PoSelfReconstructionPlanned is behaviorally emitted as of PR-006 (payload maps to reconstruction_plan_v1). PoSelfReconstructionApplied is behaviorally emitted as of PR-007 (payload summarizes reconstruction_patch_v1 proposals; means the plan was applied to the CONTROLLED EXECUTOR, not that content was rewritten -- content_rewrite_applied is always false). PoTraceBlockedRecorded/PoTraceBlockedRead (payload maps to po_trace_blocked_v1), PoSelfSeedlingEvaluated (payload maps to po_self_seedling_v1), and SemanticJumpTensorComputed/SemanticJumpPlanned (payload maps to semantic_jump_tensor_v1 / semantic_jump_plan_v1) are behaviorally emitted as of PR-014, feature-flagged and seed-level only -- see docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md, docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md, docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md. See docs/contracts/PO_TRACE_EVENT_V1.md. The other event types remain as declared."
     },
     "payload": {
       "type": "object",

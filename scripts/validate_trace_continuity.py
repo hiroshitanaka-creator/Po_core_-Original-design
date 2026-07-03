@@ -44,6 +44,11 @@ INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.orphan_decision.json",
     EXAMPLES_DIR / "trace_chain.invalid.missing_plan_parent.json",
     EXAMPLES_DIR / "trace_chain.invalid.application_without_plan.json",
+    # PR-014 (seed-level): Po_trace_blocked / Po_self_seedling / Semantic Jump Tensor.
+    EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_trace.json",
+    EXAMPLES_DIR / "trace_chain.invalid.seedling_without_blocked_trace.json",
+    EXAMPLES_DIR / "trace_chain.invalid.orphan_jump_tensor.json",
+    EXAMPLES_DIR / "trace_chain.invalid.jump_decision_without_plan.json",
 ]
 
 

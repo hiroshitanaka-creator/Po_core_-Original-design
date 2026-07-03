@@ -40,14 +40,28 @@ Activated so far:
       continuity back to its ``SemanticProfileComputed`` root. Validation
       only — it adds no new Po_core / Po_self / Viewer / reconstruction
       runtime behavior.
+    * ``BlockedTraceService`` / ``BlockedTraceReader`` (PR-014, seed-level) —
+      record a diverted semantic step / decision path as a ``PoTraceBlocked``
+      future reactivation *candidate* (never a deletion, never auto-
+      reactivated) and read it back for Po_self.
+    * ``SeedlingEvaluator`` (PR-014, off by default) — evaluates a
+      ``PoSelfSeedling`` bootstrap-activation record from accumulated
+      pressure. Evaluation only — no autonomous self-growth loop.
+    * ``SemanticJumpTensorComputer`` / ``SemanticJumpPlanner`` (PR-014, off by
+      default) — evaluate whether a semantic *frame* change (not a same-frame
+      ``reconstruct`` patch) may be warranted and, if so, propose a
+      ``SemanticJumpPlan`` requiring human review. Never executes a jump.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
-transparent deterministic seed, not the final tensor computation; Po_self's
-``jump`` / ``reject`` / ``reactivate`` decisions, actual content rewriting,
-LLM-based reconstruction, the full Viewer UI / REST feedback API / long-term
-persistence, philosopher deliberation, safety-gate runtime, and ML scoring
-are **not yet grown**. Those concepts are preserved in docs/ and remain the
-next stages of growth, not discarded simplifications.
+transparent deterministic seed, not the final tensor computation. As of
+PR-014, ``jump`` is emitted only as a secondary, informational decision tied
+to a ``SemanticJumpPlan`` — never executed. Po_self's ``reject`` / ``reactivate``
+decisions, actual jump *execution*, actual content rewriting, LLM-based
+reconstruction, the full Viewer UI / REST feedback API / long-term
+persistence, philosopher deliberation, safety-gate runtime, ML scoring, and
+any autonomous self-growth loop are **not yet grown**. Those concepts are
+preserved in docs/ and remain the next stages of growth, not discarded
+simplifications.
 
 Public usage::
 
@@ -60,6 +74,11 @@ Public usage::
 
 from __future__ import annotations
 
+from .blocked_trace import (
+    BlockedTraceReader,
+    BlockedTraceService,
+    InMemoryBlockedTraceStore,
+)
 from .kernel import PoCoreKernel
 from .models import (
     AlertLevel,
@@ -69,7 +88,9 @@ from .models import (
     PoSelfDecision,
     PoSelfPrioritySummary,
     PoSelfResult,
+    PoSelfSeedling,
     PoSelfTrigger,
+    PoTraceBlocked,
     PoTraceEvent,
     ReconstructionExecutionResult,
     ReconstructionOperation,
@@ -77,6 +98,8 @@ from .models import (
     ReconstructionPatch,
     ReconstructionPatchProposalBody,
     ReconstructionPlan,
+    SemanticJumpPlan,
+    SemanticJumpTensor,
     SemanticProfile,
     SemanticStep,
     SemanticStepSource,
@@ -87,6 +110,9 @@ from .self_controller import (
     ControlledReconstructionExecutor,
     PoSelfController,
     ReconstructionPlanner,
+    SeedlingEvaluator,
+    SemanticJumpPlanner,
+    SemanticJumpTensorComputer,
 )
 from .trace_validation import (
     TraceContinuityValidator,
@@ -99,7 +125,7 @@ from .viewer_feedback import (
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 __all__ = [
     "PoCoreKernel",
@@ -132,5 +158,15 @@ __all__ = [
     "TraceContinuityValidator",
     "TraceValidationIssue",
     "TraceValidationResult",
+    "PoTraceBlocked",
+    "BlockedTraceService",
+    "BlockedTraceReader",
+    "InMemoryBlockedTraceStore",
+    "PoSelfSeedling",
+    "SeedlingEvaluator",
+    "SemanticJumpTensor",
+    "SemanticJumpTensorComputer",
+    "SemanticJumpPlan",
+    "SemanticJumpPlanner",
     "__version__",
 ]
