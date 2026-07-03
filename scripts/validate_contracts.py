@@ -53,6 +53,8 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
             "po_trace.po_trace_blocked_reactivation_planned.valid.json",
             "po_trace.po_trace_blocked_reactivation_proposed.valid.json",
             "po_trace.semantic_jump_frame_proposed.valid.json",
+            "po_trace.semantic_jump_human_review_required.valid.json",
+            "po_trace.semantic_jump_human_review_decision_recorded.valid.json",
         ],
     },
     "reconstruction_plan_v1": {
@@ -90,6 +92,18 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
     "semantic_frame_proposal_v1": {
         "schema": "semantic_frame_proposal_v1.schema.json",
         "examples": ["semantic_frame_proposal.valid.json"],
+    },
+    "semantic_jump_human_review_request_v1": {
+        "schema": "semantic_jump_human_review_request_v1.schema.json",
+        "examples": ["semantic_jump_human_review_request.valid.json"],
+    },
+    "semantic_jump_human_review_decision_v1": {
+        "schema": "semantic_jump_human_review_decision_v1.schema.json",
+        "examples": [
+            "semantic_jump_human_review_decision.approved.valid.json",
+            "semantic_jump_human_review_decision.rejected.valid.json",
+            "semantic_jump_human_review_decision.needs_revision.valid.json",
+        ],
     },
 }
 

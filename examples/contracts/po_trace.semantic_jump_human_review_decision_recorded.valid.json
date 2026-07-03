@@ -1,0 +1,23 @@
+{
+  "schema_version": "po_trace_event_v1",
+  "event_id": "evt_semantic_jump_human_review_decision_recorded_001",
+  "request_id": "req_demo",
+  "event_type": "SemanticJumpHumanReviewDecisionRecorded",
+  "payload": {
+    "review_decision_id": "sjhd_reqdemo_sjhrreqde",
+    "review_request_id": "sjhr_reqdemo_sfpreqde",
+    "semantic_frame_proposal_id": "sfp_reqdemo_sjpreqde",
+    "decision": "approved",
+    "reviewer_type": "test_fixture",
+    "execution_authorized": true,
+    "semantic_jump_executed": false,
+    "semantic_frame_changed": false,
+    "content_rewrite_applied": false,
+    "state_mutation_applied": false,
+    "safety_bypass_applied": false,
+    "trace_reset_applied": false
+  },
+  "created_at": "2026-07-08T00:05:00Z",
+  "parent_event_id": "evt_semantic_jump_human_review_required_001",
+  "trace_refs": ["evt_semantic_jump_human_review_required_001"]
+}

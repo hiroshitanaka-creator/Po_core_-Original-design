@@ -74,6 +74,16 @@ Activated so far:
       ``semantic_frame_changed`` / ``content_rewrite_applied`` /
       ``state_mutation_applied`` / ``safety_bypass_applied`` /
       ``trace_reset_applied`` are always false.
+    * ``SemanticJumpHumanReviewGate`` (PR-018, off by default) — sends an
+      already-created ``SemanticFrameProposal`` to a human-reviewable gate
+      (``require_review()``) and separately records a human decision
+      (``record_decision()``, never invoked automatically) as
+      ``approved`` / ``rejected`` / ``needs_revision``. Never executes a
+      semantic jump, even when ``decision == "approved"``:
+      ``semantic_jump_executed`` / ``semantic_frame_changed`` /
+      ``content_rewrite_applied`` / ``state_mutation_applied`` /
+      ``safety_bypass_applied`` / ``trace_reset_applied`` are always
+      false.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation. As of
@@ -85,13 +95,18 @@ repository and no runtime ever reactivates a blocked trace. PR-016 advances
 ``reactivate`` one step further: a plan can now be converted into a
 deterministic *proposal*, still never an execution. PR-017 advances ``jump``
 the same way: a plan can now be converted into a deterministic semantic
-frame *proposal*, still never an actual frame change. Po_self's ``reject``
-decisions, actual jump/reactivation *execution*, actual content rewriting,
-LLM-based reconstruction, the full Viewer UI / REST feedback API / long-term
-persistence, philosopher deliberation, safety-gate runtime, ML scoring, and
-any autonomous self-growth loop are **not yet grown**. Those concepts are
-preserved in docs/ and remain the next stages of growth, not discarded
-simplifications.
+frame *proposal*, still never an actual frame change. PR-018 advances
+``jump`` one step further still: a frame proposal can now be sent to a
+human-reviewable gate and a decision (``approved``/``rejected``/
+``needs_revision``) can be recorded, but even ``approved`` never triggers
+execution — no code path exists from a recorded decision to any actual
+semantic jump. Po_self's ``reject`` decisions, actual jump/reactivation
+*execution*, automatic execution after human approval, actual content
+rewriting, LLM-based reconstruction, the full Viewer UI / REST feedback
+API / long-term persistence, philosopher deliberation, safety-gate
+runtime, ML scoring, and any autonomous self-growth loop are **not yet
+grown**. Those concepts are preserved in docs/ and remain the next stages
+of growth, not discarded simplifications.
 
 Public usage::
 
@@ -139,6 +154,8 @@ from .models import (
     SemanticFrameProposalConstraints,
     SemanticFrameProposalFrame,
     SemanticFrameProposalOperation,
+    SemanticJumpHumanReviewDecision,
+    SemanticJumpHumanReviewRequest,
     SemanticJumpPlan,
     SemanticJumpTensor,
     SemanticProfile,
@@ -155,6 +172,7 @@ from .self_controller import (
     PoTraceReactivationPlanner,
     ReconstructionPlanner,
     SeedlingEvaluator,
+    SemanticJumpHumanReviewGate,
     SemanticJumpPlanner,
     SemanticJumpTensorComputer,
 )
@@ -169,7 +187,7 @@ from .viewer_feedback import (
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
 
 __all__ = [
     "PoCoreKernel",
@@ -226,5 +244,8 @@ __all__ = [
     "SemanticFrameProposalFrame",
     "SemanticFrameProposalOperation",
     "SemanticFrameProposalConstraints",
+    "SemanticJumpHumanReviewGate",
+    "SemanticJumpHumanReviewRequest",
+    "SemanticJumpHumanReviewDecision",
     "__version__",
 ]

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-018)
+- `docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` — new design + runtime contract for the semantic jump human review gate.
+- `schemas/semantic_jump_human_review_request_v1.schema.json` (`semantic_frame_changed`/`content_rewrite_applied`/`state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied`/`semantic_jump_executed` are all `const false`).
+- `schemas/semantic_jump_human_review_decision_v1.schema.json` (same six flags `const false`, including on `decision="approved"`).
+- `src/po_core_original/self_controller/semantic_jump_human_review_gate.py` — `SemanticJumpHumanReviewGate`, converting an already-created `SemanticFrameProposal` into a deterministic human review request via `require_review()`, and recording a human decision (`approved`/`rejected`/`needs_revision`) via `record_decision()` (never invoked automatically). Refuses to run without required trace continuity; inherits (never recomputes) the proposal's original semantic step hashes and semantic_profile refs; `record_decision()` has no code path to any execution, regardless of `decision` or `execution_authorized`.
+- `PoSelfController` feature flag: `enable_semantic_jump_human_review_gate` (default `False`); only fires when a semantic frame proposal was created (i.e. `enable_semantic_jump`, `enable_semantic_jump_frame_proposal_execution`, and `enable_semantic_jump_human_review_gate` are all enabled together). `record_decision()` is never invoked by `PoSelfController.evaluate()`.
+- New trace event types: `SemanticJumpHumanReviewRequired`, `SemanticJumpHumanReviewDecisionRecorded` (added to `schemas/po_trace_event_v1.schema.json`; no actual semantic-jump-execution event is declared).
+- New dataclasses in `models.py`: `SemanticJumpHumanReviewRequest`, `SemanticJumpHumanReviewDecision`, `SemanticJumpHumanReviewGateResult`, `SemanticJumpHumanReviewDecisionResult`.
+- `TraceContinuityValidator` rules 21–22 (`docs/contracts/TRACE_CONTINUITY_V1.md` §8e, §10).
+- `docs/original_design_adr/ADR-0006-semantic-jump-human-review-gate.md` (Accepted).
+- Tests: `tests/test_semantic_jump_human_review_contract.py`, `tests/test_semantic_jump_human_review_gate.py`, `tests/test_trace_continuity_semantic_jump_human_review.py` (50 tests).
+- 6 new valid schema/event examples + 2 new valid trace-chain fixtures + 2 new invalid trace-chain fixtures under `examples/contracts/`.
+
+### Changed (PR-018)
+- `PoSelfResult` gains an optional field: `semantic_jump_human_review_request`.
+- `scripts/validate_contracts.py` and `scripts/validate_trace_continuity.py` register the new schemas/examples.
+- `tests/test_contract_schemas.py`'s `event_type` enum coverage assertion and `tests/test_validate_trace_continuity_script.py`'s check-count assertion updated for the 2 new event types / 4 new example files.
+
+### Not Changed (PR-018)
+- No actual semantic jump execution; no semantic frame mutation; no content rewriting; no state mutation; no safety-gate bypass; no trace reset; no automatic execution after an `approved` decision; no LLM reconstruction; no philosopher tensor execution; no autonomous self-growth loop.
+- `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`, `ControlledReconstructionExecutor`, `ViewerFeedbackService`, `BlockedTraceService`/`BlockedTraceReader`, `SeedlingEvaluator`, `SemanticJumpTensorComputer`/`SemanticJumpPlanner`, `PoTraceReactivationPlanner`, `ControlledBlockedTraceReactivationProposalExecutor`, `ControlledSemanticJumpFrameProposalExecutor` are untouched.
+- Default-flag request flow (`enable_semantic_jump_human_review_gate=False`) produces no new trace event types, verified by test.
+
 ### Added (PR-017)
 - `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` — new design + runtime contract for semantic jump frame proposal execution.
 - `schemas/semantic_frame_proposal_v1.schema.json` (`semantic_frame_changed`/`content_rewrite_applied`/`state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied` are all `const false`).

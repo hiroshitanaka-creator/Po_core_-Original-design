@@ -251,7 +251,12 @@ trace and populating `PoSelfResult.semantic_frame_proposal`.
   requiring its own ADR before any runtime implements it
   (`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`,
   `docs/contracts/TRACE_CONTINUITY_V1.md` §14).
-- **PR-018 (recommended next task)** — a Semantic Jump Human Review Gate
-  Seed: sends a `SemanticFrameProposal` to a human-reviewable gate before
-  any future execution, recording `approved`/`rejected`/`needs_revision`
-  decisions — still never executing the jump even when approved.
+- **PR-018 update:** a `SemanticFrameProposal` can now be sent to a
+  human-reviewable gate — still never executing the jump even when
+  `approved` — by `SemanticJumpHumanReviewGate`
+  (`self_controller/semantic_jump_human_review_gate.py`, feature flag
+  `enable_semantic_jump_human_review_gate`, default `False`). See
+  `docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` for the full
+  contract. Actual semantic jump execution itself remains not implemented;
+  this only adds a third seed-level control layer (tensor → plan →
+  proposal → human review) ahead of it.
