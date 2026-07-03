@@ -75,6 +75,8 @@ SemanticProfileComputed
           └─ SemanticJumpPlanned
                 ├─ PoSelfDecisionMade (decision_type="jump")
                 ├─ SemanticJumpFrameProposed   (PR-017, seed-level, feature-flagged)
+                │     └─ SemanticJumpHumanReviewRequired   (PR-018, seed-level,
+                │           └─ SemanticJumpHumanReviewDecisionRecorded  feature-flagged)
                 └─ PoSelfSeedlingEvaluated   (PR-015: alternate ancestry, §8b)
                       └─ PoTraceBlockedReactivationEvaluated
                             └─ PoTraceBlockedReactivationPlanned
@@ -101,9 +103,16 @@ event type consumes it as a parent, because this contract does not declare a
 
 `SemanticJumpFrameProposed` is added by PR-017
 (`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`) — see §8d below for its
-required parent/child rule. It is likewise a **terminal** node: no event
-type consumes it as a parent, because this contract does not declare any
-actual semantic-jump-execution event at all (§14).
+required parent/child rule. As of PR-018, it is no longer a terminal node:
+`SemanticJumpHumanReviewRequired` consumes it as a parent (§8e).
+
+`SemanticJumpHumanReviewRequired` and `SemanticJumpHumanReviewDecisionRecorded`
+are added by PR-018
+(`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md`) — see §8e below for
+their required parent/child rules. `SemanticJumpHumanReviewDecisionRecorded`
+is a **terminal** node in this chain: no event type consumes it as a
+parent, because this contract does not declare any actual
+semantic-jump-execution event at all (§14).
 
 `ReconstructionPatchProposal[]` (the `reconstruction_patch_v1` objects on
 `PoSelfResult.reconstruction_execution.patches`) are not themselves
@@ -310,12 +319,44 @@ runtime; Rule 9's strict catch-all also now scans `SemanticJumpFrameProposed`
 for a bare `parent_event_id`/`trace_refs` presence check, same as every
 other non-root type.
 
-No event type in this contract consumes `SemanticJumpFrameProposed` as its
-own ancestor — it is a terminal node (§4). This is deliberate: this
+As of PR-018, `SemanticJumpFrameProposed` is no longer a terminal node in
+this chain: `SemanticJumpHumanReviewRequired` (§8e) consumes it as an
+ancestor. `reconstruct` (a same-frame patch) and `jump` (a frame-change
+proposal) are never conflated by this rule or by the executor that emits
+this event.
+
+## 8e. Semantic jump human review gate branch (PR-018)
+
+Two more event types were added in PR-018, seed-level and feature-flagged
+(`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md`), sending a
+`SemanticFrameProposal` to a human-reviewable gate before any future
+semantic jump execution:
+
+- **`SemanticJumpHumanReviewRequired`** requires a `SemanticJumpFrameProposed`
+  ancestor (Rule 21), plus payload validation that six safety-invariant
+  flags (`semantic_frame_changed`, `content_rewrite_applied`,
+  `state_mutation_applied`, `safety_bypass_applied`, `trace_reset_applied`,
+  `semantic_jump_executed`) are all `false`. This event is emitted whenever
+  `SemanticJumpHumanReviewGate.require_review()` runs.
+- **`SemanticJumpHumanReviewDecisionRecorded`** requires a
+  `SemanticJumpHumanReviewRequired` ancestor (Rule 22), plus payload
+  validation of the same six safety-invariant flags, all `false` —
+  **regardless of `payload.decision`**, including `"approved"`. This event
+  is emitted whenever `SemanticJumpHumanReviewGate.record_decision()` runs;
+  it is never emitted automatically by `PoSelfController.evaluate()`.
+
+Neither new event type is ever produced as a free-floating orphan by the
+runtime; Rule 9's strict catch-all also now scans
+`SemanticJumpHumanReviewRequired` / `SemanticJumpHumanReviewDecisionRecorded`
+for a bare `parent_event_id`/`trace_refs` presence check, same as every
+other non-root type.
+
+No event type in this contract consumes `SemanticJumpHumanReviewDecisionRecorded`
+as its own ancestor — it is a terminal node (§4). This is deliberate: this
 contract does not declare any actual semantic-jump-execution event, so
-there is nothing downstream of a proposal for the validator to require.
-`reconstruct` (a same-frame patch) and `jump` (a frame-change proposal) are
-never conflated by this rule or by the executor that emits this event.
+there is nothing downstream of a recorded decision for the validator to
+require — even an `"approved"` decision has no code path to execution
+(`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` §3).
 
 ## 9. Validation modes
 
@@ -333,9 +374,11 @@ never conflated by this rule or by the executor that emits this event.
   ancestry and payload-contract rules (§10 Rules 17–18, §8b); the PR-016
   `PoTraceBlockedReactivationProposed` ancestry and payload-contract rule
   (§10 Rule 19, §8c); the PR-017 `SemanticJumpFrameProposed` ancestry and
-  payload-contract rule (§10 Rule 20, §8d). Non-strict mode is for validating
-  a deliberately **partial** trace slice — it does not waive genuine
-  structural violations.
+  payload-contract rule (§10 Rule 20, §8d); the PR-018
+  `SemanticJumpHumanReviewRequired` / `SemanticJumpHumanReviewDecisionRecorded`
+  ancestry and payload-contract rules (§10 Rules 21–22, §8e). Non-strict
+  mode is for validating a deliberately **partial** trace slice — it does
+  not waive genuine structural violations.
 - **Strict-only**: mixed `request_id` values become errors instead of
   warnings (§10 Rule 2); unresolved `trace_refs` become errors instead of
   warnings (§10 Rule 10); reserved future controlled-mode event types
@@ -357,8 +400,8 @@ Defined in `src/po_core_original/trace_validation/errors.py`:
 | `TraceContinuityError` | `ValueError` | (base class) |
 | `MissingRootEventError` | `TraceContinuityError` | `missing_root_event` |
 | `OrphanTraceEventError` | `TraceContinuityError` | `orphan_po_self_decision`, `viewer_feedback_applied_without_feedback_source`, `orphan_trace_event`, `orphan_po_trace_blocked`, `trace_blocked_read_without_source`, `orphan_semantic_jump_tensor` |
-| `MissingParentEventError` | `TraceContinuityError` | `missing_trace_ref`, `reconstruction_plan_without_decision`, `reconstruction_applied_without_plan`, `seedling_without_blocked_trace`, `jump_plan_without_tensor`, `reactivation_evaluated_without_seedling`, `reactivation_plan_without_seedling`, `reactivation_plan_without_evaluation`, `reactivation_proposed_without_plan`, `frame_proposed_without_plan` |
-| `InvalidTraceTransitionError` | `TraceContinuityError` | `invalid_reconstruction_plan_source`, `reconstruction_applied_missing_preservation_flags`, `unsupported_future_controlled_mode_event`, `jump_plan_without_recommendation`, `jump_decision_without_plan`, `reactivation_plan_missing_safety_flags`, `reactivation_proposed_missing_safety_flags`, `frame_proposed_missing_safety_flags` |
+| `MissingParentEventError` | `TraceContinuityError` | `missing_trace_ref`, `reconstruction_plan_without_decision`, `reconstruction_applied_without_plan`, `seedling_without_blocked_trace`, `jump_plan_without_tensor`, `reactivation_evaluated_without_seedling`, `reactivation_plan_without_seedling`, `reactivation_plan_without_evaluation`, `reactivation_proposed_without_plan`, `frame_proposed_without_plan`, `review_required_without_proposal`, `review_decision_without_request` |
+| `InvalidTraceTransitionError` | `TraceContinuityError` | `invalid_reconstruction_plan_source`, `reconstruction_applied_missing_preservation_flags`, `unsupported_future_controlled_mode_event`, `jump_plan_without_recommendation`, `jump_decision_without_plan`, `reactivation_plan_missing_safety_flags`, `reactivation_proposed_missing_safety_flags`, `frame_proposed_missing_safety_flags`, `review_required_missing_safety_flags`, `review_decision_missing_safety_flags` |
 | `RequestIdMismatchError` | `TraceContinuityError` | `request_id_mismatch` |
 | `DuplicateEventIdError` | `TraceContinuityError` | `duplicate_event_id` |
 
@@ -423,6 +466,15 @@ Numbered validation rules (implemented in `validator.py`):
     and its payload's five safety-invariant flags must all be `false`**
     (PR-017) — `frame_proposed_without_plan`,
     `frame_proposed_missing_safety_flags`.
+21. **`SemanticJumpHumanReviewRequired` requires `SemanticJumpFrameProposed`
+    ancestry, and its payload's six safety-invariant flags must all be
+    `false`** (PR-018) — `review_required_without_proposal`,
+    `review_required_missing_safety_flags`.
+22. **`SemanticJumpHumanReviewDecisionRecorded` requires
+    `SemanticJumpHumanReviewRequired` ancestry, and its payload's six
+    safety-invariant flags must all be `false` — regardless of
+    `payload.decision`** (PR-018) — `review_decision_without_request`,
+    `review_decision_missing_safety_flags`.
 
 ## 11. Valid example path
 
@@ -508,6 +560,27 @@ individual event inside them still validates against
   → a `SemanticJumpFrameProposed` event with no `SemanticJumpPlanned`
   ancestor → `frame_proposed_without_plan`.
 
+**PR-018 adds four more fixtures** exercised by
+`tests/test_trace_continuity_semantic_jump_human_review.py`:
+
+- `examples/contracts/trace_chain.valid.semantic_jump_human_review_required.json`
+  — a full valid chain from `SemanticProfileComputed` through
+  `SemanticJumpTensorComputed` → `SemanticJumpPlanned` →
+  `SemanticJumpFrameProposed` → `SemanticJumpHumanReviewRequired`, passing
+  `TraceContinuityValidator(strict=True)` with no issues.
+- `examples/contracts/trace_chain.valid.semantic_jump_human_review_decision_recorded.json`
+  — the same chain extended one step further with
+  `SemanticJumpHumanReviewDecisionRecorded`, passing
+  `TraceContinuityValidator(strict=True)` with no issues.
+- `examples/contracts/trace_chain.invalid.orphan_semantic_jump_human_review_required.json`
+  → a `SemanticJumpHumanReviewRequired` event with no
+  `SemanticJumpFrameProposed` ancestor →
+  `review_required_without_proposal`.
+- `examples/contracts/trace_chain.invalid.orphan_semantic_jump_human_review_decision_recorded.json`
+  → a `SemanticJumpHumanReviewDecisionRecorded` event with no
+  `SemanticJumpHumanReviewRequired` ancestor →
+  `review_decision_without_request`.
+
 ## 13. What this contract does NOT implement
 
 - PR-008 through PR-013 added no new trace event types to
@@ -525,14 +598,17 @@ individual event inside them still validates against
   (`PoTraceBlockedReactivationProposed`), documented in
   `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`. **PR-017 adds one
   more** (`SemanticJumpFrameProposed`), documented in
-  `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` — again seed-level,
-  feature-flagged, and additive; no event type or field from PR-008 through
-  PR-016 was changed or removed.
+  `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`. **PR-018 adds two more**
+  (`SemanticJumpHumanReviewRequired`, `SemanticJumpHumanReviewDecisionRecorded`),
+  documented in `docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` —
+  again seed-level, feature-flagged, and additive; no event type or field
+  from PR-008 through PR-017 was changed or removed.
 - No runtime behavior changes **to the pre-existing preserve/reconstruct
   flow**: `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`,
   `ControlledReconstructionExecutor`, and `ViewerFeedbackService` are
-  untouched by PR-014, PR-015, PR-016, or PR-017; `PoSelfController` gains
-  new, additive, feature-flagged wiring only (§8a, §8b, §8c, §8d above).
+  untouched by PR-014, PR-015, PR-016, PR-017, or PR-018; `PoSelfController`
+  gains new, additive, feature-flagged wiring only (§8a, §8b, §8c, §8d, §8e
+  above).
   `TraceContinuityValidator` only *reads* already-emitted `PoTraceEvent`
   objects; it never mutates them.
 - Event-id-level continuity from `ViewerFeedbackApplied` back to the specific
@@ -615,3 +691,23 @@ this contract, and none is granted free-floating legitimacy. Any future PR
 implementing actual semantic jump execution must add a new event type to
 the envelope, a new required parent/child row in §5, and a new numbered
 rule in §10 *before* that runtime ships.
+
+`jump` advances one step further still as of PR-018: a
+`SemanticJumpHumanReviewRequired` event (§8e) now exists and is
+behaviorally emitted, sending a `SemanticFrameProposal` to a
+human-reviewable gate; a `SemanticJumpHumanReviewDecisionRecorded` event
+(§8e) records the resulting decision (`approved`/`rejected`/
+`needs_revision`) — still never an actual semantic frame change, even when
+the decision is `approved`. `semantic_jump_executed` is `const false`
+throughout both `semantic_jump_human_review_request_v1` and
+`semantic_jump_human_review_decision_v1`
+(`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md`), and this
+section's own requirement was followed for PR-018 exactly as it was for
+PR-014's `jump` evaluation/planning phase, PR-017's frame-proposal phase,
+and PR-015/PR-016's `reactivate` planning/proposal phases. No actual
+semantic-jump-execution event is declared anywhere in this contract, and
+none is granted free-floating legitimacy — not even a recorded `approved`
+decision, which is a record for a future controlled executor only. Any
+future PR implementing actual semantic jump execution must add a new
+event type to the envelope, a new required parent/child row in §5, and a
+new numbered rule in §10 *before* that runtime ships.

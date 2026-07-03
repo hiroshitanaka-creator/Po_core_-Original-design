@@ -1,0 +1,47 @@
+{
+  "schema_version": "semantic_jump_human_review_request_v1",
+  "review_request_id": "sjhr_reqdemo_sfpreqde",
+  "request_id": "req_demo",
+  "semantic_frame_proposal_id": "sfp_reqdemo_sjpreqde",
+  "semantic_jump_plan_id": "sjp_reqdemo_sjtreqde",
+  "semantic_jump_tensor_id": "sjt_reqdemo_psdreqde",
+  "source_step_ids": ["step_002"],
+  "review_status": "required",
+  "review_reason": "Semantic frame proposal requires human review before any future jump execution.",
+  "review_required": true,
+  "execution_mode": "human_review_gate_only",
+  "semantic_frame_changed": false,
+  "content_rewrite_applied": false,
+  "state_mutation_applied": false,
+  "safety_bypass_applied": false,
+  "trace_reset_applied": false,
+  "semantic_jump_executed": false,
+  "original_semantic_step_hashes": {
+    "step_002": "3f39d5c348e5b79d06e842c114e6cc571583bbf44e4b0ebfda1a01ec05745d43"
+  },
+  "original_semantic_profile_refs": ["sp_req_demo_2"],
+  "source_trace_refs": ["evt_semantic_jump_frame_proposed_001"],
+  "review_payload": {
+    "proposal_summary": "Semantic jump plan sjp_reqdemo_sjtreqde suggests a future frame shift of type ethical_frame_shift across 1 step(s).",
+    "frame_shift_type": "ethical_frame_shift",
+    "jump_pressure": 0.0,
+    "risk_summary": "Semantic frame proposal sfp_reqdemo_sjpreqde suggests a frame shift of type ethical_frame_shift across 1 step(s). No semantic frame change, content rewrite, state mutation, safety bypass, or trace reset has been applied.",
+    "review_questions": [
+      "Should this semantic frame shift be allowed for a future controlled executor?",
+      "Does this proposal preserve the original semantic steps and trace?",
+      "Does this proposal require revision before any future execution?"
+    ]
+  },
+  "safety_constraints": {
+    "requires_trace_continuity": true,
+    "requires_human_review_for_execution": true,
+    "requires_future_executor": true,
+    "forbids_content_rewrite": true,
+    "forbids_state_mutation": true,
+    "forbids_safety_bypass": true,
+    "forbids_trace_reset": true,
+    "forbids_auto_execution_after_approval": true
+  },
+  "created_at": "2026-07-08T00:00:00Z",
+  "trace_refs": ["evt_semantic_jump_frame_proposed_001"]
+}

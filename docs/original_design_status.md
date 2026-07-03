@@ -10,6 +10,129 @@
 
 ## 現フェーズ
 
+**Phase 17: Semantic Jump Human Review Gate Seed（PR-018）— 完了
+（`read` / `verify` / `request_review` / `record_decision` / `trace` /
+`validate` のみ。`actual semantic jump execution` /
+`semantic frame の実変更` / `content rewrite` / `trace reset` /
+`state mutation` / `safety bypass` / `approved decision による自動実行` /
+`LLM reconstruction` / `philosopher runtime execution` /
+`autonomous self-growth loop` は一切実装していない）。**
+
+本PR（PR-018）は、PR-017 が確立した `SemanticFrameProposal` の上に、
+意味枠転位提案を human-reviewable gate へ送付し、人間レビュー結果を
+記録する層を追加した。`ControlledReconstructionExecutor`（PR-007）・
+`ControlledBlockedTraceReactivationProposalExecutor`（PR-016）・
+`ControlledSemanticJumpFrameProposalExecutor`（PR-017）のパッチ/提案
+パターンをさらに一段進め、`SemanticFrameProposal` を人間レビュー要求へ
+変換することで、実際の意味枠変更ではなく人間レビュー結果の記録を生成
+する。`approved` と `executed` は絶対に混同しない — `approved` は将来の
+統制実行器のための記録に過ぎず、`record_decision()` から実行への
+コードパスは一切存在しない。
+
+契約：`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` を新規追加。
+既存の `docs/contracts/CONTRACT_OVERVIEW.md`・
+`docs/contracts/PO_TRACE_EVENT_V1.md`・
+`docs/contracts/TRACE_CONTINUITY_V1.md`・
+`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`・
+`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` を更新（正直な実装済み
+/未実装区分を維持）。`schemas/semantic_jump_human_review_request_v1.schema.json`・
+`schemas/semantic_jump_human_review_decision_v1.schema.json` を新規追加
+（`semantic_frame_changed`/`content_rewrite_applied`/
+`state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied`/
+`semantic_jump_executed` はいずれも `const false`、decision側は `decision`
+の値に関わらず常に `false`）。`schemas/po_trace_event_v1.schema.json` の
+`event_type` enum に `SemanticJumpHumanReviewRequired`・
+`SemanticJumpHumanReviewDecisionRecorded` を追加（実際の意味枠実行
+イベントは意図的に追加しない）。
+
+実装：`src/po_core_original/self_controller/semantic_jump_human_review_gate.py`
+（新規）— `SemanticJumpHumanReviewGate.require_review()` が
+`SemanticFrameProposal` を読み取り、その `original_semantic_step_hashes` /
+`original_semantic_profile_refs` を再計算せずそのまま継承した決定論的な
+`SemanticJumpHumanReviewRequest` を生成、`SemanticJumpHumanReviewRequired`
+を発行する（trace continuity 検証失敗時は `ValueError`）。
+`record_decision()` は既に作成済みの review request に対し、
+`approved`/`rejected`/`needs_revision` のいずれかを記録し
+（不正な値は `ValueError`）、`SemanticJumpHumanReviewDecisionRecorded` を
+発行する — `execution_authorized` が `True` であっても
+`semantic_jump_executed` は常に `False` を維持する。`models.py` に
+`SemanticJumpHumanReviewRequest`/`SemanticJumpHumanReviewDecision`/
+`SemanticJumpHumanReviewGateResult`/`SemanticJumpHumanReviewDecisionResult`
+dataclass を追加、`PoSelfResult` に `semantic_jump_human_review_request`
+任意フィールドを追加。`PoSelfController` に
+`enable_semantic_jump_human_review_gate`（既定 `False`）を追加、frame
+proposal 発行直後に `require_review()` を配線 — `record_decision()` は
+`evaluate()` から一切自動実行されない（人間レビューは単一の
+`evaluate()` 呼び出しの外側で行われる決定であるため）。
+
+検証：`src/po_core_original/trace_validation/` — `TraceContinuityValidator`
+に新規ルール21・22（`docs/contracts/TRACE_CONTINUITY_V1.md` §8e・§10）を
+追加：`SemanticJumpHumanReviewRequired` は `SemanticJumpFrameProposed`
+祖先必須、`SemanticJumpHumanReviewDecisionRecorded` は
+`SemanticJumpHumanReviewRequired` 祖先必須、いずれも6つの安全不変フラグが
+すべて `false` であることをペイロードレベルでも検証する（`decision`の値に
+関わらず）。これは `docs/contracts/TRACE_CONTINUITY_V1.md` §14 が要求する
+「実装前の契約拡張」を満たす。`tests/test_semantic_jump_human_review_contract.py`
+（23件）・`tests/test_semantic_jump_human_review_gate.py`（17件）・
+`tests/test_trace_continuity_semantic_jump_human_review.py`（10件）を
+新規追加（計50件、全パス）。`examples/contracts/` に有効例6件・有効チェーン
+例2件・無効チェーン例2件を追加。`scripts/validate_contracts.py`（16
+schemas / 27 examples）・`scripts/validate_trace_continuity.py`
+（`--include-negative` で16ファイル：有効6件+無効12件）を更新。
+`tests/test_contract_schemas.py` の `event_type` enum カバレッジ
+アサーションと `tests/test_validate_trace_continuity_script.py` の
+チェック件数アサーション（14→16）を新規イベント型・新規ファイルを含む
+よう更新（PR-018固有の変更ではなく、PR-015〜PR-017から存在した既存テストの
+定数更新）。ADR-0006
+（`docs/original_design_adr/ADR-0006-semantic-jump-human-review-gate.md`、
+Accepted）を新規追加。
+
+**結果:** 本PRの新規50件全パス。既存の全PR-014/PR-015/PR-016/PR-017
+回帰テスト（`test_po_trace_blocked_contract.py`・
+`test_po_self_seedling_contract.py`・`test_semantic_jump_tensor_contract.py`・
+`test_semantic_jump_seed_wiring.py`・`test_trace_continuity_seedling_jump.py`・
+`test_trace_continuity_validator.py`・`test_contract_schemas.py`・
+`test_validate_trace_continuity_script.py`・
+`test_po_trace_reactivation_plan_contract.py`・
+`test_po_trace_blocked_reactivation_planner.py`・
+`test_trace_continuity_blocked_reactivation.py`・
+`test_po_trace_reactivation_proposal_contract.py`・
+`test_blocked_trace_reactivation_proposal_executor.py`・
+`test_trace_continuity_blocked_reactivation_proposal.py`・
+`test_semantic_frame_proposal_contract.py`・
+`test_semantic_jump_frame_proposal_executor.py`・
+`test_trace_continuity_semantic_jump_frame_proposal.py`）→ 全パス（新規
+50件と合わせ計340件超）。`python scripts/validate_contracts.py` → 16
+schemas / 27 examples 全て有効。`python scripts/validate_trace_continuity.py
+--include-negative` → 有効チェーン6件 + 無効チェーン12件すべて期待通り。
+`python scripts/check_concept_drift.py --check-pr-template` → PASS。
+`python scripts/check_adr_index.py` → PASS（ADR-0006含む）。
+`python scripts/governance_preflight.py` → PASS。
+
+**明示的に未実装（正直な区分）：**
+- 実際の semantic jump 実行（`SemanticJumpHumanReviewDecisionRecorded` を
+  消費する実行イベント自体がスキーマに未宣言）
+- 意味枠（semantic frame）の実変更
+- 内容書き換え
+- trace リセット
+- 状態変更
+- 安全ゲート回避
+- `approved` decision による自動実行
+- LLM ベース再構成
+- 哲学者テンソル実行
+- 自律的な自己成長ループ
+- 長期永続化
+
+既存 `kernel.py`/`step_decomposer.py`/`semantic_profile_engine.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`blocked_trace/`/`seedling_evaluator.py`/
+`semantic_jump_tensor.py`/`semantic_jump_planner.py`/
+`reactivation_planner.py`/`blocked_reactivation_proposal_executor.py`/
+`semantic_frame_proposal_executor.py`・哲学者ロスター・`run_turn` パイプ
+ラインは無変更。`PoSelfController` への変更は既存動作に対して完全に
+加算的・feature-flagged であり、既定フラグでの通常リクエストフローは
+PR-018 以前とイベント型の観点でバイト同一であることをテストで確認済み。
+
 **Phase 16: Semantic Jump Frame Proposal Executor Seed（PR-017）— 完了
 （`read` / `verify` / `propose` / `trace` / `validate` のみ。
 `actual semantic jump execution` / `semantic frame の実変更` /
