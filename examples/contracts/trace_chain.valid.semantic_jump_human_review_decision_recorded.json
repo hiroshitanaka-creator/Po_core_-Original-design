@@ -1,0 +1,143 @@
+{
+  "description": "PR-018 VALID trace chain example: a full chain from SemanticProfileComputed through SemanticJumpTensorComputed -> SemanticJumpPlanned -> SemanticJumpFrameProposed -> SemanticJumpHumanReviewRequired -> SemanticJumpHumanReviewDecisionRecorded. Passes TraceContinuityValidator(strict=True) with no issues. See docs/contracts/TRACE_CONTINUITY_V1.md §8e and §11.",
+  "expected_validation_result": {
+    "valid": true,
+    "issue_codes": []
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_semantic_jump_human_review_decision_recorded",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_semantic_jump_human_review_decision_recorded_1",
+            "primary_axis": "responsibility_axis",
+            "priority_score": 8.0,
+            "alert_level": "critical"
+          }
+        ]
+      },
+      "created_at": "2026-07-08T00:00:00Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_tensor_computed_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpTensorComputed",
+      "payload": {
+        "semantic_jump_tensor_id": "sjt_sjhd_1",
+        "request_id": "req_semantic_jump_human_review_decision_recorded",
+        "source_step_ids": ["step_001"],
+        "jump_pressure": 0.9,
+        "jump_recommended": true,
+        "jump_type": "responsibility_shift",
+        "semantic_delta": 0.8,
+        "discontinuity_score": 0.8,
+        "novelty_score": 0.7,
+        "contradiction_score": 0.6,
+        "responsibility_shift_score": 0.9,
+        "viewer_disagreement_pressure": 0.5
+      },
+      "created_at": "2026-07-08T00:00:00Z",
+      "parent_event_id": "evt_semantic_profile_computed_sjhd",
+      "trace_refs": ["evt_semantic_profile_computed_sjhd"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_planned_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpPlanned",
+      "payload": {
+        "jump_plan_id": "sjp_sjhd_1",
+        "request_id": "req_semantic_jump_human_review_decision_recorded",
+        "semantic_jump_tensor_id": "sjt_sjhd_1",
+        "source_jump_type": "responsibility_shift",
+        "plan_status": "planned",
+        "target_step_ids": ["step_001"],
+        "requires_human_review": true
+      },
+      "created_at": "2026-07-08T00:00:00Z",
+      "parent_event_id": "evt_semantic_jump_tensor_computed_sjhd",
+      "trace_refs": ["evt_semantic_jump_tensor_computed_sjhd"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_frame_proposed_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpFrameProposed",
+      "payload": {
+        "proposal_id": "sfp_sjhd_1",
+        "semantic_jump_plan_id": "sjp_sjhd_1",
+        "semantic_jump_tensor_id": "sjt_sjhd_1",
+        "source_step_ids": ["step_001"],
+        "proposal_status": "proposed",
+        "execution_mode": "semantic_frame_proposal_only",
+        "semantic_frame_changed": false,
+        "content_rewrite_applied": false,
+        "state_mutation_applied": false,
+        "safety_bypass_applied": false,
+        "trace_reset_applied": false,
+        "operation_count": 1,
+        "trace_continuity_verified": true
+      },
+      "created_at": "2026-07-08T00:00:00Z",
+      "parent_event_id": "evt_semantic_jump_planned_sjhd",
+      "trace_refs": ["evt_semantic_jump_planned_sjhd"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_human_review_required_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpHumanReviewRequired",
+      "payload": {
+        "review_request_id": "sjhr_sjhd_1",
+        "semantic_frame_proposal_id": "sfp_sjhd_1",
+        "semantic_jump_plan_id": "sjp_sjhd_1",
+        "semantic_jump_tensor_id": "sjt_sjhd_1",
+        "source_step_ids": ["step_001"],
+        "review_status": "required",
+        "execution_mode": "human_review_gate_only",
+        "semantic_frame_changed": false,
+        "content_rewrite_applied": false,
+        "state_mutation_applied": false,
+        "safety_bypass_applied": false,
+        "trace_reset_applied": false,
+        "semantic_jump_executed": false,
+        "operation": "request_human_review"
+      },
+      "created_at": "2026-07-08T00:00:00Z",
+      "parent_event_id": "evt_semantic_jump_frame_proposed_sjhd",
+      "trace_refs": ["evt_semantic_jump_frame_proposed_sjhd"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_human_review_decision_recorded_sjhd",
+      "request_id": "req_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpHumanReviewDecisionRecorded",
+      "payload": {
+        "review_decision_id": "sjhd_sjhd_1",
+        "review_request_id": "sjhr_sjhd_1",
+        "semantic_frame_proposal_id": "sfp_sjhd_1",
+        "decision": "approved",
+        "reviewer_type": "test_fixture",
+        "execution_authorized": true,
+        "semantic_jump_executed": false,
+        "semantic_frame_changed": false,
+        "content_rewrite_applied": false,
+        "state_mutation_applied": false,
+        "safety_bypass_applied": false,
+        "trace_reset_applied": false
+      },
+      "created_at": "2026-07-08T00:05:00Z",
+      "parent_event_id": "evt_semantic_jump_human_review_required_sjhd",
+      "trace_refs": ["evt_semantic_jump_human_review_required_sjhd"]
+    }
+  ]
+}

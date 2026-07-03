@@ -22,6 +22,10 @@ from .reactivation_planner import (
 from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
 from .seedling_evaluator import SEEDLING_ACTIVATION_THRESHOLD, SeedlingEvaluator
+from .semantic_frame_proposal_executor import (
+    ControlledSemanticJumpFrameProposalExecutor,
+)
+from .semantic_jump_human_review_gate import SemanticJumpHumanReviewGate
 from .semantic_jump_planner import SemanticJumpPlanner
 from .semantic_jump_tensor import JUMP_PRESSURE_THRESHOLD, SemanticJumpTensorComputer
 from .trace_reader import PoTraceReader
@@ -42,4 +46,6 @@ __all__ = [
     "PoTraceReactivationPlanner",
     "REACTIVATION_THRESHOLD_DEFAULT",
     "ControlledBlockedTraceReactivationProposalExecutor",
+    "ControlledSemanticJumpFrameProposalExecutor",
+    "SemanticJumpHumanReviewGate",
 ]

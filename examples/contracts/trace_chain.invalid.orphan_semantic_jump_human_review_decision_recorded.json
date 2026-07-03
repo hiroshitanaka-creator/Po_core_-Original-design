@@ -1,0 +1,51 @@
+{
+  "description": "PR-018 INVALID trace chain example: a SemanticProfileComputed root exists, but SemanticJumpHumanReviewDecisionRecorded has no parent_event_id/trace_refs at all -> orphan (review_decision_without_request). See docs/contracts/TRACE_CONTINUITY_V1.md §8e.",
+  "expected_validation_result": {
+    "valid": false,
+    "issue_codes": ["review_decision_without_request"]
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_orphan_sjhd",
+      "request_id": "req_orphan_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_orphan_semantic_jump_human_review_decision_recorded",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_orphan_semantic_jump_human_review_decision_recorded_1",
+            "primary_axis": "responsibility_axis",
+            "priority_score": 8.0,
+            "alert_level": "critical"
+          }
+        ]
+      },
+      "created_at": "2026-07-08T00:00:00Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_jump_human_review_decision_recorded_orphan",
+      "request_id": "req_orphan_semantic_jump_human_review_decision_recorded",
+      "event_type": "SemanticJumpHumanReviewDecisionRecorded",
+      "payload": {
+        "review_decision_id": "sjhd_orphan_1",
+        "review_request_id": "sjhr_orphan_1",
+        "semantic_frame_proposal_id": "sfp_orphan_1",
+        "decision": "approved",
+        "reviewer_type": "test_fixture",
+        "execution_authorized": true,
+        "semantic_jump_executed": false,
+        "semantic_frame_changed": false,
+        "content_rewrite_applied": false,
+        "state_mutation_applied": false,
+        "safety_bypass_applied": false,
+        "trace_reset_applied": false
+      },
+      "created_at": "2026-07-08T00:05:00Z"
+    }
+  ]
+}

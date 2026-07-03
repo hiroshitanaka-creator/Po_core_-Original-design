@@ -46,6 +46,13 @@ SEMANTIC_JUMP_TENSOR_SCHEMA_VERSION = "semantic_jump_tensor_v1"
 SEMANTIC_JUMP_PLAN_SCHEMA_VERSION = "semantic_jump_plan_v1"
 PO_TRACE_REACTIVATION_PLAN_SCHEMA_VERSION = "po_trace_reactivation_plan_v1"
 PO_TRACE_REACTIVATION_PROPOSAL_SCHEMA_VERSION = "po_trace_reactivation_proposal_v1"
+SEMANTIC_FRAME_PROPOSAL_SCHEMA_VERSION = "semantic_frame_proposal_v1"
+SEMANTIC_JUMP_HUMAN_REVIEW_REQUEST_SCHEMA_VERSION = (
+    "semantic_jump_human_review_request_v1"
+)
+SEMANTIC_JUMP_HUMAN_REVIEW_DECISION_SCHEMA_VERSION = (
+    "semantic_jump_human_review_decision_v1"
+)
 
 # Fixed, required core axes of a viewer feedback_tensor (schema: 5 axes, plus
 # optional normalized 0..1 extension axes).
@@ -374,6 +381,10 @@ class PoSelfResult:
     reactivation_evaluation: Optional["ReactivationEvaluationResult"] = None
     reactivation_plan: Optional["PoTraceReactivationPlan"] = None
     reactivation_proposal: Optional["PoTraceReactivationProposal"] = None
+    semantic_frame_proposal: Optional["SemanticFrameProposal"] = None
+    semantic_jump_human_review_request: Optional["SemanticJumpHumanReviewRequest"] = (
+        None
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -421,6 +432,16 @@ class PoSelfResult:
             "reactivation_proposal": (
                 self.reactivation_proposal.to_dict()
                 if self.reactivation_proposal is not None
+                else None
+            ),
+            "semantic_frame_proposal": (
+                self.semantic_frame_proposal.to_dict()
+                if self.semantic_frame_proposal is not None
+                else None
+            ),
+            "semantic_jump_human_review_request": (
+                self.semantic_jump_human_review_request.to_dict()
+                if self.semantic_jump_human_review_request is not None
                 else None
             ),
         }
@@ -1281,6 +1302,422 @@ class PoTraceReactivationProposalResult:
             "content_rewrite_applied": self.content_rewrite_applied,
             "state_mutation_applied": self.state_mutation_applied,
             "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_continuity_verified": self.trace_continuity_verified,
+            "cycle_guard_passed": self.cycle_guard_passed,
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Semantic frame proposal models — PR-017.
+#
+# ControlledSemanticJumpFrameProposalExecutor reads a SemanticJumpPlan
+# (PR-014) and its originating SemanticJumpTensor and produces a
+# deterministic semantic frame PROPOSAL -- it never changes the semantic
+# frame: ``semantic_frame_changed`` / ``content_rewrite_applied`` /
+# ``state_mutation_applied`` / ``safety_bypass_applied`` /
+# ``trace_reset_applied`` are always False. See
+# docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md.
+# --------------------------------------------------------------------------- #
+
+EXECUTION_MODE_SEMANTIC_FRAME_PROPOSAL_ONLY = "semantic_frame_proposal_only"
+
+
+@dataclass(frozen=True)
+class SemanticFrameProposalConstraints:
+    """Guardrails on a single proposed frame-shift operation.
+
+    In PR-017 these are fixed: the semantic frame is never changed, content
+    is never rewritten, state is never mutated, safety is never bypassed,
+    trace is never reset, and the original semantic steps / semantic_profile
+    / source trace are always preserved for a future controlled executor.
+    """
+
+    semantic_frame_change_allowed: bool = False
+    content_rewrite_allowed: bool = False
+    state_mutation_allowed: bool = False
+    safety_bypass_allowed: bool = False
+    trace_reset_allowed: bool = False
+    preserve_original_semantic_steps: bool = True
+    preserve_semantic_profile: bool = True
+    preserve_source_trace: bool = True
+    requires_future_executor: bool = True
+
+    def to_dict(self) -> Dict[str, bool]:
+        return {
+            "semantic_frame_change_allowed": self.semantic_frame_change_allowed,
+            "content_rewrite_allowed": self.content_rewrite_allowed,
+            "state_mutation_allowed": self.state_mutation_allowed,
+            "safety_bypass_allowed": self.safety_bypass_allowed,
+            "trace_reset_allowed": self.trace_reset_allowed,
+            "preserve_original_semantic_steps": self.preserve_original_semantic_steps,
+            "preserve_semantic_profile": self.preserve_semantic_profile,
+            "preserve_source_trace": self.preserve_source_trace,
+            "requires_future_executor": self.requires_future_executor,
+        }
+
+
+@dataclass(frozen=True)
+class SemanticFrameProposalOperation:
+    """One deterministic proposal (not execution) over a source semantic step."""
+
+    operation_id: str
+    operation_type: (
+        str  # inspect_semantic_frame / prepare_frame_shift_proposal /
+        # link_to_jump_plan / request_human_review / preserve_original_frame
+    )
+    target_step_id: str
+    proposal_text: str
+    rationale: str
+    constraints: SemanticFrameProposalConstraints = field(
+        default_factory=SemanticFrameProposalConstraints
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "operation_type": self.operation_type,
+            "target_step_id": self.target_step_id,
+            "proposal_text": self.proposal_text,
+            "rationale": self.rationale,
+            "constraints": self.constraints.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class SemanticFrameProposalFrame:
+    """The single, request-level frame-shift proposal body."""
+
+    proposal_kind: str
+    frame_shift_type: str
+    frame_summary: str
+    frame_rationale: str
+    placeholder_text: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "proposal_kind": self.proposal_kind,
+            "frame_shift_type": self.frame_shift_type,
+            "frame_summary": self.frame_summary,
+            "frame_rationale": self.frame_rationale,
+            "placeholder_text": self.placeholder_text,
+        }
+
+
+@dataclass(frozen=True)
+class SemanticFrameProposal:
+    """Deterministic semantic frame proposal (mirrors
+    ``semantic_frame_proposal_v1``).
+
+    Converts a ``SemanticJumpPlan`` into a proposal; never changes the
+    semantic frame. ``semantic_frame_changed``, ``content_rewrite_applied``,
+    ``state_mutation_applied``, ``safety_bypass_applied``, and
+    ``trace_reset_applied`` are always False. References the plan this
+    proposal was generated from via ``semantic_jump_plan_id``.
+    """
+
+    schema_version: str
+    proposal_id: str
+    request_id: str
+    semantic_jump_plan_id: str
+    semantic_jump_tensor_id: str
+    source_step_ids: List[str]
+    proposal_status: str
+    execution_mode: str
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    original_semantic_step_hashes: Dict[str, str]
+    original_semantic_profile_refs: List[str]
+    source_trace_refs: List[str]
+    proposed_frame: SemanticFrameProposalFrame
+    proposed_operations: List[SemanticFrameProposalOperation]
+    safety_constraints: Dict[str, bool]
+    rationale: str
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "proposal_id": self.proposal_id,
+            "request_id": self.request_id,
+            "semantic_jump_plan_id": self.semantic_jump_plan_id,
+            "semantic_jump_tensor_id": self.semantic_jump_tensor_id,
+            "source_step_ids": list(self.source_step_ids),
+            "proposal_status": self.proposal_status,
+            "execution_mode": self.execution_mode,
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
+            "original_semantic_step_hashes": dict(self.original_semantic_step_hashes),
+            "original_semantic_profile_refs": list(self.original_semantic_profile_refs),
+            "source_trace_refs": list(self.source_trace_refs),
+            "proposed_frame": self.proposed_frame.to_dict(),
+            "proposed_operations": [op.to_dict() for op in self.proposed_operations],
+            "safety_constraints": dict(self.safety_constraints),
+            "rationale": self.rationale,
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }
+
+
+@dataclass
+class SemanticFrameProposalResult:
+    """Result of one
+    ``ControlledSemanticJumpFrameProposalExecutor.execute()`` call.
+
+    Bundles the produced proposal with the ``SemanticJumpFrameProposed``
+    trace event and the executor's preservation/continuity/cycle
+    guarantees.
+    """
+
+    request_id: str
+    semantic_jump_plan_id: str
+    proposal: SemanticFrameProposal
+    trace_event: "PoTraceEvent"
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    trace_continuity_verified: bool
+    cycle_guard_passed: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "semantic_jump_plan_id": self.semantic_jump_plan_id,
+            "proposal": self.proposal.to_dict(),
+            "trace_event": self.trace_event.to_dict(),
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
+            "trace_continuity_verified": self.trace_continuity_verified,
+            "cycle_guard_passed": self.cycle_guard_passed,
+        }
+
+
+# --------------------------------------------------------------------------- #
+# Semantic jump human review gate models — PR-018.
+#
+# SemanticJumpHumanReviewGate reads a SemanticFrameProposal (PR-017) and
+# sends it to a human-reviewable gate BEFORE any future semantic jump
+# execution -- it never executes a semantic jump: ``semantic_jump_executed``
+# / ``semantic_frame_changed`` / ``content_rewrite_applied`` /
+# ``state_mutation_applied`` / ``safety_bypass_applied`` /
+# ``trace_reset_applied`` are always False, even when a recorded decision is
+# 'approved'. See docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md.
+# --------------------------------------------------------------------------- #
+
+EXECUTION_MODE_HUMAN_REVIEW_GATE_ONLY = "human_review_gate_only"
+
+
+@dataclass(frozen=True)
+class SemanticJumpHumanReviewRequest:
+    """Deterministic human review request (mirrors
+    ``semantic_jump_human_review_request_v1``).
+
+    Converts a ``SemanticFrameProposal`` into a request for human review;
+    never executes a semantic jump. ``semantic_frame_changed``,
+    ``content_rewrite_applied``, ``state_mutation_applied``,
+    ``safety_bypass_applied``, ``trace_reset_applied``, and
+    ``semantic_jump_executed`` are always False. References the proposal
+    this request was generated from via ``semantic_frame_proposal_id``.
+    """
+
+    schema_version: str
+    review_request_id: str
+    request_id: str
+    semantic_frame_proposal_id: str
+    semantic_jump_plan_id: str
+    semantic_jump_tensor_id: str
+    source_step_ids: List[str]
+    review_status: str
+    review_reason: str
+    review_required: bool
+    execution_mode: str
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    semantic_jump_executed: bool
+    original_semantic_step_hashes: Dict[str, str]
+    original_semantic_profile_refs: List[str]
+    source_trace_refs: List[str]
+    review_payload: Dict[str, Any]
+    safety_constraints: Dict[str, bool]
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "review_request_id": self.review_request_id,
+            "request_id": self.request_id,
+            "semantic_frame_proposal_id": self.semantic_frame_proposal_id,
+            "semantic_jump_plan_id": self.semantic_jump_plan_id,
+            "semantic_jump_tensor_id": self.semantic_jump_tensor_id,
+            "source_step_ids": list(self.source_step_ids),
+            "review_status": self.review_status,
+            "review_reason": self.review_reason,
+            "review_required": self.review_required,
+            "execution_mode": self.execution_mode,
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
+            "semantic_jump_executed": self.semantic_jump_executed,
+            "original_semantic_step_hashes": dict(self.original_semantic_step_hashes),
+            "original_semantic_profile_refs": list(self.original_semantic_profile_refs),
+            "source_trace_refs": list(self.source_trace_refs),
+            "review_payload": dict(self.review_payload),
+            "safety_constraints": dict(self.safety_constraints),
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }
+
+
+@dataclass(frozen=True)
+class SemanticJumpHumanReviewDecision:
+    """Deterministic human review decision (mirrors
+    ``semantic_jump_human_review_decision_v1``).
+
+    Records a human review decision against a
+    ``SemanticJumpHumanReviewRequest``; never executes a semantic jump even
+    when ``decision == "approved"``. ``semantic_jump_executed``,
+    ``semantic_frame_changed``, ``content_rewrite_applied``,
+    ``state_mutation_applied``, ``safety_bypass_applied``, and
+    ``trace_reset_applied`` are always False regardless of ``decision`` or
+    ``execution_authorized``.
+    """
+
+    schema_version: str
+    review_decision_id: str
+    review_request_id: str
+    request_id: str
+    semantic_frame_proposal_id: str
+    decision: str
+    reviewer_type: str
+    decision_reason: str
+    execution_authorized: bool
+    semantic_jump_executed: bool
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    requires_followup: bool
+    followup_recommendation: str
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "review_decision_id": self.review_decision_id,
+            "review_request_id": self.review_request_id,
+            "request_id": self.request_id,
+            "semantic_frame_proposal_id": self.semantic_frame_proposal_id,
+            "decision": self.decision,
+            "reviewer_type": self.reviewer_type,
+            "decision_reason": self.decision_reason,
+            "execution_authorized": self.execution_authorized,
+            "semantic_jump_executed": self.semantic_jump_executed,
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
+            "requires_followup": self.requires_followup,
+            "followup_recommendation": self.followup_recommendation,
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }
+
+
+@dataclass
+class SemanticJumpHumanReviewGateResult:
+    """Result of one ``SemanticJumpHumanReviewGate.require_review()`` call.
+
+    Bundles the produced review request with the
+    ``SemanticJumpHumanReviewRequired`` trace event and the gate's
+    preservation/continuity/cycle guarantees.
+    """
+
+    request_id: str
+    semantic_frame_proposal_id: str
+    review_request: SemanticJumpHumanReviewRequest
+    trace_event: "PoTraceEvent"
+    semantic_jump_executed: bool
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    trace_continuity_verified: bool
+    cycle_guard_passed: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "semantic_frame_proposal_id": self.semantic_frame_proposal_id,
+            "review_request": self.review_request.to_dict(),
+            "trace_event": self.trace_event.to_dict(),
+            "semantic_jump_executed": self.semantic_jump_executed,
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
+            "trace_continuity_verified": self.trace_continuity_verified,
+            "cycle_guard_passed": self.cycle_guard_passed,
+        }
+
+
+@dataclass
+class SemanticJumpHumanReviewDecisionResult:
+    """Result of one ``SemanticJumpHumanReviewGate.record_decision()`` call.
+
+    Bundles the produced decision record with the
+    ``SemanticJumpHumanReviewDecisionRecorded`` trace event and the gate's
+    preservation/continuity/cycle guarantees. Never triggers execution --
+    ``semantic_jump_executed`` is always False, even when
+    ``decision.decision == "approved"``.
+    """
+
+    request_id: str
+    review_request_id: str
+    decision: SemanticJumpHumanReviewDecision
+    trace_event: "PoTraceEvent"
+    semantic_jump_executed: bool
+    semantic_frame_changed: bool
+    content_rewrite_applied: bool
+    state_mutation_applied: bool
+    safety_bypass_applied: bool
+    trace_reset_applied: bool
+    trace_continuity_verified: bool
+    cycle_guard_passed: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "review_request_id": self.review_request_id,
+            "decision": self.decision.to_dict(),
+            "trace_event": self.trace_event.to_dict(),
+            "semantic_jump_executed": self.semantic_jump_executed,
+            "semantic_frame_changed": self.semantic_frame_changed,
+            "content_rewrite_applied": self.content_rewrite_applied,
+            "state_mutation_applied": self.state_mutation_applied,
+            "safety_bypass_applied": self.safety_bypass_applied,
+            "trace_reset_applied": self.trace_reset_applied,
             "trace_continuity_verified": self.trace_continuity_verified,
             "cycle_guard_passed": self.cycle_guard_passed,
         }

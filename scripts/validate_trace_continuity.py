@@ -42,9 +42,15 @@ from po_core_original.trace_validation import TraceContinuityValidator  # noqa: 
 VALID_EXAMPLE = EXAMPLES_DIR / "trace_chain.valid.json"
 # PR-015 (seed-level): Blocked trace reactivation planning.
 # PR-016 (seed-level): Blocked trace reactivation proposal execution.
+# PR-017 (seed-level): Semantic jump frame proposal execution.
+# PR-018 (seed-level): Semantic jump human review gate.
 ADDITIONAL_VALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.valid.blocked_reactivation_plan.json",
     EXAMPLES_DIR / "trace_chain.valid.blocked_reactivation_proposal.json",
+    EXAMPLES_DIR / "trace_chain.valid.semantic_jump_frame_proposal.json",
+    EXAMPLES_DIR / "trace_chain.valid.semantic_jump_human_review_required.json",
+    EXAMPLES_DIR
+    / "trace_chain.valid.semantic_jump_human_review_decision_recorded.json",
 ]
 INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.orphan_decision.json",
@@ -59,6 +65,13 @@ INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_reactivation_plan.json",
     # PR-016 (seed-level): Blocked trace reactivation proposal execution.
     EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_reactivation_proposal.json",
+    # PR-017 (seed-level): Semantic jump frame proposal execution.
+    EXAMPLES_DIR / "trace_chain.invalid.orphan_semantic_jump_frame_proposed.json",
+    # PR-018 (seed-level): Semantic jump human review gate.
+    EXAMPLES_DIR
+    / "trace_chain.invalid.orphan_semantic_jump_human_review_required.json",
+    EXAMPLES_DIR
+    / "trace_chain.invalid.orphan_semantic_jump_human_review_decision_recorded.json",
 ]
 
 

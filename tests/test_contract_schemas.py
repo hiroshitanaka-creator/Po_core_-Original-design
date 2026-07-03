@@ -227,5 +227,10 @@ def test_po_trace_event_type_enum_covers_all_contract_events() -> None:
         "PoTraceBlockedReactivationPlanned",
         # PR-016 (seed-level): Blocked trace reactivation proposal execution.
         "PoTraceBlockedReactivationProposed",
+        # PR-017 (seed-level): Semantic jump frame proposal execution.
+        "SemanticJumpFrameProposed",
+        # PR-018 (seed-level): Semantic jump human review gate.
+        "SemanticJumpHumanReviewRequired",
+        "SemanticJumpHumanReviewDecisionRecorded",
     }
     assert event_types == expected

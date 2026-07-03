@@ -36,6 +36,9 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `semantic_jump_plan_v1` | `schemas/semantic_jump_plan_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, feature-flagged off by default) | `PoTraceReactivationPlanner` (optional pressure input, PR-015); future controlled jump execution (not implemented) |
 | `po_trace_reactivation_plan_v1` | `schemas/po_trace_reactivation_plan_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` | Po_self (Layer 2, PR-015, feature-flagged off by default) | `ControlledBlockedTraceReactivationProposalExecutor` (PR-016) |
 | `po_trace_reactivation_proposal_v1` | `schemas/po_trace_reactivation_proposal_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` | Po_self (Layer 2, PR-016, feature-flagged off by default) | future controlled reactivation execution phase (not implemented) |
+| `semantic_frame_proposal_v1` | `schemas/semantic_frame_proposal_v1.schema.json` | `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` | Po_self (Layer 2, PR-017, feature-flagged off by default) | `SemanticJumpHumanReviewGate` (PR-018) |
+| `semantic_jump_human_review_request_v1` | `schemas/semantic_jump_human_review_request_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` | Po_self (Layer 2, PR-018, feature-flagged off by default) | a human reviewer (or `test_fixture`); `SemanticJumpHumanReviewGate.record_decision()` |
+| `semantic_jump_human_review_decision_v1` | `schemas/semantic_jump_human_review_decision_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` | Po_self (Layer 2, PR-018, feature-flagged off by default; never invoked automatically) | future controlled jump execution phase (not implemented) |
 
 > `po_trace_blocked_v1`, `po_self_seedling_v1`, `semantic_jump_tensor_v1`, and
 > `semantic_jump_plan_v1` (PR-014) are design **and** runtime contracts, like
@@ -57,6 +60,21 @@ architecture is protected from being quietly dropped for being "not implemented 
 > reactivates, rewrites, mutates state, or bypasses safety
 > (`reactivation_executed`/`content_rewrite_applied`/
 > `state_mutation_applied`/`safety_bypass_applied` are all `const false`).
+> `semantic_frame_proposal_v1` (PR-017) applies the same pattern to the
+> `jump` decision type instead of `reactivate`: seed-level, feature-flagged
+> off by default (`enable_semantic_jump_frame_proposal_execution`), and
+> never changes a semantic frame, rewrites content, mutates state, bypasses
+> safety, or resets trace (`semantic_frame_changed`/`content_rewrite_applied`/
+> `state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied` are
+> all `const false`). `semantic_jump_human_review_request_v1` /
+> `semantic_jump_human_review_decision_v1` (PR-018) extend the same
+> `jump`-side pattern one layer further: seed-level, feature-flagged off by
+> default (`enable_semantic_jump_human_review_gate`), and never execute a
+> semantic jump, even when a recorded decision is `approved`
+> (`semantic_jump_executed`/`semantic_frame_changed`/
+> `content_rewrite_applied`/`state_mutation_applied`/
+> `safety_bypass_applied`/`trace_reset_applied` are all `const false` on
+> both the request and the decision).
 
 > `reconstruction_plan_v1` (PR-006) and `reconstruction_patch_v1` (PR-007) are design
 > **and runtime** contracts — unlike the five PR-002 schema-only contracts above
@@ -197,6 +215,64 @@ SemanticProfileComputed
             → PoTraceBlockedReactivationProposed
 ```
 
+### Semantic jump frame proposal execution (PR-017, seed-level)
+
+A sixth concept applies the same "plan → deterministic proposal" pattern
+to the `jump` decision type, still feature-flagged and still never changing
+a semantic frame:
+
+- **`SemanticFrameProposal`** (`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`):
+  `ControlledSemanticJumpFrameProposalExecutor` reads an already-created
+  `SemanticJumpPlan` and its originating `SemanticJumpTensor` /
+  `SemanticStep`s, re-verifies the plan's `requires_human_review` invariant
+  and the tensor's `jump_recommended` flag (refusing to run otherwise), and
+  produces a deterministic frame-shift *proposal* per target step —
+  preserving each semantic step's original content hash. `reconstruct` (a
+  same-frame patch) and `jump` (a frame-change proposal) are never
+  conflated: this executor only ever proposes, never applies, a frame
+  change. `SemanticJumpFrameProposed` is always emitted when the executor
+  runs. `enable_semantic_jump_frame_proposal_execution` defaults `False`;
+  `semantic_frame_changed` / `content_rewrite_applied` /
+  `state_mutation_applied` / `safety_bypass_applied` / `trace_reset_applied`
+  are all `const false` — no semantic frame change is ever executed.
+
+```text
+SemanticProfileComputed
+  └─ SemanticJumpTensorComputed → SemanticJumpPlanned → PoSelfDecisionMade(jump)
+       → SemanticJumpFrameProposed
+```
+
+### Semantic jump human review gate (PR-018, seed-level)
+
+A seventh concept sends a `SemanticFrameProposal` to a human-reviewable
+gate *before* any future semantic jump execution, still feature-flagged
+and still never executing a semantic jump — even when the recorded
+decision is `approved`:
+
+- **`SemanticJumpHumanReviewRequest`** / **`SemanticJumpHumanReviewDecision`**
+  (`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md`):
+  `SemanticJumpHumanReviewGate.require_review()` reads an already-created
+  `SemanticFrameProposal`, copies (never recomputes) its original semantic
+  step hashes / semantic_profile refs, and produces a deterministic human
+  review request; `SemanticJumpHumanReviewRequired` is always emitted when
+  it runs. `record_decision()` — never invoked automatically by
+  `PoSelfController` — separately records a human decision
+  (`approved`/`rejected`/`needs_revision`) against that request, emitting
+  `SemanticJumpHumanReviewDecisionRecorded`. `approved` is a record for a
+  *future* controlled executor only: `SemanticJumpHumanReviewGate` has no
+  code path from `record_decision()` to any execution.
+  `enable_semantic_jump_human_review_gate` defaults `False`;
+  `semantic_jump_executed` / `semantic_frame_changed` /
+  `content_rewrite_applied` / `state_mutation_applied` /
+  `safety_bypass_applied` / `trace_reset_applied` are all `const false` on
+  both the request and the decision — no semantic jump is ever executed.
+
+```text
+SemanticProfileComputed
+  └─ SemanticJumpTensorComputed → SemanticJumpPlanned → SemanticJumpFrameProposed
+       → SemanticJumpHumanReviewRequired → SemanticJumpHumanReviewDecisionRecorded
+```
+
 ### Trace continuity chain (PR-008)
 
 `docs/contracts/TRACE_CONTINUITY_V1.md` formalizes the chain every one of the
@@ -292,3 +368,20 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
   its refusal to run against an unsafe plan and its content-hash
   preservation proof), and the new `TraceContinuityValidator` rule for
   `po_trace_reactivation_proposal_v1`.
+- `tests/test_semantic_frame_proposal_contract.py`,
+  `tests/test_semantic_jump_frame_proposal_executor.py`,
+  `tests/test_trace_continuity_semantic_jump_frame_proposal.py` (PR-017) —
+  schema validation, deterministic
+  `ControlledSemanticJumpFrameProposalExecutor` behavior (including its
+  refusal to run against a tensor/plan that doesn't recommend/require a
+  jump and its semantic-step content-hash preservation proof), and the new
+  `TraceContinuityValidator` rule for `semantic_frame_proposal_v1`.
+- `tests/test_semantic_jump_human_review_contract.py`,
+  `tests/test_semantic_jump_human_review_gate.py`,
+  `tests/test_trace_continuity_semantic_jump_human_review.py` (PR-018) —
+  schema validation, deterministic `SemanticJumpHumanReviewGate` behavior
+  (including its refusal to run without required trace continuity, and
+  that `semantic_jump_executed` remains `False` even when a recorded
+  decision is `approved`), and the two new `TraceContinuityValidator`
+  rules for `semantic_jump_human_review_request_v1` /
+  `semantic_jump_human_review_decision_v1`.

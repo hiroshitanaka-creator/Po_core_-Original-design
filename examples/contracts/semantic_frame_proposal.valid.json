@@ -1,0 +1,59 @@
+{
+  "schema_version": "semantic_frame_proposal_v1",
+  "proposal_id": "sfp_reqdemo_sjpreqde",
+  "request_id": "req_demo",
+  "semantic_jump_plan_id": "sjp_reqdemo_sjtreqde",
+  "semantic_jump_tensor_id": "sjt_reqdemo_psdreqde",
+  "source_step_ids": ["step_002"],
+  "proposal_status": "proposed",
+  "execution_mode": "semantic_frame_proposal_only",
+  "semantic_frame_changed": false,
+  "content_rewrite_applied": false,
+  "state_mutation_applied": false,
+  "safety_bypass_applied": false,
+  "trace_reset_applied": false,
+  "original_semantic_step_hashes": {
+    "step_002": "3f39d5c348e5b79d06e842c114e6cc571583bbf44e4b0ebfda1a01ec05745d43"
+  },
+  "original_semantic_profile_refs": ["sp_req_demo_2"],
+  "source_trace_refs": ["evt_semantic_jump_planned_001"],
+  "proposed_frame": {
+    "proposal_kind": "deterministic_frame_placeholder",
+    "frame_shift_type": "ethical_frame_shift",
+    "frame_summary": "Semantic jump plan sjp_reqdemo_sjtreqde suggests a future frame shift of type ethical_frame_shift across 1 step(s).",
+    "frame_rationale": "SemanticJumpTensor sjt_reqdemo_psdreqde recommended a jump (jump_pressure=0.9, jump_type='ethical_frame_shift'); proposing a semantic frame change for human review. No jump is executed by this plan.",
+    "placeholder_text": "[SEMANTIC_FRAME_PROPOSAL_ONLY] Semantic jump plan sjp_reqdemo_sjtreqde suggests a future frame shift of type ethical_frame_shift. No semantic frame change, content rewrite, state mutation, safety bypass, or trace reset has been applied."
+  },
+  "proposed_operations": [
+    {
+      "operation_id": "op_sfpreqde_step002",
+      "operation_type": "prepare_frame_shift_proposal",
+      "target_step_id": "step_002",
+      "proposal_text": "[SEMANTIC_FRAME_PROPOSAL_ONLY] Semantic jump plan sjp_reqdemo_sjtreqde marks step step_002 for a future semantic frame proposal of type ethical_frame_shift. No semantic frame change, content rewrite, state mutation, safety bypass, or trace reset has been applied.",
+      "rationale": "SemanticJumpPlan sjp_reqdemo_sjtreqde marked step step_002 as part of a possible semantic frame shift. PR-017 only creates a deterministic frame proposal.",
+      "constraints": {
+        "semantic_frame_change_allowed": false,
+        "content_rewrite_allowed": false,
+        "state_mutation_allowed": false,
+        "safety_bypass_allowed": false,
+        "trace_reset_allowed": false,
+        "preserve_original_semantic_steps": true,
+        "preserve_semantic_profile": true,
+        "preserve_source_trace": true,
+        "requires_future_executor": true
+      }
+    }
+  ],
+  "safety_constraints": {
+    "requires_trace_continuity": true,
+    "requires_human_review_for_execution": true,
+    "requires_future_executor": true,
+    "forbids_content_rewrite": true,
+    "forbids_state_mutation": true,
+    "forbids_safety_bypass": true,
+    "forbids_trace_reset": true
+  },
+  "rationale": "Controlled frame proposal execution for semantic jump plan sjp_reqdemo_sjtreqde (1/1 source step(s) resolved). Proposal only; no semantic jump is ever executed by this PR.",
+  "created_at": "2026-07-05T00:00:00Z",
+  "trace_refs": ["evt_semantic_jump_planned_001"]
+}

@@ -184,3 +184,25 @@ flow is byte-identical to pre-PR-014 behavior.
 - `blocked_trace_reactivation`-specific tensor computation driven by
   `Po_trace_blocked` reactivation pressure.
 - `reject` / `reactivate` execution remain separate, reserved decision types.
+
+**PR-017 update:** a `SemanticJumpPlan` can now be converted into a
+deterministic `SemanticFrameProposal` — still never an actual semantic frame
+change — by `ControlledSemanticJumpFrameProposalExecutor`
+(`self_controller/semantic_frame_proposal_executor.py`, feature flag
+`enable_semantic_jump_frame_proposal_execution`, default `False`). See
+`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` for the full contract. Real
+jump **execution** itself remains not implemented; this only adds a second
+seed-level control layer (tensor → plan → proposal) ahead of it, mirroring
+the `PoTraceReactivationPlan` → `PoTraceReactivationProposal` pattern
+(PR-015/PR-016) for the `reactivate` decision type.
+
+**PR-018 update:** a `SemanticFrameProposal` can now be sent to a
+human-reviewable gate — recording `approved`/`rejected`/`needs_revision`
+decisions, still never executing the jump even when `approved` — by
+`SemanticJumpHumanReviewGate`
+(`self_controller/semantic_jump_human_review_gate.py`, feature flag
+`enable_semantic_jump_human_review_gate`, default `False`). See
+`docs/contracts/SEMANTIC_JUMP_HUMAN_REVIEW_GATE_V1.md` for the full
+contract. Real jump **execution** itself remains not implemented; this
+adds a third seed-level control layer (tensor → plan → proposal → human
+review) ahead of it.
