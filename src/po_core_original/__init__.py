@@ -51,17 +51,27 @@ Activated so far:
       default) — evaluate whether a semantic *frame* change (not a same-frame
       ``reconstruct`` patch) may be warranted and, if so, propose a
       ``SemanticJumpPlan`` requiring human review. Never executes a jump.
+    * ``PoTraceReactivationPlanner`` (PR-015, off by default) — reads an
+      already-evaluated ``PoSelfSeedling`` and its associated
+      ``PoTraceBlocked`` records and *proposes* which are reactivation
+      candidates via a ``PoTraceReactivationPlan``. Never reactivates
+      anything: ``reactivation_execution_allowed`` /
+      ``content_rewrite_allowed`` / ``state_mutation_allowed`` /
+      ``safety_bypass_allowed`` are always false.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation. As of
 PR-014, ``jump`` is emitted only as a secondary, informational decision tied
-to a ``SemanticJumpPlan`` — never executed. Po_self's ``reject`` / ``reactivate``
-decisions, actual jump *execution*, actual content rewriting, LLM-based
-reconstruction, the full Viewer UI / REST feedback API / long-term
-persistence, philosopher deliberation, safety-gate runtime, ML scoring, and
-any autonomous self-growth loop are **not yet grown**. Those concepts are
-preserved in docs/ and remain the next stages of growth, not discarded
-simplifications.
+to a ``SemanticJumpPlan`` — never executed. As of PR-015, ``reactivate`` is
+partially advanced the same honest way: a reactivation *plan* can be
+proposed, but no ``PoTraceBlockedReactivated`` event exists anywhere in this
+repository and no runtime ever reactivates a blocked trace. Po_self's
+``reject`` decisions, actual jump/reactivation *execution*, actual content
+rewriting, LLM-based reconstruction, the full Viewer UI / REST feedback API /
+long-term persistence, philosopher deliberation, safety-gate runtime, ML
+scoring, and any autonomous self-growth loop are **not yet grown**. Those
+concepts are preserved in docs/ and remain the next stages of growth, not
+discarded simplifications.
 
 Public usage::
 
@@ -92,6 +102,10 @@ from .models import (
     PoSelfTrigger,
     PoTraceBlocked,
     PoTraceEvent,
+    PoTraceReactivationConstraints,
+    PoTraceReactivationOperation,
+    PoTraceReactivationPlan,
+    ReactivationEvaluationResult,
     ReconstructionExecutionResult,
     ReconstructionOperation,
     ReconstructionOperationConstraints,
@@ -109,6 +123,7 @@ from .models import (
 from .self_controller import (
     ControlledReconstructionExecutor,
     PoSelfController,
+    PoTraceReactivationPlanner,
     ReconstructionPlanner,
     SeedlingEvaluator,
     SemanticJumpPlanner,
@@ -125,7 +140,7 @@ from .viewer_feedback import (
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 __all__ = [
     "PoCoreKernel",
@@ -168,5 +183,10 @@ __all__ = [
     "SemanticJumpTensorComputer",
     "SemanticJumpPlan",
     "SemanticJumpPlanner",
+    "PoTraceReactivationPlanner",
+    "PoTraceReactivationPlan",
+    "PoTraceReactivationOperation",
+    "PoTraceReactivationConstraints",
+    "ReactivationEvaluationResult",
     "__version__",
 ]

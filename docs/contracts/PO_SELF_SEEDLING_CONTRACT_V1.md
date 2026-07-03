@@ -134,6 +134,18 @@ outside the controller with an explicit override, for testing and for future
 manual-governance workflows — it is never selected automatically by the
 controller wiring in this PR.
 
+**(PR-015)** `TraceContinuityValidator`'s `PoSelfSeedlingEvaluated` ancestry
+rule was broadened to accept **either** a `PoTraceBlockedRecorded` **or** a
+`SemanticJumpPlanned` ancestor (previously `PoTraceBlockedRecorded` only) —
+a forward-compatible widening that validates a future jump-triggered
+seedling path without itself changing `PoSelfController`'s runtime, which
+still only evaluates a seedling when a blocked trace exists (as above). See
+`docs/contracts/TRACE_CONTINUITY_V1.md` §8b. **(PR-015)** `Po_self_seedling`
+also became the required upstream input for
+`PoTraceReactivationPlanner` (`docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`)
+— reading a seedling to *plan* candidate reactivations, never to reactivate
+anything or start a growth loop.
+
 ## 8. Valid example path
 
 `examples/contracts/po_self_seedling.candidate.valid.json`
@@ -141,7 +153,9 @@ controller wiring in this PR.
 ## 9. Future work
 
 - Loosen the "requires a blocked trace" runtime restriction once
-  Viewer-only or jump-only seedling activation is itself contract-extended.
+  Viewer-only or jump-only seedling activation is itself contract-extended
+  (the validator already accepts a `SemanticJumpPlanned`-ancestored seedling
+  as of PR-015; the controller wiring producing one is still future work).
 - `active_seed` / `archived` status transitions and an actual, separately
   governed self-growth phase (`docs/STRICT_CORE_RULES.md` — this remains
   deliberately out of scope; see the task-level prohibition on autonomous

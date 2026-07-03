@@ -44,6 +44,7 @@ PO_TRACE_BLOCKED_SCHEMA_VERSION = "po_trace_blocked_v1"
 PO_SELF_SEEDLING_SCHEMA_VERSION = "po_self_seedling_v1"
 SEMANTIC_JUMP_TENSOR_SCHEMA_VERSION = "semantic_jump_tensor_v1"
 SEMANTIC_JUMP_PLAN_SCHEMA_VERSION = "semantic_jump_plan_v1"
+PO_TRACE_REACTIVATION_PLAN_SCHEMA_VERSION = "po_trace_reactivation_plan_v1"
 
 # Fixed, required core axes of a viewer feedback_tensor (schema: 5 axes, plus
 # optional normalized 0..1 extension axes).
@@ -369,6 +370,8 @@ class PoSelfResult:
     semantic_jump_plan: Optional["SemanticJumpPlan"] = None
     jump_decision: Optional["PoSelfDecision"] = None
     seedling: Optional["PoSelfSeedling"] = None
+    reactivation_evaluation: Optional["ReactivationEvaluationResult"] = None
+    reactivation_plan: Optional["PoTraceReactivationPlan"] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -402,6 +405,16 @@ class PoSelfResult:
             ),
             "seedling": (
                 self.seedling.to_dict() if self.seedling is not None else None
+            ),
+            "reactivation_evaluation": (
+                self.reactivation_evaluation.to_dict()
+                if self.reactivation_evaluation is not None
+                else None
+            ),
+            "reactivation_plan": (
+                self.reactivation_plan.to_dict()
+                if self.reactivation_plan is not None
+                else None
             ),
         }
 
@@ -945,3 +958,156 @@ class SemanticJumpPlan:
         if self.notes:
             out["notes"] = list(self.notes)
         return out
+
+
+# --------------------------------------------------------------------------- #
+# Blocked trace reactivation planning models — PR-015.
+#
+# PoTraceReactivationPlanner reads a Po_self_seedling (PR-014) and its
+# associated Po_trace_blocked records and PROPOSES which blocked traces are
+# reactivation CANDIDATES for a future, still unimplemented, controlled
+# executor. It never reactivates a blocked trace itself:
+# ``reactivation_execution_allowed`` / ``content_rewrite_allowed`` /
+# ``state_mutation_allowed`` / ``safety_bypass_allowed`` are always False.
+# See docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md.
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationConstraints:
+    """Guardrails on a single planned reactivation operation.
+
+    In PR-015 these are fixed: reactivation is never allowed, content is
+    never rewritten, state is never mutated, trace is always preserved, and
+    execution always requires a future controlled executor.
+    """
+
+    reactivation_allowed: bool = False
+    content_rewrite_allowed: bool = False
+    state_mutation_allowed: bool = False
+    preserve_trace: bool = True
+    requires_future_executor: bool = True
+
+    def to_dict(self) -> Dict[str, bool]:
+        return {
+            "reactivation_allowed": self.reactivation_allowed,
+            "content_rewrite_allowed": self.content_rewrite_allowed,
+            "state_mutation_allowed": self.state_mutation_allowed,
+            "preserve_trace": self.preserve_trace,
+            "requires_future_executor": self.requires_future_executor,
+        }
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationOperation:
+    """One planned (not executed) operation over a candidate blocked trace."""
+
+    operation_id: str
+    operation_type: (
+        str  # inspect_blocked_trace / prepare_reactivation_candidate /
+        # link_to_seedling / request_human_review
+    )
+    blocked_trace_id: str
+    rationale: str
+    constraints: PoTraceReactivationConstraints = field(
+        default_factory=PoTraceReactivationConstraints
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "operation_type": self.operation_type,
+            "blocked_trace_id": self.blocked_trace_id,
+            "rationale": self.rationale,
+            "constraints": self.constraints.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class PoTraceReactivationPlan:
+    """Explicit, traceable plan proposing reactivation candidates (mirrors
+    ``po_trace_reactivation_plan_v1``).
+
+    Plans which blocked traces are reactivation candidates; never
+    reactivates them. ``reactivation_execution_allowed``,
+    ``content_rewrite_allowed``, ``state_mutation_allowed``, and
+    ``safety_bypass_allowed`` are always False. References the
+    ``PoSelfSeedling`` this plan was evaluated from via ``seedling_id``.
+    """
+
+    schema_version: str
+    reactivation_plan_id: str
+    request_id: str
+    seedling_id: str
+    blocked_trace_ids: List[str]
+    trigger_source: str
+    reactivation_pressure: float
+    reactivation_threshold: float
+    plan_status: str
+    reactivation_execution_allowed: bool
+    content_rewrite_allowed: bool
+    state_mutation_allowed: bool
+    safety_bypass_allowed: bool
+    planned_operations: List[PoTraceReactivationOperation]
+    safety_constraints: Dict[str, bool]
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "reactivation_plan_id": self.reactivation_plan_id,
+            "request_id": self.request_id,
+            "seedling_id": self.seedling_id,
+            "blocked_trace_ids": list(self.blocked_trace_ids),
+            "trigger_source": self.trigger_source,
+            "reactivation_pressure": self.reactivation_pressure,
+            "reactivation_threshold": self.reactivation_threshold,
+            "plan_status": self.plan_status,
+            "reactivation_execution_allowed": self.reactivation_execution_allowed,
+            "content_rewrite_allowed": self.content_rewrite_allowed,
+            "state_mutation_allowed": self.state_mutation_allowed,
+            "safety_bypass_allowed": self.safety_bypass_allowed,
+            "planned_operations": [op.to_dict() for op in self.planned_operations],
+            "safety_constraints": dict(self.safety_constraints),
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }
+
+
+@dataclass(frozen=True)
+class ReactivationEvaluationResult:
+    """Result of one ``PoTraceReactivationPlanner.evaluate()`` call.
+
+    Always produced when planning runs, regardless of whether
+    ``create_plan()`` later returns a plan (mirrors the
+    ``PoTraceBlockedReactivationEvaluated`` trace event payload,
+    docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md §10).
+    """
+
+    request_id: str
+    seedling_id: str
+    blocked_trace_ids: List[str]
+    blocked_trace_count: int
+    candidate_count: int
+    max_reactivation_pressure: float
+    reactivation_threshold: float
+    trigger_source: str
+    plan_eligible: bool
+    created_at: str
+    trace_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "seedling_id": self.seedling_id,
+            "blocked_trace_ids": list(self.blocked_trace_ids),
+            "blocked_trace_count": self.blocked_trace_count,
+            "candidate_count": self.candidate_count,
+            "max_reactivation_pressure": self.max_reactivation_pressure,
+            "reactivation_threshold": self.reactivation_threshold,
+            "trigger_source": self.trigger_source,
+            "plan_eligible": self.plan_eligible,
+            "created_at": self.created_at,
+            "trace_refs": list(self.trace_refs),
+        }

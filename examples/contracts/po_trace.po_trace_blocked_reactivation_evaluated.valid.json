@@ -1,0 +1,17 @@
+{
+  "schema_version": "po_trace_event_v1",
+  "event_id": "evt_po_trace_blocked_reactivation_evaluated_001",
+  "request_id": "req_demo",
+  "event_type": "PoTraceBlockedReactivationEvaluated",
+  "payload": {
+    "seedling_id": "seed_reqdemo_blockedt",
+    "blocked_trace_count": 1,
+    "candidate_count": 1,
+    "max_reactivation_pressure": 0.775,
+    "reactivation_threshold": 0.5,
+    "trigger_source": "blocked_trace_pressure"
+  },
+  "created_at": "2026-07-03T00:00:00Z",
+  "parent_event_id": "evt_po_self_seedling_evaluated_001",
+  "trace_refs": ["evt_po_self_seedling_evaluated_001"]
+}

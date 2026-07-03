@@ -42,6 +42,13 @@ Emitted event order in ``PoSelfResult.trace_events``:
     10. PoTraceBlockedRead + PoSelfSeedlingEvaluated
                                      (PR-014; only when enable_seedling_evaluation=True
                                       and a blocked trace exists for this request)
+    11. PoTraceBlockedReactivationEvaluated
+                                     (PR-015; only when
+                                      enable_blocked_trace_reactivation_planning=True
+                                      and a seedling was evaluated in step 10)
+    12. PoTraceBlockedReactivationPlanned
+                                     (PR-015; only when reactivation_pressure
+                                      cleared the threshold in step 11)
 
 Scope (honesty requirement, docs/STRICT_CORE_RULES.md):
     Implemented: preserve / reconstruct decisions bounded by max_self_cycles;
@@ -56,14 +63,20 @@ Scope (honesty requirement, docs/STRICT_CORE_RULES.md):
     runs when a blocked trace exists); Semantic Jump Tensor evaluation +
     SemanticJumpPlan + one secondary, informational
     `decision_type="jump"` PoSelfDecisionMade (`enable_semantic_jump`, default
-    False). See docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md,
+    False). PR-015 (seed-level, feature-flagged) adds: blocked-trace
+    reactivation planning -- reading an already-evaluated Po_self_seedling and
+    its associated Po_trace_blocked records to PROPOSE which are reactivation
+    *candidates* (`enable_blocked_trace_reactivation_planning`, default
+    False, only runs when a seedling was evaluated). See
+    docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md,
     docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md,
-    docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md.
-    Not yet grown (preserved as concepts): reject / reactivate behavior, actual
-    jump *execution*, actual content rewriting / LLM-based reconstruction, full
-    Viewer UI / REST / long-term persistence, philosopher deliberation,
-    autonomous self-growth loops. No LLM, no ML. Viewer feedback never
-    overrides safety or schemas.
+    docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md,
+    docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md.
+    Not yet grown (preserved as concepts): reject behavior, actual jump/
+    reactivation *execution*, actual content rewriting / LLM-based
+    reconstruction, full Viewer UI / REST / long-term persistence,
+    philosopher deliberation, autonomous self-growth loops. No LLM, no ML.
+    Viewer feedback never overrides safety or schemas.
 """
 
 from __future__ import annotations
@@ -82,6 +95,7 @@ from ..models import (
     PoSelfDecision,
     PoSelfResult,
     PoSelfTrigger,
+    PoTraceBlocked,
     ViewerFeedback,
 )
 from ..trace import create_trace_event
@@ -89,6 +103,7 @@ from ..viewer_feedback.pressure import compute_viewer_pressure
 from ..viewer_feedback.store import InMemoryViewerFeedbackStore
 from .cycle_guard import SelfCycleGuard
 from .decision_engine import PoSelfDecisionEngine
+from .reactivation_planner import PoTraceReactivationPlanner
 from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
 from .seedling_evaluator import SeedlingEvaluator
@@ -103,6 +118,8 @@ PO_TRACE_BLOCKED_RECORDED = "PoTraceBlockedRecorded"
 PO_SELF_SEEDLING_EVALUATED = "PoSelfSeedlingEvaluated"
 SEMANTIC_JUMP_TENSOR_COMPUTED = "SemanticJumpTensorComputed"
 SEMANTIC_JUMP_PLANNED = "SemanticJumpPlanned"
+PO_TRACE_BLOCKED_REACTIVATION_EVALUATED = "PoTraceBlockedReactivationEvaluated"
+PO_TRACE_BLOCKED_REACTIVATION_PLANNED = "PoTraceBlockedReactivationPlanned"
 
 
 class PoSelfController:
@@ -123,9 +140,11 @@ class PoSelfController:
         seedling_evaluator: Optional[SeedlingEvaluator] = None,
         semantic_jump_tensor_computer: Optional[SemanticJumpTensorComputer] = None,
         semantic_jump_planner: Optional[SemanticJumpPlanner] = None,
+        reactivation_planner: Optional[PoTraceReactivationPlanner] = None,
         enable_trace_blocked_recording: bool = True,
         enable_semantic_jump: bool = False,
         enable_seedling_evaluation: bool = False,
+        enable_blocked_trace_reactivation_planning: bool = False,
     ) -> None:
         self._decision_engine = decision_engine or PoSelfDecisionEngine()
         self._trace_reader = trace_reader or PoTraceReader()
@@ -156,9 +175,17 @@ class PoSelfController:
             semantic_jump_tensor_computer or SemanticJumpTensorComputer()
         )
         self._semantic_jump_planner = semantic_jump_planner or SemanticJumpPlanner()
+        # --- Blocked trace reactivation planning (PR-015, seed-level; see
+        # docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md). -------------------
+        self._reactivation_planner = (
+            reactivation_planner or PoTraceReactivationPlanner()
+        )
         self._enable_trace_blocked_recording = enable_trace_blocked_recording
         self._enable_semantic_jump = enable_semantic_jump
         self._enable_seedling_evaluation = enable_seedling_evaluation
+        self._enable_blocked_trace_reactivation_planning = (
+            enable_blocked_trace_reactivation_planning
+        )
 
     def _gather_feedback(
         self,
@@ -515,6 +542,8 @@ class PoSelfController:
         # ancestor (docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md §7). Never
         # starts a self-growth loop -- evaluation produces a status label only.
         seedling = None
+        seedling_event = None
+        blocked_for_request: List[PoTraceBlocked] = []
         if self._enable_seedling_evaluation:
             blocked_for_request = self._blocked_trace_reader.read_for_request(
                 kernel_result.request_id
@@ -582,6 +611,75 @@ class PoSelfController:
                 )
                 combined_events.append(seedling_event)
 
+        # --- Blocked trace reactivation planning (PR-015; off by default) ---
+        # Reads the already-evaluated Po_self_seedling and its associated
+        # blocked traces and PROPOSES which are reactivation candidates for a
+        # future, still unimplemented, controlled executor. Never reactivates
+        # anything: reactivation_execution_allowed / content_rewrite_allowed /
+        # state_mutation_allowed / safety_bypass_allowed are always False on
+        # any plan produced here
+        # (docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md). Only runs when a
+        # seedling was evaluated in the block above, so
+        # PoTraceBlockedReactivationEvaluated always has a
+        # PoSelfSeedlingEvaluated ancestor.
+        reactivation_evaluation = None
+        reactivation_plan = None
+        if self._enable_blocked_trace_reactivation_planning and seedling is not None:
+            reactivation_evaluation = self._reactivation_planner.evaluate(
+                seedling=seedling,
+                blocked_traces=blocked_for_request,
+                semantic_jump_plan=semantic_jump_plan,
+                trace_refs=[seedling_event.event_id],
+            )
+            evaluated_payload = {
+                "seedling_id": reactivation_evaluation.seedling_id,
+                "blocked_trace_count": reactivation_evaluation.blocked_trace_count,
+                "candidate_count": reactivation_evaluation.candidate_count,
+                "max_reactivation_pressure": reactivation_evaluation.max_reactivation_pressure,
+                "reactivation_threshold": reactivation_evaluation.reactivation_threshold,
+                "trigger_source": reactivation_evaluation.trigger_source,
+            }
+            evaluated_event = create_trace_event(
+                request_id=kernel_result.request_id,
+                event_type=PO_TRACE_BLOCKED_REACTIVATION_EVALUATED,
+                payload=evaluated_payload,
+                parent_event_id=seedling_event.event_id,
+                trace_refs=[seedling_event.event_id],
+            )
+            combined_events.append(evaluated_event)
+
+            reactivation_plan = self._reactivation_planner.create_plan(
+                evaluation=reactivation_evaluation,
+                seedling=seedling,
+                blocked_traces=blocked_for_request,
+                trace_refs=[seedling_event.event_id, evaluated_event.event_id],
+            )
+            if reactivation_plan is not None:
+                planned_payload = {
+                    "reactivation_plan_id": reactivation_plan.reactivation_plan_id,
+                    "seedling_id": reactivation_plan.seedling_id,
+                    "blocked_trace_ids": list(reactivation_plan.blocked_trace_ids),
+                    "trigger_source": reactivation_plan.trigger_source,
+                    "reactivation_pressure": reactivation_plan.reactivation_pressure,
+                    "reactivation_threshold": reactivation_plan.reactivation_threshold,
+                    "plan_status": reactivation_plan.plan_status,
+                    "reactivation_execution_allowed": (
+                        reactivation_plan.reactivation_execution_allowed
+                    ),
+                    "content_rewrite_allowed": reactivation_plan.content_rewrite_allowed,
+                    "state_mutation_allowed": reactivation_plan.state_mutation_allowed,
+                    "safety_bypass_allowed": reactivation_plan.safety_bypass_allowed,
+                    "operation_count": len(reactivation_plan.planned_operations),
+                }
+                planned_event = create_trace_event(
+                    request_id=kernel_result.request_id,
+                    event_type=PO_TRACE_BLOCKED_REACTIVATION_PLANNED,
+                    payload=planned_payload,
+                    parent_event_id=evaluated_event.event_id,
+                    trace_refs=[evaluated_event.event_id],
+                )
+                combined_events.append(planned_event)
+
         return PoSelfResult(
             request_id=kernel_result.request_id,
             kernel_result=kernel_result,
@@ -594,4 +692,6 @@ class PoSelfController:
             semantic_jump_plan=semantic_jump_plan,
             jump_decision=jump_decision,
             seedling=seedling,
+            reactivation_evaluation=reactivation_evaluation,
+            reactivation_plan=reactivation_plan,
         )

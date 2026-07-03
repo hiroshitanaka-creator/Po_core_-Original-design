@@ -1,0 +1,51 @@
+{
+  "description": "PR-015 INVALID trace chain example: a SemanticProfileComputed root event exists, but PoTraceBlockedReactivationPlanned has no parent_event_id or trace_refs pointing back to a PoTraceBlockedReactivationEvaluated event (or to anything, so it is also missing its PoSelfSeedlingEvaluated ancestor). Fails TraceContinuityValidator with issue codes 'reactivation_plan_without_seedling' and 'reactivation_plan_without_evaluation'. See docs/contracts/TRACE_CONTINUITY_V1.md §10 (error taxonomy, Rule 18) and §12.",
+  "expected_validation_result": {
+    "valid": false,
+    "issue_codes": ["reactivation_plan_without_seedling", "reactivation_plan_without_evaluation"]
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_obrp",
+      "request_id": "req_orphan_blocked_reactivation_plan",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_orphan_blocked_reactivation_plan",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_orphan_blocked_reactivation_plan_1",
+            "primary_axis": "ethical_axis",
+            "priority_score": 7.5,
+            "alert_level": "high"
+          }
+        ]
+      },
+      "created_at": "2026-07-03T00:00:00Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_reactivation_planned_obrp",
+      "request_id": "req_orphan_blocked_reactivation_plan",
+      "event_type": "PoTraceBlockedReactivationPlanned",
+      "payload": {
+        "reactivation_plan_id": "rtp_obrp_1",
+        "seedling_id": "seed_obrp_1",
+        "blocked_trace_ids": ["btr_obrp_1"],
+        "trigger_source": "blocked_trace_pressure",
+        "reactivation_pressure": 0.775,
+        "reactivation_threshold": 0.5,
+        "plan_status": "planned",
+        "reactivation_execution_allowed": false,
+        "content_rewrite_allowed": false,
+        "state_mutation_allowed": false,
+        "safety_bypass_allowed": false,
+        "operation_count": 1
+      },
+      "created_at": "2026-07-03T00:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/po_trace_reactivation_plan_v1.schema.json",
+  "title": "Po_core po_trace_reactivation_plan v1",
+  "description": "PR-015 design + runtime contract (seed-level). Converts a Po_trace_blocked / Po_self_seedling reading into an explicit, traceable plan proposing which blocked traces are reactivation CANDIDATES -- it never reactivates anything. reactivation_execution_allowed, content_rewrite_allowed, state_mutation_allowed, and safety_bypass_allowed are all const false: this is planning only (record / read / score / plan / trace / validate). See docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reactivation_plan_id",
+    "request_id",
+    "seedling_id",
+    "blocked_trace_ids",
+    "trigger_source",
+    "reactivation_pressure",
+    "reactivation_threshold",
+    "plan_status",
+    "reactivation_execution_allowed",
+    "content_rewrite_allowed",
+    "state_mutation_allowed",
+    "safety_bypass_allowed",
+    "planned_operations",
+    "safety_constraints",
+    "created_at",
+    "trace_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "po_trace_reactivation_plan_v1" },
+    "reactivation_plan_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "seedling_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The po_self_seedling that caused this plan to be evaluated."
+    },
+    "blocked_trace_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "trigger_source": {
+      "type": "string",
+      "enum": [
+        "seedling_activation",
+        "blocked_trace_pressure",
+        "viewer_feedback_pressure",
+        "semantic_jump_pressure",
+        "ethical_pressure",
+        "manual_review"
+      ],
+      "description": "PR-015 runtime deterministically produces blocked_trace_pressure / semantic_jump_pressure / seedling_activation only; the remaining values are declared for future/manual use, not yet behaviorally emitted."
+    },
+    "reactivation_pressure": { "type": "number", "minimum": 0, "maximum": 1 },
+    "reactivation_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+    "plan_status": {
+      "type": "string",
+      "enum": ["planned", "not_applicable", "blocked_by_safety", "requires_human_review"],
+      "description": "PR-015 seed runtime only ever produces 'planned' (when the plan is created at all -- below-threshold cases produce no plan/event instead of a not_applicable object). The other values are reserved for future planner behavior."
+    },
+    "reactivation_execution_allowed": {
+      "const": false,
+      "description": "This PR never executes a reactivation. Always false."
+    },
+    "content_rewrite_allowed": {
+      "const": false,
+      "description": "This plan never rewrites content. Always false."
+    },
+    "state_mutation_allowed": {
+      "const": false,
+      "description": "This plan never mutates state. Always false."
+    },
+    "safety_bypass_allowed": {
+      "const": false,
+      "description": "This plan never bypasses a safety gate. Always false."
+    },
+    "planned_operations": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "operation_type", "blocked_trace_id", "rationale", "constraints"],
+        "properties": {
+          "operation_id": { "type": "string", "minLength": 1 },
+          "operation_type": {
+            "type": "string",
+            "enum": [
+              "inspect_blocked_trace",
+              "prepare_reactivation_candidate",
+              "link_to_seedling",
+              "request_human_review"
+            ],
+            "description": "PR-015 behavior uses only 'prepare_reactivation_candidate'."
+          },
+          "blocked_trace_id": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reactivation_allowed",
+              "content_rewrite_allowed",
+              "state_mutation_allowed",
+              "preserve_trace",
+              "requires_future_executor"
+            ],
+            "properties": {
+              "reactivation_allowed": { "const": false },
+              "content_rewrite_allowed": { "const": false },
+              "state_mutation_allowed": { "const": false },
+              "preserve_trace": { "const": true },
+              "requires_future_executor": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    "safety_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_trace_continuity",
+        "requires_human_review_for_execution",
+        "requires_future_executor",
+        "forbids_safety_bypass"
+      ],
+      "properties": {
+        "requires_trace_continuity": { "type": "boolean" },
+        "requires_human_review_for_execution": { "type": "boolean" },
+        "requires_future_executor": { "type": "boolean" },
+        "forbids_safety_bypass": { "type": "boolean" }
+      },
+      "description": "PR-015 seed runtime always sets every field true here; the schema keeps them as plain booleans (not const) so a future, still non-destructive, planning refinement is not blocked by this contract."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Must include at least one of: PoTraceBlockedRecorded, PoSelfSeedlingEvaluated, SemanticProfileComputed, PoSelfDecisionMade event ids (directly or via ancestry). Enforced by TraceContinuityValidator, not expressible as a JSON Schema constraint (docs/contracts/TRACE_CONTINUITY_V1.md)."
+    }
+  }
+}

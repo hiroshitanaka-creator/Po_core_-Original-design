@@ -40,6 +40,10 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 from po_core_original.trace_validation import TraceContinuityValidator  # noqa: E402
 
 VALID_EXAMPLE = EXAMPLES_DIR / "trace_chain.valid.json"
+# PR-015 (seed-level): Blocked trace reactivation planning.
+ADDITIONAL_VALID_EXAMPLES = [
+    EXAMPLES_DIR / "trace_chain.valid.blocked_reactivation_plan.json",
+]
 INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.orphan_decision.json",
     EXAMPLES_DIR / "trace_chain.invalid.missing_plan_parent.json",
@@ -49,6 +53,8 @@ INVALID_EXAMPLES = [
     EXAMPLES_DIR / "trace_chain.invalid.seedling_without_blocked_trace.json",
     EXAMPLES_DIR / "trace_chain.invalid.orphan_jump_tensor.json",
     EXAMPLES_DIR / "trace_chain.invalid.jump_decision_without_plan.json",
+    # PR-015 (seed-level): Blocked trace reactivation planning.
+    EXAMPLES_DIR / "trace_chain.invalid.orphan_blocked_reactivation_plan.json",
 ]
 
 
@@ -144,6 +150,11 @@ def main() -> int:
         all_ok = (
             _check_valid(VALID_EXAMPLE, strict=args.strict, results=results) and all_ok
         )
+        for extra_valid_path in ADDITIONAL_VALID_EXAMPLES:
+            all_ok = (
+                _check_valid(extra_valid_path, strict=args.strict, results=results)
+                and all_ok
+            )
         if args.include_negative:
             for invalid_path in INVALID_EXAMPLES:
                 ok = _check_expected_failure(

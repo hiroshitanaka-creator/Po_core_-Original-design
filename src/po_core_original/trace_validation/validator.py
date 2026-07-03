@@ -45,6 +45,9 @@ PO_TRACE_BLOCKED_READ = "PoTraceBlockedRead"
 PO_SELF_SEEDLING_EVALUATED = "PoSelfSeedlingEvaluated"
 SEMANTIC_JUMP_TENSOR_COMPUTED = "SemanticJumpTensorComputed"
 SEMANTIC_JUMP_PLANNED = "SemanticJumpPlanned"
+# PR-015 (seed-level): Blocked trace reactivation planning.
+PO_TRACE_BLOCKED_REACTIVATION_EVALUATED = "PoTraceBlockedReactivationEvaluated"
+PO_TRACE_BLOCKED_REACTIVATION_PLANNED = "PoTraceBlockedReactivationPlanned"
 
 # Reserved future event types (docs/contracts/RECONSTRUCTION_PLAN_V1.md §11,
 # RECONSTRUCTION_PATCH_V1.md §11): jump / reject / reactivate are preserved as
@@ -85,6 +88,11 @@ _ISSUE_EXCEPTIONS: Dict[str, type] = {
     "jump_plan_without_tensor": MissingParentEventError,
     "jump_plan_without_recommendation": InvalidTraceTransitionError,
     "jump_decision_without_plan": InvalidTraceTransitionError,
+    # PR-015 (seed-level): Blocked trace reactivation planning.
+    "reactivation_evaluated_without_seedling": MissingParentEventError,
+    "reactivation_plan_without_seedling": MissingParentEventError,
+    "reactivation_plan_without_evaluation": MissingParentEventError,
+    "reactivation_plan_missing_safety_flags": InvalidTraceTransitionError,
 }
 
 
@@ -174,6 +182,8 @@ class TraceContinuityValidator:
         specific_issues.extend(self._check_semantic_jump_tensor(graph))
         specific_issues.extend(self._check_semantic_jump_planned(graph))
         specific_issues.extend(self._check_jump_decision_ancestry(graph))
+        specific_issues.extend(self._check_reactivation_evaluated(graph))
+        specific_issues.extend(self._check_reactivation_planned(graph))
         issues.extend(specific_issues)
 
         already_flagged = {i.event_id for i in specific_issues if i.event_id}
@@ -425,6 +435,107 @@ class TraceContinuityValidator:
             )
         return issues
 
+    # -- Rule 17 (PR-015): PoTraceBlockedReactivationEvaluated requires
+    # PoSelfSeedlingEvaluated ancestry.
+    def _check_reactivation_evaluated(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_TRACE_BLOCKED_REACTIVATION_EVALUATED):
+            if has_ancestor_of_type(graph, node.event_id, PO_SELF_SEEDLING_EVALUATED):
+                continue
+            issues.append(
+                TraceValidationIssue(
+                    code="reactivation_evaluated_without_seedling",
+                    message=(
+                        f"PoTraceBlockedReactivationEvaluated event {node.event_id} "
+                        "is orphaned: no PoSelfSeedlingEvaluated reference found. "
+                        "Reactivation planning always reads an already-evaluated "
+                        "Po_self_seedling "
+                        "(docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md §9); add "
+                        "trace_refs pointing to the causing PoSelfSeedlingEvaluated "
+                        "event."
+                    ),
+                    event_id=node.event_id,
+                    event_type=node.event_type,
+                )
+            )
+        return issues
+
+    # -- Rule 18 (PR-015): PoTraceBlockedReactivationPlanned requires both
+    # PoSelfSeedlingEvaluated and PoTraceBlockedReactivationEvaluated ancestry,
+    # plus the four safety-invariant payload flags all being False.
+    def _check_reactivation_planned(
+        self, graph: TraceGraph
+    ) -> List[TraceValidationIssue]:
+        issues: List[TraceValidationIssue] = []
+        for node in graph.get_by_type(PO_TRACE_BLOCKED_REACTIVATION_PLANNED):
+            if not has_ancestor_of_type(
+                graph, node.event_id, PO_SELF_SEEDLING_EVALUATED
+            ):
+                issues.append(
+                    TraceValidationIssue(
+                        code="reactivation_plan_without_seedling",
+                        message=(
+                            f"PoTraceBlockedReactivationPlanned event {node.event_id} "
+                            "is orphaned: no PoSelfSeedlingEvaluated reference "
+                            "found. Add trace_refs or parent_event_id pointing to "
+                            "the seedling this plan was evaluated from."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+
+            if not has_ancestor_of_type(
+                graph, node.event_id, PO_TRACE_BLOCKED_REACTIVATION_EVALUATED
+            ):
+                issues.append(
+                    TraceValidationIssue(
+                        code="reactivation_plan_without_evaluation",
+                        message=(
+                            f"PoTraceBlockedReactivationPlanned event {node.event_id} "
+                            "is orphaned: no PoTraceBlockedReactivationEvaluated "
+                            "reference found. A plan must always trace back to the "
+                            "evaluation that produced it "
+                            "(docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md §10)."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+
+            required_false_flags = (
+                "reactivation_execution_allowed",
+                "content_rewrite_allowed",
+                "state_mutation_allowed",
+                "safety_bypass_allowed",
+            )
+            bad_flags = [
+                flag
+                for flag in required_false_flags
+                if node.payload.get(flag) is not False
+            ]
+            if bad_flags:
+                issues.append(
+                    TraceValidationIssue(
+                        code="reactivation_plan_missing_safety_flags",
+                        message=(
+                            f"PoTraceBlockedReactivationPlanned event {node.event_id} "
+                            f"has missing or incorrect safety-invariant flags: "
+                            f"{bad_flags}. payload must include "
+                            "reactivation_execution_allowed=false, "
+                            "content_rewrite_allowed=false, "
+                            "state_mutation_allowed=false, and "
+                            "safety_bypass_allowed=false -- this event never "
+                            "reactivates a blocked trace."
+                        ),
+                        event_id=node.event_id,
+                        event_type=node.event_type,
+                    )
+                )
+        return issues
+
     # -- Rule 9: strict-mode catch-all orphan detection ----------------------
     def _check_orphan_events(
         self, graph: TraceGraph, already_flagged: "set[Optional[str]]"
@@ -450,6 +561,8 @@ class TraceContinuityValidator:
             PO_SELF_SEEDLING_EVALUATED,
             SEMANTIC_JUMP_TENSOR_COMPUTED,
             SEMANTIC_JUMP_PLANNED,
+            PO_TRACE_BLOCKED_REACTIVATION_EVALUATED,
+            PO_TRACE_BLOCKED_REACTIVATION_PLANNED,
         }
         for node in graph.nodes.values():
             if node.event_type not in non_root_types:
@@ -526,25 +639,29 @@ class TraceContinuityValidator:
             )
         return issues
 
-    # -- Rule 13 (PR-014): PoSelfSeedlingEvaluated requires PoTraceBlockedRecorded
+    # -- Rule 13 (PR-014; broadened PR-015): PoSelfSeedlingEvaluated requires
+    # PoTraceBlockedRecorded OR SemanticJumpPlanned ancestry.
     def _check_seedling_evaluated(
         self, graph: TraceGraph
     ) -> List[TraceValidationIssue]:
         issues: List[TraceValidationIssue] = []
         for node in graph.get_by_type(PO_SELF_SEEDLING_EVALUATED):
-            if has_ancestor_of_type(graph, node.event_id, PO_TRACE_BLOCKED_RECORDED):
+            if has_ancestor_of_type(
+                graph, node.event_id, PO_TRACE_BLOCKED_RECORDED
+            ) or has_ancestor_of_type(graph, node.event_id, SEMANTIC_JUMP_PLANNED):
                 continue
             issues.append(
                 TraceValidationIssue(
                     code="seedling_without_blocked_trace",
                     message=(
                         f"PoSelfSeedlingEvaluated event {node.event_id} is orphaned: "
-                        "no PoTraceBlockedRecorded reference found. This PR's seed "
-                        "runtime only evaluates a seedling when a blocked trace "
-                        "exists for the request "
+                        "no PoTraceBlockedRecorded or SemanticJumpPlanned reference "
+                        "found. This PR's seed runtime only evaluates a seedling "
+                        "when a blocked trace exists for the request "
                         "(docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md §7); add "
                         "trace_refs pointing to the causing PoTraceBlockedRecorded "
-                        "event."
+                        "(or, for a future jump-triggered seedling path, "
+                        "SemanticJumpPlanned) event."
                     ),
                     event_id=node.event_id,
                     event_type=node.event_type,
