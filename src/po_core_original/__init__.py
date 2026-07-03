@@ -66,6 +66,14 @@ Activated so far:
       ``reactivation_executed`` / ``content_rewrite_applied`` /
       ``state_mutation_applied`` / ``safety_bypass_applied`` are always
       false.
+    * ``ControlledSemanticJumpFrameProposalExecutor`` (PR-017, off by
+      default) — converts an already-created ``SemanticJumpPlan`` into a
+      deterministic semantic frame *proposal* (``SemanticFrameProposal``),
+      preserving the original semantic steps, their semantic_profile refs,
+      and source trace. Never changes a semantic frame:
+      ``semantic_frame_changed`` / ``content_rewrite_applied`` /
+      ``state_mutation_applied`` / ``safety_bypass_applied`` /
+      ``trace_reset_applied`` are always false.
 
 Honestly scoped (docs/STRICT_CORE_RULES.md): the semantic-profile scoring is a
 transparent deterministic seed, not the final tensor computation. As of
@@ -75,7 +83,9 @@ partially advanced the same honest way: a reactivation *plan* can be
 proposed, but no ``PoTraceBlockedReactivated`` event exists anywhere in this
 repository and no runtime ever reactivates a blocked trace. PR-016 advances
 ``reactivate`` one step further: a plan can now be converted into a
-deterministic *proposal*, still never an execution. Po_self's ``reject``
+deterministic *proposal*, still never an execution. PR-017 advances ``jump``
+the same way: a plan can now be converted into a deterministic semantic
+frame *proposal*, still never an actual frame change. Po_self's ``reject``
 decisions, actual jump/reactivation *execution*, actual content rewriting,
 LLM-based reconstruction, the full Viewer UI / REST feedback API / long-term
 persistence, philosopher deliberation, safety-gate runtime, ML scoring, and
@@ -125,6 +135,10 @@ from .models import (
     ReconstructionPatch,
     ReconstructionPatchProposalBody,
     ReconstructionPlan,
+    SemanticFrameProposal,
+    SemanticFrameProposalConstraints,
+    SemanticFrameProposalFrame,
+    SemanticFrameProposalOperation,
     SemanticJumpPlan,
     SemanticJumpTensor,
     SemanticProfile,
@@ -136,6 +150,7 @@ from .models import (
 from .self_controller import (
     ControlledBlockedTraceReactivationProposalExecutor,
     ControlledReconstructionExecutor,
+    ControlledSemanticJumpFrameProposalExecutor,
     PoSelfController,
     PoTraceReactivationPlanner,
     ReconstructionPlanner,
@@ -154,7 +169,7 @@ from .viewer_feedback import (
     compute_viewer_pressure,
 )
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 __all__ = [
     "PoCoreKernel",
@@ -206,5 +221,10 @@ __all__ = [
     "PoTraceReactivationProposal",
     "PoTraceReactivationProposalOperation",
     "PoTraceReactivationProposalConstraints",
+    "ControlledSemanticJumpFrameProposalExecutor",
+    "SemanticFrameProposal",
+    "SemanticFrameProposalFrame",
+    "SemanticFrameProposalOperation",
+    "SemanticFrameProposalConstraints",
     "__version__",
 ]

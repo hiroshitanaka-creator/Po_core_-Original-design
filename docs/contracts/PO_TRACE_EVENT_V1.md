@@ -69,6 +69,7 @@ Optional: `correlation_id`, `parent_event_id`, `trace_refs`.
 | `PoTraceBlockedReactivationEvaluated` | **PR-015 (seed-level, `enable_blocked_trace_reactivation_planning` default `False`):** `{ seedling_id, blocked_trace_count, candidate_count, max_reactivation_pressure, reactivation_threshold, trigger_source }`. Emitted whenever planning runs, regardless of eligibility. See `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`. |
 | `PoTraceBlockedReactivationPlanned` | **PR-015 (seed-level, `enable_blocked_trace_reactivation_planning` default `False`):** summary of a `po_trace_reactivation_plan_v1` — `{ reactivation_plan_id, seedling_id, blocked_trace_ids, trigger_source, reactivation_pressure, reactivation_threshold, plan_status, reactivation_execution_allowed, content_rewrite_allowed, state_mutation_allowed, safety_bypass_allowed, operation_count }`. Emitted only when a plan was created (evaluation cleared the threshold). Planning only; no reactivation is ever executed. See `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`. |
 | `PoTraceBlockedReactivationProposed` | **PR-016 (seed-level, `enable_blocked_trace_reactivation_proposal_execution` default `False`):** summary of a `po_trace_reactivation_proposal_v1` — `{ proposal_id, reactivation_plan_id, seedling_id, blocked_trace_ids, proposal_status, execution_mode, reactivation_executed, content_rewrite_applied, state_mutation_applied, safety_bypass_applied, operation_count, trace_continuity_verified }`. Emitted whenever the controlled proposal executor runs, regardless of `proposal_status`. Means a `PoTraceReactivationPlan` was applied to the *controlled proposal executor* (a deterministic proposal was produced), NOT that any blocked trace was reactivated — `reactivation_executed` is always `false`. See `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`. |
+| `SemanticJumpFrameProposed` | **PR-017 (seed-level, `enable_semantic_jump_frame_proposal_execution` default `False`):** summary of a `semantic_frame_proposal_v1` — `{ proposal_id, semantic_jump_plan_id, semantic_jump_tensor_id, source_step_ids, proposal_status, execution_mode, semantic_frame_changed, content_rewrite_applied, state_mutation_applied, safety_bypass_applied, trace_reset_applied, operation_count, trace_continuity_verified }`. Emitted whenever the controlled frame proposal executor runs, regardless of `proposal_status`. Means a `SemanticJumpPlan` was applied to the *controlled frame proposal executor* (a deterministic proposal was produced), NOT that any semantic frame was changed — `semantic_frame_changed` is always `false`. See `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`. |
 
 `payload` is intentionally `additionalProperties: true` at the envelope level because its shape
 depends on `event_type`; it must validate against the corresponding contract-specific schema
@@ -125,6 +126,16 @@ future PRs).
   (`reactivation_executed`/`content_rewrite_applied`/
   `state_mutation_applied`/`safety_bypass_applied` are always `false`).
   `PoTraceBlockedReactivated` remains undeclared.
+- `SemanticJumpFrameProposed` is behaviorally emitted as of PR-017,
+  seed-level and feature-flagged
+  (`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md`). It records that a
+  `SemanticJumpPlan` was converted into a deterministic semantic frame
+  *proposal* by `ControlledSemanticJumpFrameProposalExecutor` — never that a
+  semantic frame was actually changed
+  (`semantic_frame_changed`/`content_rewrite_applied`/
+  `state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied`
+  are always `false`). No `SemanticJumpExecuted`-style event exists
+  anywhere in this repository.
 - **PR-008** adds a formal *trace graph* semantics on top of this envelope
   (no schema/enum change): `parent_event_id` and `trace_refs` are the only
   fields that form continuity edges — `created_at` is never used for this

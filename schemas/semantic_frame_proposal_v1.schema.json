@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/semantic_frame_proposal_v1.schema.json",
+  "title": "Po_core semantic_frame_proposal v1",
+  "description": "PR-017 design + runtime contract (seed-level). Converts a SemanticJumpPlan (PR-014) into a deterministic semantic frame PROPOSAL -- it never changes the semantic frame. semantic_frame_changed, content_rewrite_applied, state_mutation_applied, safety_bypass_applied, and trace_reset_applied are all const false: this is proposal only (read / verify / propose / trace / validate). See docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "proposal_id",
+    "request_id",
+    "semantic_jump_plan_id",
+    "semantic_jump_tensor_id",
+    "source_step_ids",
+    "proposal_status",
+    "execution_mode",
+    "semantic_frame_changed",
+    "content_rewrite_applied",
+    "state_mutation_applied",
+    "safety_bypass_applied",
+    "trace_reset_applied",
+    "original_semantic_step_hashes",
+    "original_semantic_profile_refs",
+    "source_trace_refs",
+    "proposed_frame",
+    "proposed_operations",
+    "safety_constraints",
+    "rationale",
+    "created_at",
+    "trace_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "semantic_frame_proposal_v1" },
+    "proposal_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "semantic_jump_plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The semantic_jump_plan this proposal was generated from."
+    },
+    "semantic_jump_tensor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The semantic_jump_tensor that recommended the plan."
+    },
+    "source_step_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "proposal_status": {
+      "type": "string",
+      "enum": ["proposed", "not_applicable", "blocked_by_safety", "requires_human_review"],
+      "description": "PR-017 seed runtime only ever produces 'proposed' (at least one source step resolved) or 'not_applicable' (none of source_step_ids could be resolved against the semantic_steps passed to the executor). 'blocked_by_safety' / 'requires_human_review' are reserved for future planner/executor behavior, not yet produced."
+    },
+    "execution_mode": {
+      "const": "semantic_frame_proposal_only",
+      "description": "Fixed mode marker: this executor only ever produces proposals, never an actual frame change."
+    },
+    "semantic_frame_changed": {
+      "const": false,
+      "description": "This PR never changes the semantic frame. Always false."
+    },
+    "content_rewrite_applied": {
+      "const": false,
+      "description": "This proposal never rewrites content. Always false."
+    },
+    "state_mutation_applied": {
+      "const": false,
+      "description": "This proposal never mutates runtime state. Always false."
+    },
+    "safety_bypass_applied": {
+      "const": false,
+      "description": "This proposal never bypasses a safety gate. Always false."
+    },
+    "trace_reset_applied": {
+      "const": false,
+      "description": "This proposal never resets or deletes trace. Always false."
+    },
+    "original_semantic_step_hashes": {
+      "type": "object",
+      "description": "Key: step_id. Value: SHA-256 hex digest of that SemanticStep's content, proving the step was not mutated by this executor. When a step_id referenced by the plan's source_step_ids could not be resolved against the semantic_steps passed to the executor, the documented sentinel SHA-256(\"\") is used instead -- see docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md §7.",
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "original_semantic_profile_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "semantic_profile.profile_id references for each resolved source step, preserved read-only."
+    },
+    "source_trace_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "trace event ids this proposal was derived from -- must include the SemanticJumpPlanned / SemanticJumpTensorComputed lineage."
+    },
+    "proposed_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposal_kind", "frame_shift_type", "frame_summary", "frame_rationale", "placeholder_text"],
+      "properties": {
+        "proposal_kind": {
+          "type": "string",
+          "enum": ["deterministic_frame_placeholder", "frame_shift_instruction", "human_review_request"],
+          "description": "PR-017 behavior always uses 'deterministic_frame_placeholder'."
+        },
+        "frame_shift_type": {
+          "type": "string",
+          "enum": [
+            "none",
+            "reframing",
+            "context_shift",
+            "responsibility_shift",
+            "ethical_frame_shift",
+            "blocked_trace_reactivation",
+            "unresolved_contradiction_jump"
+          ],
+          "description": "Copied from semantic_jump_plan.source_jump_type when recognized, else 'none'."
+        },
+        "frame_summary": { "type": "string", "minLength": 1 },
+        "frame_rationale": { "type": "string", "minLength": 1 },
+        "placeholder_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must read as a proposal, never as an applied frame change."
+        }
+      }
+    },
+    "proposed_operations": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "operation_type", "target_step_id", "proposal_text", "rationale", "constraints"],
+        "properties": {
+          "operation_id": { "type": "string", "minLength": 1 },
+          "operation_type": {
+            "type": "string",
+            "enum": [
+              "inspect_semantic_frame",
+              "prepare_frame_shift_proposal",
+              "link_to_jump_plan",
+              "request_human_review",
+              "preserve_original_frame"
+            ],
+            "description": "PR-017 behavior uses only 'prepare_frame_shift_proposal' (or 'preserve_original_frame' for a not_applicable/unresolved step)."
+          },
+          "target_step_id": { "type": "string", "minLength": 1 },
+          "proposal_text": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "semantic_frame_change_allowed",
+              "content_rewrite_allowed",
+              "state_mutation_allowed",
+              "safety_bypass_allowed",
+              "trace_reset_allowed",
+              "preserve_original_semantic_steps",
+              "preserve_semantic_profile",
+              "preserve_source_trace",
+              "requires_future_executor"
+            ],
+            "properties": {
+              "semantic_frame_change_allowed": { "const": false },
+              "content_rewrite_allowed": { "const": false },
+              "state_mutation_allowed": { "const": false },
+              "safety_bypass_allowed": { "const": false },
+              "trace_reset_allowed": { "const": false },
+              "preserve_original_semantic_steps": { "const": true },
+              "preserve_semantic_profile": { "const": true },
+              "preserve_source_trace": { "const": true },
+              "requires_future_executor": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    "safety_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_trace_continuity",
+        "requires_human_review_for_execution",
+        "requires_future_executor",
+        "forbids_content_rewrite",
+        "forbids_state_mutation",
+        "forbids_safety_bypass",
+        "forbids_trace_reset"
+      ],
+      "properties": {
+        "requires_trace_continuity": { "type": "boolean" },
+        "requires_human_review_for_execution": { "type": "boolean" },
+        "requires_future_executor": { "type": "boolean" },
+        "forbids_content_rewrite": { "type": "boolean" },
+        "forbids_state_mutation": { "type": "boolean" },
+        "forbids_safety_bypass": { "type": "boolean" },
+        "forbids_trace_reset": { "type": "boolean" }
+      },
+      "description": "PR-017 seed runtime always sets every field true here; the schema keeps them as plain booleans (not const) so a future, still non-destructive, refinement is not blocked by this contract."
+    },
+    "rationale": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Must include a SemanticJumpPlanned event id (directly or via ancestry). Enforced by TraceContinuityValidator, not expressible as a JSON Schema constraint (docs/contracts/TRACE_CONTINUITY_V1.md)."
+    }
+  }
+}

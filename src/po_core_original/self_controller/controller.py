@@ -39,20 +39,23 @@ Emitted event order in ``PoSelfResult.trace_events``:
     8. SemanticJumpPlanned           (PR-014; only when the tensor recommends a jump)
     9. PoSelfDecisionMade (jump)     (PR-014; secondary, informational; only
                                       alongside SemanticJumpPlanned)
-    10. PoTraceBlockedRead + PoSelfSeedlingEvaluated
+    10. SemanticJumpFrameProposed    (PR-017; only when
+                                      enable_semantic_jump_frame_proposal_execution=True
+                                      and a jump plan was created in step 8)
+    11. PoTraceBlockedRead + PoSelfSeedlingEvaluated
                                      (PR-014; only when enable_seedling_evaluation=True
                                       and a blocked trace exists for this request)
-    11. PoTraceBlockedReactivationEvaluated
+    12. PoTraceBlockedReactivationEvaluated
                                      (PR-015; only when
                                       enable_blocked_trace_reactivation_planning=True
-                                      and a seedling was evaluated in step 10)
-    12. PoTraceBlockedReactivationPlanned
+                                      and a seedling was evaluated in step 11)
+    13. PoTraceBlockedReactivationPlanned
                                      (PR-015; only when reactivation_pressure
-                                      cleared the threshold in step 11)
-    13. PoTraceBlockedReactivationProposed
+                                      cleared the threshold in step 12)
+    14. PoTraceBlockedReactivationProposed
                                      (PR-016; only when
                                       enable_blocked_trace_reactivation_proposal_execution=True
-                                      and a reactivation plan was created in step 12)
+                                      and a reactivation plan was created in step 13)
 
 Scope (honesty requirement, docs/STRICT_CORE_RULES.md):
     Implemented: preserve / reconstruct decisions bounded by max_self_cycles;
@@ -76,12 +79,18 @@ Scope (honesty requirement, docs/STRICT_CORE_RULES.md):
     executor -- converting an already-created PoTraceReactivationPlan into a
     deterministic reactivation *proposal*
     (`enable_blocked_trace_reactivation_proposal_execution`, default False,
-    only runs when a reactivation plan was created). See
+    only runs when a reactivation plan was created). PR-017 (seed-level,
+    feature-flagged) adds: a controlled semantic jump frame proposal
+    executor -- converting an already-created SemanticJumpPlan into a
+    deterministic semantic frame *proposal*
+    (`enable_semantic_jump_frame_proposal_execution`, default False, only
+    runs when a jump plan was created). See
     docs/contracts/PO_TRACE_BLOCKED_CONTRACT_V1.md,
     docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md,
     docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md,
     docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md,
-    docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md.
+    docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md,
+    docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md.
     Not yet grown (preserved as concepts): reject behavior, actual
     reactivation/jump *execution*, actual content rewriting / LLM-based
     reconstruction, full Viewer UI / REST / long-term persistence,
@@ -120,6 +129,9 @@ from .reactivation_planner import PoTraceReactivationPlanner
 from .reconstruction_executor import ControlledReconstructionExecutor
 from .reconstruction_planner import ReconstructionPlanner
 from .seedling_evaluator import SeedlingEvaluator
+from .semantic_frame_proposal_executor import (
+    ControlledSemanticJumpFrameProposalExecutor,
+)
 from .semantic_jump_planner import SemanticJumpPlanner
 from .semantic_jump_tensor import SemanticJumpTensorComputer
 from .trace_reader import PoTraceReader
@@ -157,11 +169,15 @@ class PoSelfController:
         reactivation_proposal_executor: Optional[
             ControlledBlockedTraceReactivationProposalExecutor
         ] = None,
+        semantic_frame_proposal_executor: Optional[
+            ControlledSemanticJumpFrameProposalExecutor
+        ] = None,
         enable_trace_blocked_recording: bool = True,
         enable_semantic_jump: bool = False,
         enable_seedling_evaluation: bool = False,
         enable_blocked_trace_reactivation_planning: bool = False,
         enable_blocked_trace_reactivation_proposal_execution: bool = False,
+        enable_semantic_jump_frame_proposal_execution: bool = False,
     ) -> None:
         self._decision_engine = decision_engine or PoSelfDecisionEngine()
         self._trace_reader = trace_reader or PoTraceReader()
@@ -213,6 +229,17 @@ class PoSelfController:
         )
         self._enable_blocked_trace_reactivation_proposal_execution = (
             enable_blocked_trace_reactivation_proposal_execution
+        )
+        # --- Semantic jump frame proposal execution (PR-017, seed-level;
+        # see docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md). -------------------
+        self._semantic_frame_proposal_executor = (
+            semantic_frame_proposal_executor
+            or ControlledSemanticJumpFrameProposalExecutor(
+                max_self_cycles=self.max_self_cycles
+            )
+        )
+        self._enable_semantic_jump_frame_proposal_execution = (
+            enable_semantic_jump_frame_proposal_execution
         )
 
     def _gather_feedback(
@@ -455,6 +482,7 @@ class PoSelfController:
         semantic_jump_tensor = None
         semantic_jump_plan = None
         jump_decision = None
+        semantic_frame_proposal = None
         if self._enable_semantic_jump:
             semantic_jump_tensor = self._semantic_jump_tensor_computer.compute(
                 kernel_result=kernel_result,
@@ -563,6 +591,28 @@ class PoSelfController:
                     trace_refs=[plan_event.event_id],
                 )
                 combined_events.append(jump_decision_event)
+
+                # --- Semantic jump frame proposal execution (PR-017; off by
+                # default) -----------------------------------------------------
+                # Converts the SemanticJumpPlan into a deterministic
+                # SemanticFrameProposal via the controlled frame proposal
+                # executor. Never changes the semantic frame: semantic_frame_changed
+                # / content_rewrite_applied / state_mutation_applied /
+                # safety_bypass_applied / trace_reset_applied are always False
+                # (docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md). Only runs when a
+                # plan was created above, so SemanticJumpFrameProposed always has
+                # a SemanticJumpPlanned ancestor.
+                if self._enable_semantic_jump_frame_proposal_execution:
+                    frame_proposal_result = (
+                        self._semantic_frame_proposal_executor.execute(
+                            semantic_jump_plan=semantic_jump_plan,
+                            semantic_jump_tensor=semantic_jump_tensor,
+                            semantic_steps=kernel_result.semantic_steps,
+                            source_trace_events=combined_events,
+                        )
+                    )
+                    semantic_frame_proposal = frame_proposal_result.proposal
+                    combined_events.append(frame_proposal_result.trace_event)
 
         # --- Po_self_seedling bootstrap evaluation (PR-014; off by default) -
         # Only runs when at least one blocked trace exists for this request,
@@ -754,4 +804,5 @@ class PoSelfController:
             reactivation_evaluation=reactivation_evaluation,
             reactivation_plan=reactivation_plan,
             reactivation_proposal=reactivation_proposal,
+            semantic_frame_proposal=semantic_frame_proposal,
         )

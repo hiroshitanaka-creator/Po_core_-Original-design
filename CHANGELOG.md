@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (PR-017)
+- `docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` — new design + runtime contract for semantic jump frame proposal execution.
+- `schemas/semantic_frame_proposal_v1.schema.json` (`semantic_frame_changed`/`content_rewrite_applied`/`state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied` are all `const false`).
+- `src/po_core_original/self_controller/semantic_frame_proposal_executor.py` — `ControlledSemanticJumpFrameProposalExecutor`, converting an already-created `SemanticJumpPlan` into a deterministic `SemanticFrameProposal` via `execute()` (mirrors `ControlledReconstructionExecutor`'s and `ControlledBlockedTraceReactivationProposalExecutor`'s patch/proposal pattern). Refuses to run against a mismatched tensor, a tensor that didn't recommend a jump, a plan not requiring human review, or a broken trace-continuity chain; preserves each semantic step's content hash; never changes a semantic frame. `reconstruct` (same-frame patch) and `jump` (frame-change proposal) are never conflated.
+- `PoSelfController` feature flag: `enable_semantic_jump_frame_proposal_execution` (default `False`); only fires when a jump plan was created (i.e. `enable_semantic_jump` and `enable_semantic_jump_frame_proposal_execution` are both enabled).
+- New trace event type: `SemanticJumpFrameProposed` (added to `schemas/po_trace_event_v1.schema.json`; no actual semantic-jump-execution event is declared).
+- New dataclasses in `models.py`: `SemanticFrameProposal`, `SemanticFrameProposalOperation`, `SemanticFrameProposalFrame`, `SemanticFrameProposalConstraints`, `SemanticFrameProposalResult`.
+- `TraceContinuityValidator` rule 20 (`docs/contracts/TRACE_CONTINUITY_V1.md` §8d, §10).
+- `docs/original_design_adr/ADR-0005-semantic-jump-frame-proposal-executor.md` (Accepted).
+- Tests: `tests/test_semantic_frame_proposal_contract.py`, `tests/test_semantic_jump_frame_proposal_executor.py`, `tests/test_trace_continuity_semantic_jump_frame_proposal.py` (35 tests).
+- 1 new valid schema example + 1 new valid event example + 1 new valid trace-chain fixture + 1 new invalid trace-chain fixture under `examples/contracts/`.
+
+### Changed (PR-017)
+- `PoSelfResult` gains an optional field: `semantic_frame_proposal`.
+- `scripts/validate_contracts.py` and `scripts/validate_trace_continuity.py` register the new schema/examples.
+- `tests/test_contract_schemas.py`'s `event_type` enum coverage assertion and `tests/test_validate_trace_continuity_script.py`'s check-count assertion updated for the 1 new event type / 2 new example files.
+
+### Not Changed (PR-017)
+- No actual semantic jump execution; no actual semantic frame mutation; no content rewriting; no state mutation; no safety-gate bypass; no trace reset; no LLM reconstruction; no philosopher tensor execution; no autonomous self-growth loop.
+- `PoCoreKernel`, `PoSelfDecisionEngine`, `ReconstructionPlanner`, `ControlledReconstructionExecutor`, `ViewerFeedbackService`, `BlockedTraceService`/`BlockedTraceReader`, `SeedlingEvaluator`, `SemanticJumpTensorComputer`/`SemanticJumpPlanner`, `PoTraceReactivationPlanner`, `ControlledBlockedTraceReactivationProposalExecutor` are untouched.
+- Default-flag request flow (`enable_semantic_jump_frame_proposal_execution=False`) produces no new trace event types, verified by test.
+
 ### Added (PR-016)
 - `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` — new design + runtime contract for blocked trace reactivation proposal execution.
 - `schemas/po_trace_reactivation_proposal_v1.schema.json` (`reactivation_executed`/`content_rewrite_applied`/`state_mutation_applied`/`safety_bypass_applied` are all `const false`).

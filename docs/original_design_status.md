@@ -10,6 +10,113 @@
 
 ## 現フェーズ
 
+**Phase 16: Semantic Jump Frame Proposal Executor Seed（PR-017）— 完了
+（`read` / `verify` / `propose` / `trace` / `validate` のみ。
+`actual semantic jump execution` / `semantic frame の実変更` /
+`content rewrite` / `trace reset` / `state mutation` / `safety bypass` /
+`LLM reconstruction` / `philosopher runtime execution` /
+`autonomous self-growth loop` は一切実装していない）。**
+
+本PR（PR-017）は、PR-014 が確立した `SemanticJumpPlan` の上に、意味枠
+（semantic frame）転位を決定論的な**提案**へ変換する制御層を追加した。
+`ControlledReconstructionExecutor`（PR-007）・
+`ControlledBlockedTraceReactivationProposalExecutor`（PR-016）のパッチ/
+提案パターンを踏襲し、`SemanticJumpPlan` を proposal-only executor に
+渡すことで、実際の意味枠変更ではなく提案を生成する。reconstruct
+（同一意味枠内のパッチ）と jump（意味枠転位の提案）は絶対に混同しない。
+
+契約：`docs/contracts/SEMANTIC_FRAME_PROPOSAL_V1.md` を新規追加。既存の
+`docs/contracts/CONTRACT_OVERVIEW.md`・`docs/contracts/PO_TRACE_EVENT_V1.md`・
+`docs/contracts/TRACE_CONTINUITY_V1.md`・
+`docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` を更新（正直な実装済み/
+未実装区分を維持）。`schemas/semantic_frame_proposal_v1.schema.json` を
+新規追加（`semantic_frame_changed`/`content_rewrite_applied`/
+`state_mutation_applied`/`safety_bypass_applied`/`trace_reset_applied` は
+いずれも `const false`）。`schemas/po_trace_event_v1.schema.json` の
+`event_type` enum に `SemanticJumpFrameProposed` を追加（実際の意味枠実行
+イベントは意図的に追加しない）。
+
+実装：`src/po_core_original/self_controller/semantic_frame_proposal_executor.py`
+（新規）— `ControlledSemanticJumpFrameProposalExecutor.execute()` が
+`semantic_jump_plan.semantic_jump_tensor_id` とテンソルの `jump_recommended`、
+計画の `requires_human_review`（常に `const true`）を再検証し、いずれかが
+不正なら `ValueError` で実行を拒否。`semantic_jump_plan_v1` はPR-015の
+`po_trace_reactivation_plan_v1` と異なり `*_allowed` 安全フラグを自身で
+持たないため、この執行器は代わりに計画とテンソルの既存不変量を再検証する
+（ADR-0005参照）。`target_step_ids` に含まれる各 semantic step について、
+`SemanticStep.content` の SHA-256 ハッシュを提案生成の前後で再計算して
+不変性を証明（`ControlledReconstructionExecutor` のコンテンツハッシュ
+検証パターンと同一）。解決できないステップには空文字列の SHA-256
+（documented sentinel）を使用し、`preserve_original_frame` operation を
+生成。`models.py` に `SemanticFrameProposal`/
+`SemanticFrameProposalOperation`/`SemanticFrameProposalFrame`/
+`SemanticFrameProposalConstraints`/`SemanticFrameProposalResult` dataclass
+を追加、`PoSelfResult` に対応する任意フィールドを追加。`PoSelfController`
+に `enable_semantic_jump_frame_proposal_execution`（既定 `False`）を追加、
+jump decision 発行直後に配線 — `enable_semantic_jump` も有効な場合のみ
+発火する。
+
+検証：`src/po_core_original/trace_validation/` — `TraceContinuityValidator`
+に新規ルール20（`docs/contracts/TRACE_CONTINUITY_V1.md` §8d・§10）を追加：
+`SemanticJumpFrameProposed` は `SemanticJumpPlanned` 祖先必須、さらに5つの
+安全不変フラグがすべて `false` であることをペイロードレベルでも検証する。
+これは `docs/contracts/TRACE_CONTINUITY_V1.md` §14 が要求する「実装前の
+契約拡張」を満たす。`tests/test_semantic_frame_proposal_contract.py`
+（13件）・`tests/test_semantic_jump_frame_proposal_executor.py`（14件）・
+`tests/test_trace_continuity_semantic_jump_frame_proposal.py`（8件）を
+新規追加（計35件、全パス）。`examples/contracts/` に有効例2件・有効チェーン
+例1件・無効チェーン例1件を追加。`scripts/validate_contracts.py`（14
+schemas / 23 examples）・`scripts/validate_trace_continuity.py`
+（`--include-negative` で14ファイル：有効4件+無効10件）を更新。
+`tests/test_contract_schemas.py` の `event_type` enum カバレッジ
+アサーションと `tests/test_validate_trace_continuity_script.py` の
+チェック件数アサーション（12→14）を新規イベント型・新規ファイルを含む
+よう更新（PR-017固有の変更ではなく、PR-015/PR-016から存在した既存テストの
+定数更新）。ADR-0005
+（`docs/original_design_adr/ADR-0005-semantic-jump-frame-proposal-executor.md`、
+Accepted）を新規追加。
+
+**結果:** 本PRの新規35件全パス。既存の全PR-014/PR-015/PR-016回帰テスト
+（`test_po_trace_blocked_contract.py`・`test_po_self_seedling_contract.py`・
+`test_semantic_jump_tensor_contract.py`・`test_semantic_jump_seed_wiring.py`・
+`test_trace_continuity_seedling_jump.py`・`test_trace_continuity_validator.py`・
+`test_contract_schemas.py`・`test_validate_trace_continuity_script.py`・
+`test_po_trace_reactivation_plan_contract.py`・
+`test_po_trace_blocked_reactivation_planner.py`・
+`test_trace_continuity_blocked_reactivation.py`・
+`test_po_trace_reactivation_proposal_contract.py`・
+`test_blocked_trace_reactivation_proposal_executor.py`・
+`test_trace_continuity_blocked_reactivation_proposal.py`）→ 全パス（新規
+35件と合わせ計290件超）。`python scripts/validate_contracts.py` → 14
+schemas / 23 examples 全て有効。`python scripts/validate_trace_continuity.py
+--include-negative` → 有効チェーン4件 + 無効チェーン10件すべて期待通り。
+`python scripts/check_concept_drift.py --check-pr-template` → PASS。
+`python scripts/check_adr_index.py` → PASS（ADR-0005含む）。
+`python scripts/governance_preflight.py` → PASS。
+
+**明示的に未実装（正直な区分）：**
+- 実際の semantic jump 実行（`SemanticJumpFrameProposed` を消費する
+  実行イベント自体がスキーマに未宣言）
+- 意味枠（semantic frame）の実変更
+- 内容書き換え
+- trace リセット
+- 状態変更
+- 安全ゲート回避
+- LLM ベース再構成
+- 哲学者テンソル実行
+- 自律的な自己成長ループ
+- 長期永続化
+
+既存 `kernel.py`/`step_decomposer.py`/`semantic_profile_engine.py`/
+`decision_engine.py`/`reconstruction_planner.py`/`reconstruction_executor.py`/
+`viewer_feedback/`/`blocked_trace/`/`seedling_evaluator.py`/
+`semantic_jump_tensor.py`/`semantic_jump_planner.py`/
+`reactivation_planner.py`/`blocked_reactivation_proposal_executor.py`・
+哲学者ロスター・`run_turn` パイプラインは無変更。`PoSelfController` への
+変更は既存動作に対して完全に加算的・feature-flagged であり、既定フラグ
+での通常リクエストフローは PR-017 以前とイベント型の観点でバイト同一で
+あることをテストで確認済み。
+
 **Phase 15: Controlled Blocked Trace Reactivation Proposal Executor Seed（PR-016）— 完了
 （`read` / `verify` / `propose` / `trace` / `validate` のみ。
 `actual reactivation` / `semantic jump execution` / `content rewrite` /
