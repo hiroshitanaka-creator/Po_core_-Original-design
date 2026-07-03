@@ -68,6 +68,7 @@ Optional: `correlation_id`, `parent_event_id`, `trace_refs`.
 | `SemanticJumpPlanned` | **PR-014 (seed-level, `enable_semantic_jump` default `False`):** summary of a `semantic_jump_plan_v1` — `{ jump_plan_id, request_id, semantic_jump_tensor_id, source_jump_type, plan_status, target_step_ids, requires_human_review }`. Proposal only; jump is never executed. See `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md`. |
 | `PoTraceBlockedReactivationEvaluated` | **PR-015 (seed-level, `enable_blocked_trace_reactivation_planning` default `False`):** `{ seedling_id, blocked_trace_count, candidate_count, max_reactivation_pressure, reactivation_threshold, trigger_source }`. Emitted whenever planning runs, regardless of eligibility. See `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`. |
 | `PoTraceBlockedReactivationPlanned` | **PR-015 (seed-level, `enable_blocked_trace_reactivation_planning` default `False`):** summary of a `po_trace_reactivation_plan_v1` — `{ reactivation_plan_id, seedling_id, blocked_trace_ids, trigger_source, reactivation_pressure, reactivation_threshold, plan_status, reactivation_execution_allowed, content_rewrite_allowed, state_mutation_allowed, safety_bypass_allowed, operation_count }`. Emitted only when a plan was created (evaluation cleared the threshold). Planning only; no reactivation is ever executed. See `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md`. |
+| `PoTraceBlockedReactivationProposed` | **PR-016 (seed-level, `enable_blocked_trace_reactivation_proposal_execution` default `False`):** summary of a `po_trace_reactivation_proposal_v1` — `{ proposal_id, reactivation_plan_id, seedling_id, blocked_trace_ids, proposal_status, execution_mode, reactivation_executed, content_rewrite_applied, state_mutation_applied, safety_bypass_applied, operation_count, trace_continuity_verified }`. Emitted whenever the controlled proposal executor runs, regardless of `proposal_status`. Means a `PoTraceReactivationPlan` was applied to the *controlled proposal executor* (a deterministic proposal was produced), NOT that any blocked trace was reactivated — `reactivation_executed` is always `false`. See `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`. |
 
 `payload` is intentionally `additionalProperties: true` at the envelope level because its shape
 depends on `event_type`; it must validate against the corresponding contract-specific schema
@@ -115,6 +116,15 @@ future PRs).
   runtime code in this repository, ever reactivates a blocked trace.
   `PoTraceBlockedReactivated` (actual reactivation) is deliberately **not**
   declared in the `event_type` enum yet.
+- `PoTraceBlockedReactivationProposed` is behaviorally emitted as of PR-016,
+  seed-level and feature-flagged
+  (`docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`). It records that a
+  `PoTraceReactivationPlan` was converted into a deterministic reactivation
+  *proposal* by `ControlledBlockedTraceReactivationProposalExecutor` — never
+  that a blocked trace was reactivated
+  (`reactivation_executed`/`content_rewrite_applied`/
+  `state_mutation_applied`/`safety_bypass_applied` are always `false`).
+  `PoTraceBlockedReactivated` remains undeclared.
 - **PR-008** adds a formal *trace graph* semantics on top of this envelope
   (no schema/enum change): `parent_event_id` and `trace_refs` are the only
   fields that form continuity edges — `created_at` is never used for this

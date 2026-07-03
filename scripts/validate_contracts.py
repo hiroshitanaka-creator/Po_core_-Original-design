@@ -51,6 +51,7 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
             "po_trace.po_self_reconstruction_applied.valid.json",
             "po_trace.po_trace_blocked_reactivation_evaluated.valid.json",
             "po_trace.po_trace_blocked_reactivation_planned.valid.json",
+            "po_trace.po_trace_blocked_reactivation_proposed.valid.json",
         ],
     },
     "reconstruction_plan_v1": {
@@ -80,6 +81,10 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
     "po_trace_reactivation_plan_v1": {
         "schema": "po_trace_reactivation_plan_v1.schema.json",
         "examples": ["po_trace_reactivation_plan.valid.json"],
+    },
+    "po_trace_reactivation_proposal_v1": {
+        "schema": "po_trace_reactivation_proposal_v1.schema.json",
+        "examples": ["po_trace_reactivation_proposal.valid.json"],
     },
 }
 

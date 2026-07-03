@@ -1,0 +1,150 @@
+{
+  "description": "PR-016 VALID trace chain example: a full chain from SemanticProfileComputed through PoTraceBlockedRecorded -> PoTraceBlockedRead -> PoSelfSeedlingEvaluated -> PoTraceBlockedReactivationEvaluated -> PoTraceBlockedReactivationPlanned -> PoTraceBlockedReactivationProposed. Passes TraceContinuityValidator(strict=True) with no issues. See docs/contracts/TRACE_CONTINUITY_V1.md §8c and §11.",
+  "expected_validation_result": {
+    "valid": true,
+    "issue_codes": []
+  },
+  "events": [
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_semantic_profile_computed_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "SemanticProfileComputed",
+      "payload": {
+        "output_id": "out_req_blocked_reactivation_proposal",
+        "proposal_id": "kernel_mvp",
+        "step_count": 1,
+        "steps": [
+          {
+            "step_id": "step_001",
+            "profile_id": "sp_req_blocked_reactivation_proposal_1",
+            "primary_axis": "ethical_axis",
+            "priority_score": 7.5,
+            "alert_level": "high"
+          }
+        ]
+      },
+      "created_at": "2026-07-04T00:00:00Z"
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_recorded_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoTraceBlockedRecorded",
+      "payload": {
+        "blocked_trace_id": "btr_brpp_1",
+        "request_id": "req_blocked_reactivation_proposal",
+        "source_step_ids": ["step_001"],
+        "blocked_reason": "Reconstruction plan is not_applicable.",
+        "blocked_type": "reconstruction_deferred",
+        "status": "blocked",
+        "reactivation_score": 0.775,
+        "reactivation_eligibility": true
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_semantic_profile_computed_brpp",
+      "trace_refs": ["evt_semantic_profile_computed_brpp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_read_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoTraceBlockedRead",
+      "payload": {
+        "request_id": "req_blocked_reactivation_proposal",
+        "read_count": 1,
+        "blocked_trace_ids": ["btr_brpp_1"]
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_po_trace_blocked_recorded_brpp",
+      "trace_refs": ["evt_po_trace_blocked_recorded_brpp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_self_seedling_evaluated_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoSelfSeedlingEvaluated",
+      "payload": {
+        "seedling_id": "seed_brpp_1",
+        "request_id": "req_blocked_reactivation_proposal",
+        "activation_source": "blocked_trace_pressure",
+        "activation_score": 0.775,
+        "activation_threshold": 0.75,
+        "status": "seed_planned",
+        "input_pressures": {
+          "blocked_trace_pressure": 0.775,
+          "viewer_pressure": 0.0,
+          "semantic_jump_pressure": 0.0,
+          "ethics_delta_pressure": 0.0
+        },
+        "blocked_trace_refs": ["btr_brpp_1"]
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_po_trace_blocked_read_brpp",
+      "trace_refs": ["evt_po_trace_blocked_read_brpp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_reactivation_evaluated_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoTraceBlockedReactivationEvaluated",
+      "payload": {
+        "seedling_id": "seed_brpp_1",
+        "blocked_trace_count": 1,
+        "candidate_count": 1,
+        "max_reactivation_pressure": 0.775,
+        "reactivation_threshold": 0.5,
+        "trigger_source": "blocked_trace_pressure"
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_po_self_seedling_evaluated_brpp",
+      "trace_refs": ["evt_po_self_seedling_evaluated_brpp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_reactivation_planned_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoTraceBlockedReactivationPlanned",
+      "payload": {
+        "reactivation_plan_id": "rtp_brpp_1",
+        "seedling_id": "seed_brpp_1",
+        "blocked_trace_ids": ["btr_brpp_1"],
+        "trigger_source": "blocked_trace_pressure",
+        "reactivation_pressure": 0.775,
+        "reactivation_threshold": 0.5,
+        "plan_status": "planned",
+        "reactivation_execution_allowed": false,
+        "content_rewrite_allowed": false,
+        "state_mutation_allowed": false,
+        "safety_bypass_allowed": false,
+        "operation_count": 1
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_po_trace_blocked_reactivation_evaluated_brpp",
+      "trace_refs": ["evt_po_trace_blocked_reactivation_evaluated_brpp"]
+    },
+    {
+      "schema_version": "po_trace_event_v1",
+      "event_id": "evt_po_trace_blocked_reactivation_proposed_brpp",
+      "request_id": "req_blocked_reactivation_proposal",
+      "event_type": "PoTraceBlockedReactivationProposed",
+      "payload": {
+        "proposal_id": "rtprop_brpp_1",
+        "reactivation_plan_id": "rtp_brpp_1",
+        "seedling_id": "seed_brpp_1",
+        "blocked_trace_ids": ["btr_brpp_1"],
+        "proposal_status": "proposed",
+        "execution_mode": "reactivation_proposal_only",
+        "reactivation_executed": false,
+        "content_rewrite_applied": false,
+        "state_mutation_applied": false,
+        "safety_bypass_applied": false,
+        "operation_count": 1,
+        "trace_continuity_verified": true
+      },
+      "created_at": "2026-07-04T00:00:00Z",
+      "parent_event_id": "evt_po_trace_blocked_reactivation_planned_brpp",
+      "trace_refs": ["evt_po_trace_blocked_reactivation_planned_brpp"]
+    }
+  ]
+}

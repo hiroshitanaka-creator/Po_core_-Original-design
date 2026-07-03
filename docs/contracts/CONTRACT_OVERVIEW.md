@@ -34,7 +34,8 @@ architecture is protected from being quietly dropped for being "not implemented 
 | `po_self_seedling_v1` | `schemas/po_self_seedling_v1.schema.json` | `docs/contracts/PO_SELF_SEEDLING_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, seed-level bootstrap evaluation) | `PoTraceReactivationPlanner` (PR-015); future self-growth governance (not implemented) |
 | `semantic_jump_tensor_v1` | `schemas/semantic_jump_tensor_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_core/Po_self boundary (Layer 1/2, PR-014, feature-flagged off by default) | `SemanticJumpPlanner` (PR-014) |
 | `semantic_jump_plan_v1` | `schemas/semantic_jump_plan_v1.schema.json` | `docs/contracts/SEMANTIC_JUMP_TENSOR_CONTRACT_V1.md` | Po_self (Layer 2, PR-014, feature-flagged off by default) | `PoTraceReactivationPlanner` (optional pressure input, PR-015); future controlled jump execution (not implemented) |
-| `po_trace_reactivation_plan_v1` | `schemas/po_trace_reactivation_plan_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` | Po_self (Layer 2, PR-015, feature-flagged off by default) | future controlled reactivation proposal executor (PR-016, not implemented) |
+| `po_trace_reactivation_plan_v1` | `schemas/po_trace_reactivation_plan_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` | Po_self (Layer 2, PR-015, feature-flagged off by default) | `ControlledBlockedTraceReactivationProposalExecutor` (PR-016) |
+| `po_trace_reactivation_proposal_v1` | `schemas/po_trace_reactivation_proposal_v1.schema.json` | `docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md` | Po_self (Layer 2, PR-016, feature-flagged off by default) | future controlled reactivation execution phase (not implemented) |
 
 > `po_trace_blocked_v1`, `po_self_seedling_v1`, `semantic_jump_tensor_v1`, and
 > `semantic_jump_plan_v1` (PR-014) are design **and** runtime contracts, like
@@ -50,6 +51,12 @@ architecture is protected from being quietly dropped for being "not implemented 
 > rewrites, mutates state, or bypasses safety
 > (`reactivation_execution_allowed`/`content_rewrite_allowed`/
 > `state_mutation_allowed`/`safety_bypass_allowed` are all `const false`).
+> `po_trace_reactivation_proposal_v1` (PR-016) extends the same pattern one
+> layer further: seed-level, feature-flagged off by default
+> (`enable_blocked_trace_reactivation_proposal_execution`), and never
+> reactivates, rewrites, mutates state, or bypasses safety
+> (`reactivation_executed`/`content_rewrite_applied`/
+> `state_mutation_applied`/`safety_bypass_applied` are all `const false`).
 
 > `reconstruction_plan_v1` (PR-006) and `reconstruction_patch_v1` (PR-007) are design
 > **and runtime** contracts — unlike the five PR-002 schema-only contracts above
@@ -165,6 +172,31 @@ SemanticProfileComputed
        → PoTraceBlockedReactivationEvaluated → PoTraceBlockedReactivationPlanned
 ```
 
+### Blocked trace reactivation proposal execution (PR-016, seed-level)
+
+A fifth concept extends the chain one step further, still feature-flagged
+and still never executing anything:
+
+- **`PoTraceReactivationProposal`** (`docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md`):
+  `ControlledBlockedTraceReactivationProposalExecutor` reads an
+  already-created `PoTraceReactivationPlan` and its referenced
+  `Po_trace_blocked` records, verifies the plan's four safety-invariant
+  flags are `false` (refusing to run otherwise), and produces a
+  deterministic reactivation *proposal* per blocked trace — preserving each
+  blocked trace's content hash and source trace refs.
+  `PoTraceBlockedReactivationProposed` is always emitted when the executor
+  runs. `enable_blocked_trace_reactivation_proposal_execution` defaults
+  `False`; `reactivation_executed` / `content_rewrite_applied` /
+  `state_mutation_applied` / `safety_bypass_applied` are all `const false`
+  — no reactivation is ever executed.
+
+```text
+SemanticProfileComputed
+  └─ PoTraceBlockedRecorded → PoSelfSeedlingEvaluated
+       → PoTraceBlockedReactivationEvaluated → PoTraceBlockedReactivationPlanned
+            → PoTraceBlockedReactivationProposed
+```
+
 ### Trace continuity chain (PR-008)
 
 `docs/contracts/TRACE_CONTINUITY_V1.md` formalizes the chain every one of the
@@ -252,3 +284,11 @@ runtime PR implements it (`docs/GOVERNANCE.md`).
   `tests/test_trace_continuity_blocked_reactivation.py` (PR-015) — schema validation,
   deterministic `PoTraceReactivationPlanner` behavior, and the new
   `TraceContinuityValidator` rules for `po_trace_reactivation_plan_v1`.
+- `tests/test_po_trace_reactivation_proposal_contract.py`,
+  `tests/test_blocked_trace_reactivation_proposal_executor.py`,
+  `tests/test_trace_continuity_blocked_reactivation_proposal.py` (PR-016) —
+  schema validation, deterministic
+  `ControlledBlockedTraceReactivationProposalExecutor` behavior (including
+  its refusal to run against an unsafe plan and its content-hash
+  preservation proof), and the new `TraceContinuityValidator` rule for
+  `po_trace_reactivation_proposal_v1`.

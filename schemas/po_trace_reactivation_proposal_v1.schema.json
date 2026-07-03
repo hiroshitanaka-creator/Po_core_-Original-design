@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hiroshitanaka-creator/Po_core_-Original-design/blob/main/schemas/po_trace_reactivation_proposal_v1.schema.json",
+  "title": "Po_core po_trace_reactivation_proposal v1",
+  "description": "PR-016 design + runtime contract (seed-level). Converts a Po_trace_reactivation_plan (PR-015) into a deterministic reactivation PROPOSAL -- it never reactivates anything. reactivation_executed, content_rewrite_applied, state_mutation_applied, and safety_bypass_applied are all const false: this is proposal only (read / verify / propose / trace / validate). See docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "proposal_id",
+    "request_id",
+    "reactivation_plan_id",
+    "seedling_id",
+    "blocked_trace_ids",
+    "proposal_status",
+    "execution_mode",
+    "reactivation_executed",
+    "content_rewrite_applied",
+    "state_mutation_applied",
+    "safety_bypass_applied",
+    "original_blocked_content_hashes",
+    "source_trace_refs",
+    "proposed_operations",
+    "safety_constraints",
+    "rationale",
+    "created_at",
+    "trace_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "po_trace_reactivation_proposal_v1" },
+    "proposal_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "reactivation_plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The po_trace_reactivation_plan this proposal was generated from."
+    },
+    "seedling_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The po_self_seedling that originated the reactivation_plan."
+    },
+    "blocked_trace_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "proposal_status": {
+      "type": "string",
+      "enum": ["proposed", "not_applicable", "blocked_by_safety", "requires_human_review"],
+      "description": "PR-016 seed runtime only ever produces 'proposed' (at least one blocked trace was found and proposed) or 'not_applicable' (none of reactivation_plan.blocked_trace_ids could be resolved against the blocked_traces passed to the executor). 'blocked_by_safety' / 'requires_human_review' are reserved for future planner/executor behavior, not yet produced."
+    },
+    "execution_mode": {
+      "const": "reactivation_proposal_only",
+      "description": "Fixed mode marker: this executor only ever produces proposals, never reactivation."
+    },
+    "reactivation_executed": {
+      "const": false,
+      "description": "This PR never executes a reactivation. Always false."
+    },
+    "content_rewrite_applied": {
+      "const": false,
+      "description": "This proposal never rewrites content. Always false."
+    },
+    "state_mutation_applied": {
+      "const": false,
+      "description": "This proposal never mutates runtime state. Always false."
+    },
+    "safety_bypass_applied": {
+      "const": false,
+      "description": "This proposal never bypasses a safety gate. Always false."
+    },
+    "original_blocked_content_hashes": {
+      "type": "object",
+      "description": "Key: blocked_trace_id. Value: SHA-256 hex digest of the canonical, deterministic serialization of that PoTraceBlocked record's preserved fields (blocked_trace_id/request_id/source_step_ids/blocked_reason/blocked_type/pressure_snapshot), proving the record was not mutated by this executor. When a blocked_trace_id referenced by the plan could not be resolved against the blocked_traces passed to the executor, the documented sentinel SHA-256(\"\") (e69...) is used instead -- see docs/contracts/PO_TRACE_REACTIVATION_PROPOSAL_V1.md §6.",
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "source_trace_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "trace event ids the proposal was derived from -- must include the plan / blocked / seedling lineage."
+    },
+    "proposed_operations": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "operation_type", "blocked_trace_id", "proposal_text", "rationale", "constraints"],
+        "properties": {
+          "operation_id": { "type": "string", "minLength": 1 },
+          "operation_type": {
+            "type": "string",
+            "enum": [
+              "inspect_blocked_trace",
+              "prepare_reactivation_proposal",
+              "link_to_seedling",
+              "request_human_review",
+              "preserve_blocked_trace"
+            ],
+            "description": "PR-016 behavior uses only 'prepare_reactivation_proposal' (or 'preserve_blocked_trace' for a not_applicable/unresolved blocked_trace_id)."
+          },
+          "blocked_trace_id": { "type": "string", "minLength": 1 },
+          "proposal_text": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reactivation_allowed",
+              "content_rewrite_allowed",
+              "state_mutation_allowed",
+              "safety_bypass_allowed",
+              "preserve_original_blocked_content",
+              "preserve_source_trace",
+              "requires_future_executor"
+            ],
+            "properties": {
+              "reactivation_allowed": { "const": false },
+              "content_rewrite_allowed": { "const": false },
+              "state_mutation_allowed": { "const": false },
+              "safety_bypass_allowed": { "const": false },
+              "preserve_original_blocked_content": { "const": true },
+              "preserve_source_trace": { "const": true },
+              "requires_future_executor": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    "safety_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_trace_continuity",
+        "requires_human_review_for_execution",
+        "requires_future_executor",
+        "forbids_content_rewrite",
+        "forbids_state_mutation",
+        "forbids_safety_bypass"
+      ],
+      "properties": {
+        "requires_trace_continuity": { "type": "boolean" },
+        "requires_human_review_for_execution": { "type": "boolean" },
+        "requires_future_executor": { "type": "boolean" },
+        "forbids_content_rewrite": { "type": "boolean" },
+        "forbids_state_mutation": { "type": "boolean" },
+        "forbids_safety_bypass": { "type": "boolean" }
+      },
+      "description": "PR-016 seed runtime always sets every field true here; the schema keeps them as plain booleans (not const) so a future, still non-destructive, refinement is not blocked by this contract."
+    },
+    "rationale": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "trace_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Must include a PoTraceBlockedReactivationPlanned event id (directly or via ancestry). Enforced by TraceContinuityValidator, not expressible as a JSON Schema constraint (docs/contracts/TRACE_CONTINUITY_V1.md)."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": "po_trace_event_v1",
+  "event_id": "evt_po_trace_blocked_reactivation_proposed_001",
+  "request_id": "req_demo",
+  "event_type": "PoTraceBlockedReactivationProposed",
+  "payload": {
+    "proposal_id": "rtprop_reqdemo_001",
+    "reactivation_plan_id": "rtp_reqdemo_seed001",
+    "seedling_id": "seed_reqdemo_blockedt",
+    "blocked_trace_ids": ["btr_reqdemo_a1b2c3d4"],
+    "proposal_status": "proposed",
+    "execution_mode": "reactivation_proposal_only",
+    "reactivation_executed": false,
+    "content_rewrite_applied": false,
+    "state_mutation_applied": false,
+    "safety_bypass_applied": false,
+    "operation_count": 1,
+    "trace_continuity_verified": true
+  },
+  "created_at": "2026-07-04T00:00:00Z",
+  "parent_event_id": "evt_po_trace_blocked_reactivation_planned_001",
+  "trace_refs": ["evt_po_trace_blocked_reactivation_planned_001"]
+}
