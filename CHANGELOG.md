@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (maintenance refactor)
+- `src/po_core/text/tokenize.py` — shared `tokenize()` helper; single source of truth for the whitespace-split / punctuation-strip / lowercase tokenization previously duplicated in 4 modules. Exported as `po_core.text.tokenize`.
+- `tests/unit/test_text_tokenize.py` — 10 unit tests for the shared tokenizer (default punct set, stopwords, min_length, legacy strip-set compatibility).
+
+### Changed (maintenance refactor)
+- `tensors/metrics/freedom_pressure.py`, `tensors/metrics/blocked_tensor.py`, `tensors/metrics/semantic_delta.py`, `tensors/engine.py` — local `_tokenize` implementations replaced with delegations to `po_core.text.tokenize`. Behavior-preserving: `semantic_delta` keeps its stopword/min-length filter; `engine.py` keeps its historical (smaller) strip set via `strip_chars` so legacy tensor values and goldens are unchanged.
+- `"philosopher module"` (stray unimportable root file, WittgensteinModule_v2 draft from the initial commit) moved to `docs/archive/wittgenstein_module_v2_draft.py`.
+
+### Removed (maintenance refactor)
+- `License.md` — byte-identical duplicate of `LICENSE`; unreferenced.
+- `src/po_core/tensor_metrics.py` — legacy parallel implementation of `FreedomPressureTensor`/`SemanticProfile`/`BlockedTensor` superseded by `tensors/` + `tensors/metrics/`. Zero references in `src/`, `tests/`, `scripts/`, `examples/`, docs, or CI; eagerly imported torch + sentence-transformers. External code importing `po_core.tensor_metrics` should migrate to `po_core.tensors`.
+
 ### Added (PR-015)
 - `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` — new design + runtime contract for blocked trace reactivation planning.
 - `schemas/po_trace_reactivation_plan_v1.schema.json` (`reactivation_execution_allowed`/`content_rewrite_allowed`/`state_mutation_allowed`/`safety_bypass_allowed` are all `const false`).

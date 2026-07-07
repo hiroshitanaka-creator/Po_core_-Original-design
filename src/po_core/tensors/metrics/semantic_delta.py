@@ -29,6 +29,7 @@ import numpy as np
 from po_core.domain.context import Context
 from po_core.domain.memory_snapshot import MemorySnapshot
 from po_core.text.embedding_cache import GLOBAL_EMBEDDING_CACHE
+from po_core.text.tokenize import tokenize
 
 # ── Backend Detection ────────────────────────────────────────────────
 
@@ -311,12 +312,7 @@ _STOPWORDS: Set[str] = {
 
 def _tokenize(text: str) -> List[str]:
     """Tokenize text: lowercase, strip punctuation, remove stopwords."""
-    tokens = []
-    for raw in text.split():
-        cleaned = raw.strip(".,!?\"'()[]{}:;`~@#$%^&*+=<>/\\|").lower()
-        if cleaned and cleaned not in _STOPWORDS and len(cleaned) > 1:
-            tokens.append(cleaned)
-    return tokens
+    return tokenize(text, stopwords=_STOPWORDS, min_length=2)
 
 
 def _compute_tf(tokens: List[str]) -> Dict[str, float]:

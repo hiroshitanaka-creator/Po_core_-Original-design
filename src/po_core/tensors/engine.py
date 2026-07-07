@@ -34,6 +34,7 @@ from po_core.tensors.freedom_pressure_v2 import (
     FreedomPressureV2,
     create_freedom_pressure_v2,
 )
+from po_core.text.tokenize import tokenize
 
 # Type alias for metric functions
 MetricFn = Callable[[Context, MemorySnapshot], Tuple[str, float]]
@@ -240,21 +241,8 @@ def compute_blocked_tensor(
 
 
 def _tokenize(text: str) -> List[str]:
-    """
-    Simple tokenizer for text analysis.
-
-    Args:
-        text: Text to tokenize
-
-    Returns:
-        List of lowercase tokens
-    """
-    tokens: List[str] = []
-    for raw in text.split():
-        cleaned = raw.strip(".,!?\"'()[]{}:;`").lower()
-        if cleaned:
-            tokens.append(cleaned)
-    return tokens
+    """Tokenize with the historical strip set to keep legacy values stable."""
+    return tokenize(text, strip_chars=".,!?\"'()[]{}:;`")
 
 
 # Simple functions for backward compatibility with ensemble.py
