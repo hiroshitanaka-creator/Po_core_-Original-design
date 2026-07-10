@@ -28,7 +28,7 @@ class _LazyTorchModule:
 
 
 if not TYPE_CHECKING:
-    torch = _LazyTorchModule()
+    globals()["torch"] = _LazyTorchModule()
 
 warnings.warn(
     "po_core.tensor_metrics is deprecated; migrate to po_core.tensors, "
