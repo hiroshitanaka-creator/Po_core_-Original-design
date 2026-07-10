@@ -95,3 +95,11 @@ def test_matching_distribution_metadata_keeps_version_check_active(monkeypatch) 
         assert str(exc) == "version mismatch: dist=1.0.2 package=1.0.3"
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected version mismatch to remain enforced")
+
+
+def test_release_smoke_checks_legacy_tensor_metrics_api(capsys) -> None:
+    module = _load_release_smoke_module()
+
+    module._assert_legacy_tensor_metrics_compatibility()
+
+    assert "legacy_tensor_metrics_compat=ok" in capsys.readouterr().out

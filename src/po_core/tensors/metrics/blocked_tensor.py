@@ -14,10 +14,11 @@ Also performs direct harmful keyword detection as an additional signal.
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import Tuple
 
 from po_core.domain.context import Context
 from po_core.domain.memory_snapshot import MemorySnapshot
+from po_core.text.tokenize import tokenize as _tokenize
 
 # Harmful/sensitive keyword lists for direct detection
 _HARMFUL_KEYWORDS = [
@@ -39,16 +40,6 @@ _SENSITIVE_KEYWORDS = [
     "overdose",
     "abuse",
 ]
-
-
-def _tokenize(text: str) -> List[str]:
-    """Simple whitespace tokenizer with punctuation stripping."""
-    tokens = []
-    for raw in text.split():
-        cleaned = raw.strip(".,!?\"'()[]{}:;`~@#$%^&*+=<>/\\|").lower()
-        if cleaned:
-            tokens.append(cleaned)
-    return tokens
 
 
 def _harmful_score(text: str) -> float:

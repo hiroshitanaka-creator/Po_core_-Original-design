@@ -75,7 +75,7 @@ src/po_core/
 - Config-driven philosophy: `pareto_table.yaml`, `battalion_table.yaml`
 - TraceEvents use frozen schema with `config_version` tracking
 - REST API config via env vars with `PO_` prefix (see `.env.example`)
-- Version: `1.0.3` (pre-publish release candidate; 1.0.2 is latest published to PyPI)
+- Version: repository target `1.1.0`; `1.0.3` is latest published to PyPI (SSOT: `docs/status.md` + `src/po_core/__init__.py`)
 
 ## Current Status (2026-03-22)
 

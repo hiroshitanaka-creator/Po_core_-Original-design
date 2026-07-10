@@ -7,21 +7,48 @@ Implements Freedom Pressure Tensor (F_P), Semantic Profile, and Blocked Tensor.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-import numpy as np
-import torch
-from sentence_transformers import SentenceTransformer
-
-# Lazy load the sentence transformer model
-_SENTENCE_MODEL: Optional[SentenceTransformer] = None
+if TYPE_CHECKING:
+    import torch
+    from sentence_transformers import SentenceTransformer
 
 
-def _get_sentence_model() -> SentenceTransformer:
-    """Get or initialize the sentence transformer model."""
+class _LazyTorchModule:
+    """Resolve public ``torch.Tensor`` annotations only when inspected."""
+
+    def __getattr__(self, name: str) -> Any:
+        import importlib
+
+        module = importlib.import_module("torch")
+        globals()["torch"] = module
+        return getattr(module, name)
+
+
+if not TYPE_CHECKING:
+    globals()["torch"] = _LazyTorchModule()
+
+warnings.warn(
+    "po_core.tensor_metrics is deprecated; migrate to po_core.tensors, "
+    "preferably compute_tensors(). This compatibility module will be removed "
+    "in v2.0.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+# Lazy load the sentence transformer model only when the legacy computation
+# is invoked. Importing this compatibility module remains lightweight.
+_SENTENCE_MODEL: Optional["SentenceTransformer"] = None
+
+
+def _get_sentence_model() -> "SentenceTransformer":
+    """Get or initialize the legacy sentence transformer model."""
     global _SENTENCE_MODEL
     if _SENTENCE_MODEL is None:
+        from sentence_transformers import SentenceTransformer
+
         _SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
     return _SENTENCE_MODEL
 
@@ -86,6 +113,8 @@ class FreedomPressureTensor:
         )
 
         # 5. Create tensor representation
+        import torch
+
         tensor = torch.tensor(
             [lexical_freedom, semantic_freedom, structural_freedom, overall],
             dtype=torch.float32,
@@ -138,6 +167,8 @@ class SemanticProfile:
         Returns:
             SemanticProfile instance
         """
+        import torch
+
         model = _get_sentence_model()
 
         # Get embeddings
@@ -204,6 +235,9 @@ class BlockedTensor:
         Returns:
             BlockedTensor instance
         """
+        import numpy as np
+        import torch
+
         # Freedom component: Inverse of freedom (high freedom = low blocking)
         freedom_component = 1.0 - freedom_pressure.overall
 
@@ -245,6 +279,8 @@ def _compute_semantic_freedom(prompt: str, reasoning: str) -> float:
     Higher divergence from prompt = higher freedom.
     """
     try:
+        import torch
+
         model = _get_sentence_model()
 
         prompt_emb = model.encode(prompt, convert_to_tensor=True)
@@ -278,6 +314,8 @@ def _compute_structural_freedom(reasoning: str) -> float:
 
     Measures variability in sentence length and structure.
     """
+    import numpy as np
+
     sentences = [s.strip() for s in reasoning.split(".") if s.strip()]
     if len(sentences) < 2:
         return 0.5
@@ -303,6 +341,9 @@ def _compute_coherence(text: str, model: SentenceTransformer) -> float:
 
     Measures how semantically related different parts of the text are.
     """
+    import numpy as np
+    import torch
+
     sentences = [s.strip() for s in text.split(".") if s.strip()]
     if len(sentences) < 2:
         return 1.0
@@ -353,3 +394,11 @@ def compute_all_metrics(
         "semantic_delta": 1.0 - semantic_profile.prompt_similarity,
         "blocked_tensor_value": blocked_tensor.overall,
     }
+
+
+__all__ = [
+    "FreedomPressureTensor",
+    "SemanticProfile",
+    "BlockedTensor",
+    "compute_all_metrics",
+]

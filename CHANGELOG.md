@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (maintenance refactor)
+- `src/po_core/text/tokenize.py` — shared `tokenize()` helper; single source of truth for the whitespace-split / punctuation-strip / lowercase tokenization previously duplicated in 4 modules. Exported as `po_core.text.tokenize`.
+- `tests/unit/test_text_tokenize.py` — 10 unit tests for the shared tokenizer (default punct set, stopwords, min_length, legacy strip-set compatibility).
+- `tests/unit/test_tensor_metrics_compat.py` — locks the published v1
+  `po_core.tensor_metrics` classmethod signatures, dataclass fields, formulas,
+  dictionary shapes, lazy-import boundary, and v2.0.0 deprecation notice.
+
+### Changed (maintenance refactor)
+- `tensors/metrics/freedom_pressure.py`, `tensors/metrics/blocked_tensor.py`, `tensors/metrics/semantic_delta.py`, `tensors/engine.py` — local `_tokenize` implementations replaced with delegations to `po_core.text.tokenize`. Behavior-preserving: `semantic_delta` keeps its stopword/min-length filter; `engine.py` keeps its historical (smaller) strip set via `strip_chars` so legacy tensor values and goldens are unchanged.
+- `"philosopher module"` (stray unimportable root file, WittgensteinModule_v2 draft from the initial commit) moved to `docs/archive/wittgenstein_module_v2_draft.py`.
+
+### Removed (maintenance refactor)
+- `License.md` — byte-identical duplicate of `LICENSE`; unreferenced.
+
+### Deprecated (maintenance refactor)
+- `po_core.tensor_metrics` remains available through v1.x as a compatibility
+  facade preserving its published `FreedomPressureTensor`, `SemanticProfile`,
+  `BlockedTensor`, and `compute_all_metrics` contracts. Its previous eager
+  torch/numpy/sentence-transformers imports are now lazy. New integrations
+  should migrate to `po_core.tensors`, preferably `compute_tensors()`; the
+  compatibility module is scheduled for removal in v2.0.0.
+
 ### Fixed (CI import isolation)
 - Dependency-boundary tests for Po_core Original Design now execute their
   target operation in a fresh Python process and inspect only modules loaded

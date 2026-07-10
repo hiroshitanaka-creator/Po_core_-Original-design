@@ -30,6 +30,7 @@ from typing import List, Pattern, Tuple, Union
 from po_core.domain.context import Context
 from po_core.domain.memory_snapshot import MemorySnapshot
 from po_core.text.normalize import normalize_text
+from po_core.text.tokenize import tokenize as _tokenize
 
 # ── Keyword lists for each dimension ──
 
@@ -150,16 +151,6 @@ _ALL_DIMENSIONS = [
     ("social_impact", _SOCIAL_KEYWORDS_EN, _SOCIAL_KEYWORDS_JA),
     ("authenticity_pressure", _AUTHENTICITY_KEYWORDS_EN, _AUTHENTICITY_KEYWORDS_JA),
 ]
-
-
-def _tokenize(text: str) -> List[str]:
-    """Simple whitespace tokenizer with punctuation stripping."""
-    tokens = []
-    for raw in text.split():
-        cleaned = raw.strip(".,!?\"'()[]{}:;`~@#$%^&*+=<>/\\|").lower()
-        if cleaned:
-            tokens.append(cleaned)
-    return tokens
 
 
 def _keyword_ratio_en(tokens: List[str], keywords: List[str]) -> float:
