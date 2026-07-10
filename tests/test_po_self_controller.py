@@ -32,6 +32,12 @@ except ImportError as e:  # pragma: no cover
         "jsonschema is required for this test. Install with: pip install jsonschema"
     ) from e
 
+from dependency_guard import (
+    LLM_ML_MODULES,
+    PHILOSOPHER_MODULES,
+    VIEWER_MODULES,
+    assert_no_modules_loaded_by,
+)
 from po_core_original import KernelResult, PoCoreKernel, PoSelfController
 from po_core_original.self_controller.cycle_guard import SelfCycleGuard
 from po_core_original.self_controller.decision_engine import PoSelfDecisionEngine
@@ -45,6 +51,17 @@ HIGH_PRIORITY_INPUT = (
 )
 # Low pressure: factual/neutral, no ethical/responsibility markers.
 LOW_PRIORITY_INPUT = "火星には酸素が豊富にある。これはペンです。"
+
+_CONTROLLER_OPERATION = """
+from po_core_original import PoCoreKernel, PoSelfController
+
+input_text = (
+    "この判断には重大な責任がある。"
+    "安全と倫理を守るべきだ。危険な影響がある。"
+)
+kernel_result = PoCoreKernel().process(input_text, request_id="fixed-req")
+PoSelfController().evaluate(kernel_result)
+"""
 
 
 def _load_schema(name: str) -> dict:
@@ -273,34 +290,26 @@ def test_controller_is_deterministic():
 # 15. No Viewer feedback is required.
 # --------------------------------------------------------------------------- #
 def test_no_viewer_feedback_required():
-    import sys
-
     _, result = _run(HIGH_PRIORITY_INPUT)
     assert result.decision.viewer_feedback_refs == []
-    assert "po_core_original.viewer" not in sys.modules
-    assert "po_core.viewer" not in sys.modules
+    assert_no_modules_loaded_by(_CONTROLLER_OPERATION, VIEWER_MODULES)
 
 
 # --------------------------------------------------------------------------- #
 # 16. No philosopher module is required.
 # --------------------------------------------------------------------------- #
 def test_no_philosopher_module_required():
-    import sys
-
-    _run(HIGH_PRIORITY_INPUT)
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+    assert_no_modules_loaded_by(_CONTROLLER_OPERATION, PHILOSOPHER_MODULES)
 
 
 # --------------------------------------------------------------------------- #
 # 17. No LLM or ML dependency is required (pure stdlib import path).
 # --------------------------------------------------------------------------- #
 def test_no_llm_or_ml_dependency():
-    import sys
-
-    _run(HIGH_PRIORITY_INPUT)
-    for banned in ("torch", "sentence_transformers", "openai", "transformers", "numpy"):
-        assert banned not in sys.modules
+    assert_no_modules_loaded_by(
+        _CONTROLLER_OPERATION,
+        LLM_ML_MODULES,
+    )
 
 
 # --------------------------------------------------------------------------- #

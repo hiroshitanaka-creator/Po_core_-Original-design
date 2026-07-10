@@ -31,6 +31,7 @@ except ImportError as e:  # pragma: no cover
         "jsonschema is required for this test. Install with: pip install jsonschema"
     ) from e
 
+from dependency_guard import PHILOSOPHER_MODULES, assert_no_modules_loaded_by
 from po_core_original import PoCoreKernel, SemanticStep
 from po_core_original.step_decomposer import StepDecomposer
 
@@ -232,10 +233,14 @@ def test_ethics_responsibility_keywords_raise_axes():
 # 15. No philosopher modules are required for kernel processing.
 # --------------------------------------------------------------------------- #
 def test_no_philosopher_modules_required():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original import PoCoreKernel
 
-    # Fresh process should not have imported the 42-philosopher runtime package.
-    kernel = PoCoreKernel()
-    kernel.process(MARS_INPUT)
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        PoCoreKernel().process(
+            "火星には酸素が豊富にある。"
+            "だから人間はすぐ住める。これは夢がある話だ。"
+        )
+        """,
+        PHILOSOPHER_MODULES,
+    )
