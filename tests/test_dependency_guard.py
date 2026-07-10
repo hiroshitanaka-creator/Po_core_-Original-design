@@ -7,7 +7,7 @@ import types
 
 import pytest
 
-from tests.dependency_guard import assert_no_modules_loaded_by
+from dependency_guard import assert_no_modules_loaded_by
 
 pytestmark = pytest.mark.unit
 

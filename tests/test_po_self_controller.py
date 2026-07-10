@@ -32,15 +32,15 @@ except ImportError as e:  # pragma: no cover
         "jsonschema is required for this test. Install with: pip install jsonschema"
     ) from e
 
-from po_core_original import KernelResult, PoCoreKernel, PoSelfController
-from po_core_original.self_controller.cycle_guard import SelfCycleGuard
-from po_core_original.self_controller.decision_engine import PoSelfDecisionEngine
-from tests.dependency_guard import (
+from dependency_guard import (
     LLM_ML_MODULES,
     PHILOSOPHER_MODULES,
     VIEWER_MODULES,
     assert_no_modules_loaded_by,
 )
+from po_core_original import KernelResult, PoCoreKernel, PoSelfController
+from po_core_original.self_controller.cycle_guard import SelfCycleGuard
+from po_core_original.self_controller.decision_engine import PoSelfDecisionEngine
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"

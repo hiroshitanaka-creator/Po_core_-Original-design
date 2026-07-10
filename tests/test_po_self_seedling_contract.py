@@ -27,11 +27,11 @@ except ImportError as e:  # pragma: no cover
         "jsonschema is required for this test. Install with: pip install jsonschema"
     ) from e
 
+from dependency_guard import PHILOSOPHER_MODULES, assert_no_modules_loaded_by
 from po_core_original.self_controller.seedling_evaluator import (
     SEEDLING_ACTIVATION_THRESHOLD,
     SeedlingEvaluator,
 )
-from tests.dependency_guard import PHILOSOPHER_MODULES, assert_no_modules_loaded_by
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"

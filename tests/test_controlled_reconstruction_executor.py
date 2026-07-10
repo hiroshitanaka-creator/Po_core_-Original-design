@@ -29,6 +29,11 @@ except ImportError as e:  # pragma: no cover
         "jsonschema is required for this test. Install with: pip install jsonschema"
     ) from e
 
+from dependency_guard import (
+    HEAVY_RUNTIME_MODULES,
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 from po_core_original import (
     ControlledReconstructionExecutor,
     PoCoreKernel,
@@ -36,11 +41,6 @@ from po_core_original import (
 )
 from po_core_original.self_controller.reconstruction_planner import (
     ReconstructionPlanner,
-)
-from tests.dependency_guard import (
-    HEAVY_RUNTIME_MODULES,
-    PHILOSOPHER_MODULES,
-    assert_no_modules_loaded_by,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
