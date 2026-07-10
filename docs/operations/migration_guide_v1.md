@@ -50,3 +50,44 @@ python scripts/phase25_reproduce.py --profile external
 ```
 
 詳細は `docs/operations/reproducibility_runbook.md` を参照。
+
+## 7. Migrating from `po_core.tensor_metrics`
+
+`po_core.tensor_metrics` was published in v1.x with four public symbols:
+
+- `FreedomPressureTensor`
+- `SemanticProfile`
+- `BlockedTensor`
+- `compute_all_metrics()`
+
+The import remains available through v1.x and emits a `DeprecationWarning`.
+Its dataclass fields, classmethod signatures, formulas, rounding, and legacy
+dictionary shapes are preserved. Heavy ML dependencies are loaded only when a
+legacy calculation is invoked. Removal is deferred until v2.0.0.
+
+For new code, use the current tensor engine:
+
+```python
+from po_core.tensors import compute_tensors
+
+snapshot = compute_tensors(
+    prompt,
+    reasoning_text=reasoning,
+)
+```
+
+This is not a mechanical import rename. The current tensor classes model
+different responsibilities:
+
+- current `FreedomPressureTensor` is a six-dimensional decision-pressure
+  tensor, while the legacy class reports lexical/semantic/structural freedom;
+- current `SemanticProfile` tracks semantic evolution rather than only
+  prompt/reasoning similarity;
+- current `BlockedTensor` is a rejection-log tensor rather than the legacy
+  geometric combination;
+- `compute_tensors()` returns `TensorSnapshot`, not the six-key dictionary
+  returned by `compute_all_metrics()`.
+
+Downstream code that depends on legacy field names or thresholds should remain
+on the v1 facade while adapting its data model, then remove the old import
+before upgrading to v2.0.0.

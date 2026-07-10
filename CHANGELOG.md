@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added (maintenance refactor)
 - `src/po_core/text/tokenize.py` — shared `tokenize()` helper; single source of truth for the whitespace-split / punctuation-strip / lowercase tokenization previously duplicated in 4 modules. Exported as `po_core.text.tokenize`.
 - `tests/unit/test_text_tokenize.py` — 10 unit tests for the shared tokenizer (default punct set, stopwords, min_length, legacy strip-set compatibility).
+- `tests/unit/test_tensor_metrics_compat.py` — locks the published v1
+  `po_core.tensor_metrics` classmethod signatures, dataclass fields, formulas,
+  dictionary shapes, lazy-import boundary, and v2.0.0 deprecation notice.
 
 ### Changed (maintenance refactor)
 - `tensors/metrics/freedom_pressure.py`, `tensors/metrics/blocked_tensor.py`, `tensors/metrics/semantic_delta.py`, `tensors/engine.py` — local `_tokenize` implementations replaced with delegations to `po_core.text.tokenize`. Behavior-preserving: `semantic_delta` keeps its stopword/min-length filter; `engine.py` keeps its historical (smaller) strip set via `strip_chars` so legacy tensor values and goldens are unchanged.
@@ -19,7 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed (maintenance refactor)
 - `License.md` — byte-identical duplicate of `LICENSE`; unreferenced.
-- `src/po_core/tensor_metrics.py` — legacy parallel implementation of `FreedomPressureTensor`/`SemanticProfile`/`BlockedTensor` superseded by `tensors/` + `tensors/metrics/`. Zero references in `src/`, `tests/`, `scripts/`, `examples/`, docs, or CI; eagerly imported torch + sentence-transformers. External code importing `po_core.tensor_metrics` should migrate to `po_core.tensors`.
+
+### Deprecated (maintenance refactor)
+- `po_core.tensor_metrics` remains available through v1.x as a compatibility
+  facade preserving its published `FreedomPressureTensor`, `SemanticProfile`,
+  `BlockedTensor`, and `compute_all_metrics` contracts. Its previous eager
+  torch/numpy/sentence-transformers imports are now lazy. New integrations
+  should migrate to `po_core.tensors`, preferably `compute_tensors()`; the
+  compatibility module is scheduled for removal in v2.0.0.
 
 ### Added (PR-015)
 - `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` — new design + runtime contract for blocked trace reactivation planning.

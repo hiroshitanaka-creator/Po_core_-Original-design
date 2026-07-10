@@ -11,7 +11,7 @@ SemVer rationale: minor bump — backward-compatible new functionality
 ## Summary
 
 v1.1.0 delivers a structured output API, a complete engine trace audit
-contract, and 53 new tests.  All changes are backward-compatible:
+contract, and 57 new tests.  All changes are backward-compatible:
 existing `po_core.run()` callers are unaffected.
 
 Completion matrix pass count increased from 110 to 164 (164 pass / 0 fail / 0 not-yet).
@@ -182,7 +182,8 @@ list of `applied_changes`.  Not emitted when no mutation occurs.
 | `TestTensorComputedTrace` | 3 | acceptance |
 | `TestTensorComputedStatusTrace` | 4 | acceptance |
 | `TestSampleTraceContract` | 8 | unit (JSON parse) |
-| **Total new** | **53** | |
+| `test_tensor_metrics_compat.py` | 4 | unit + packaging compatibility |
+| **Total new** | **57** | |
 
 `completion_matrix.md` total: **164 pass / 0 fail / 0 not-yet**  
 (was 110 at v1.0.3 close)
@@ -200,6 +201,7 @@ list of `applied_changes`.  Not emitted when no mutation occurs.
 | New fields in `ParetoWinnerSelected` (`weights`, `winner.weighted_score`) | Additive |
 | `ParetoWeights.emergence` | Additive — existing `to_dict()` callers gain one new key |
 | `run_case()` / `async_run_case()` | New export — no existing code affected |
+| `po_core.tensor_metrics` | Preserved as a lazy deprecated v1 compatibility facade; fields, classmethod signatures, formulas, and dictionary shapes remain available through v1.x. Migrate to `po_core.tensors` before v2.0.0. |
 
 **Note**: older versions of `docs/viewer/sample_trace.json` represented
 `TensorComputed.metrics` as a list of metric names.  The sample has been
@@ -207,6 +209,11 @@ updated to match the contract (`dict[str, float]`).  Consumers of that
 sample file or custom trace viewers that assumed the old list shape should
 update their parsers.  Production `run()` and `run_case()` return shapes
 are unchanged.
+
+The current `po_core.tensors` classes are not drop-in aliases for the legacy
+classes: they model different tensor responsibilities and return different
+data shapes. See `docs/operations/migration_guide_v1.md` for the migration
+mapping and v2.0.0 removal boundary.
 
 ---
 
@@ -241,15 +248,24 @@ are unchanged.
 - `src/po_core/tensors/engine.py` — `TensorSnapshot.values` population
 - `src/po_core/trace/pareto_events.py` — `weights` in `ParetoWinnerSelected`
 - `src/po_core/config/runtime/pareto_table.yaml` — emergence weights added
+- `src/po_core/text/tokenize.py` — shared behavior-preserving tokenizer
+- `src/po_core/tensor_metrics.py` — deprecated v1 compatibility facade;
+  heavy ML imports are lazy and removal is deferred to v2.0.0
 
 **Tests (new):**
 - `tests/acceptance/test_runtime_acceptance.py` — 37 new acceptance tests
 - `tests/unit/test_safety_mode_inferred_branches.py` — 7 unit tests
 - `tests/unit/test_sample_trace_contract.py` — 8 unit tests
+- `tests/unit/test_tensor_metrics_compat.py` — 4 compatibility tests
+- `tests/test_release_smoke_regression.py` — installed legacy API smoke regression
+
+**Release verification:**
+- `scripts/release_smoke.py` — validates the four legacy tensor-metrics symbols
 
 **Docs (new/updated):**
 - `docs/ENGINE_TRACE_CONTRACT.md` — new
 - `docs/viewer/README.md` — new
 - `docs/viewer/sample_trace.json` — updated
 - `docs/completion_matrix.md` — updated
+- `docs/operations/migration_guide_v1.md` — legacy tensor migration boundary
 - `docs/status.md` — updated

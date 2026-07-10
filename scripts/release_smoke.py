@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import importlib.metadata
 import inspect
 import json
@@ -13,6 +14,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import warnings
 from contextlib import closing
 from importlib import resources
 from typing import Sequence
@@ -26,6 +28,37 @@ from po_core.runtime.wiring import build_test_system
 ENTRYPOINTS = ("po-core", "po-self", "po-trace", "po-interactive", "po-experiment")
 ENTRYPOINT_TIMEOUT_SECONDS = 15
 _SERVER_START_TIMEOUT_SECONDS = 15
+LEGACY_TENSOR_METRICS_API = (
+    "FreedomPressureTensor",
+    "SemanticProfile",
+    "BlockedTensor",
+    "compute_all_metrics",
+)
+
+
+def _assert_legacy_tensor_metrics_compatibility() -> None:
+    """Verify that the installed v1 compatibility import remains available."""
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        legacy_module = importlib.import_module("po_core.tensor_metrics")
+
+    missing = [
+        symbol
+        for symbol in LEGACY_TENSOR_METRICS_API
+        if not hasattr(legacy_module, symbol)
+    ]
+    if missing:
+        raise SystemExit(
+            "po_core.tensor_metrics compatibility API is incomplete: "
+            + ", ".join(missing)
+        )
+    if tuple(legacy_module.__all__) != LEGACY_TENSOR_METRICS_API:
+        raise SystemExit(
+            "unexpected po_core.tensor_metrics __all__: "
+            f"{legacy_module.__all__!r}"
+        )
+    print("legacy_tensor_metrics_compat=ok")
 
 
 def _find_free_port() -> int:
@@ -323,6 +356,8 @@ def main() -> None:
             )
     else:
         print("dist_version=skipped")
+
+    _assert_legacy_tensor_metrics_compatibility()
 
     config_root = resources.files("po_core.config")
     battalion_resource = config_root.joinpath("runtime/battalion_table.yaml")
