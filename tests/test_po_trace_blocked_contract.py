@@ -34,10 +34,7 @@ from po_core_original.blocked_trace import (
     BlockedTraceService,
     InMemoryBlockedTraceStore,
 )
-from tests.dependency_guard import (
-    PERSISTENCE_MODULES,
-    assert_no_modules_loaded_by,
-)
+from tests.dependency_guard import PERSISTENCE_MODULES, assert_no_modules_loaded_by
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"

@@ -33,10 +33,7 @@ except ImportError as e:  # pragma: no cover
 
 from po_core_original import PoCoreKernel, SemanticStep
 from po_core_original.step_decomposer import StepDecomposer
-from tests.dependency_guard import (
-    PHILOSOPHER_MODULES,
-    assert_no_modules_loaded_by,
-)
+from tests.dependency_guard import PHILOSOPHER_MODULES, assert_no_modules_loaded_by
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
