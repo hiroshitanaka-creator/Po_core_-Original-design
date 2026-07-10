@@ -34,6 +34,10 @@ from po_core_original.blocked_trace import (
     BlockedTraceService,
     InMemoryBlockedTraceStore,
 )
+from tests.dependency_guard import (
+    PERSISTENCE_MODULES,
+    assert_no_modules_loaded_by,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
@@ -213,8 +217,11 @@ def test_recording_is_additive_and_never_deletes():
 # 10. Store is in-memory only (no persistence import / DB dependency).
 # --------------------------------------------------------------------------- #
 def test_no_persistence_dependency():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original.blocked_trace import InMemoryBlockedTraceStore
 
-    InMemoryBlockedTraceStore()
-    for banned in ("sqlalchemy", "psycopg2", "pymongo"):
-        assert banned not in sys.modules
+        InMemoryBlockedTraceStore()
+        """,
+        PERSISTENCE_MODULES,
+    )

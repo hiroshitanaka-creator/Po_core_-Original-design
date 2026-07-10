@@ -37,6 +37,11 @@ from po_core_original import (
 from po_core_original.self_controller.reconstruction_planner import (
     ReconstructionPlanner,
 )
+from tests.dependency_guard import (
+    HEAVY_RUNTIME_MODULES,
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
@@ -372,29 +377,31 @@ def test_all_targets_missing_raises_runtime_error():
 # 22. No LLM, ML, REST, UI, or philosopher dependency is required.
 # --------------------------------------------------------------------------- #
 def test_no_heavy_dependencies():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original import (
+            ControlledReconstructionExecutor,
+            PoCoreKernel,
+            PoSelfController,
+        )
 
-    kr, result = _reconstruct_result()
-    executor = ControlledReconstructionExecutor()
-    executor.execute(
-        kernel_result=kr,
-        decision=result.decision,
-        plan=result.reconstruction_plan,
-        source_trace_events=result.trace_events,
+        input_text = (
+            "この判断には重大な責任がある。"
+            "安全と倫理を守るべきだ。危険な影響がある。"
+        )
+        kernel_result = PoCoreKernel().process(input_text, request_id="req_demo")
+        result = PoSelfController(
+            enable_controlled_reconstruction_execution=False
+        ).evaluate(kernel_result)
+        ControlledReconstructionExecutor().execute(
+            kernel_result=kernel_result,
+            decision=result.decision,
+            plan=result.reconstruction_plan,
+            source_trace_events=result.trace_events,
+        )
+        """,
+        HEAVY_RUNTIME_MODULES + PHILOSOPHER_MODULES,
     )
-    for banned in (
-        "torch",
-        "sentence_transformers",
-        "openai",
-        "transformers",
-        "numpy",
-        "dash",
-        "flask",
-        "fastapi",
-    ):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
 
 
 # --------------------------------------------------------------------------- #

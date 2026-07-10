@@ -37,6 +37,11 @@ from po_core_original import (
     ViewerFeedbackService,
     compute_viewer_pressure,
 )
+from tests.dependency_guard import (
+    HEAVY_RUNTIME_MODULES,
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
@@ -372,24 +377,37 @@ def test_no_feedback_no_applied_event():
 # 20. No UI, REST, philosopher, LLM, or ML dependency is required.
 # --------------------------------------------------------------------------- #
 def test_no_heavy_dependencies():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original import PoCoreKernel, PoSelfController, ViewerFeedback
 
-    kernel = PoCoreKernel()
-    kr = kernel.process(LOW_SEMANTIC_INPUT, request_id="req_demo")
-    PoSelfController().evaluate(kr, viewer_feedback=[_feedback()])
-    for banned in (
-        "torch",
-        "sentence_transformers",
-        "openai",
-        "transformers",
-        "numpy",
-        "dash",
-        "flask",
-        "fastapi",
-    ):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        feedback = ViewerFeedback(
+            schema_version="viewer_feedback_v1",
+            feedback_id="vf_001",
+            request_id="req_demo",
+            target_output_id="out_req_demo",
+            viewer_resonance_level=0.2,
+            interpretation_agreement_level=0.3,
+            disagreement_level=0.8,
+            discomfort_level=0.7,
+            feedback_tensor={
+                "resonance_axis": 0.2,
+                "agreement_axis": 0.3,
+                "disagreement_axis": 0.8,
+                "discomfort_axis": 0.7,
+                "trust_axis": 0.4,
+            },
+            reason_log=["Viewer pushed back."],
+            created_at="2026-01-01T00:00:00Z",
+        )
+        kernel_result = PoCoreKernel().process(
+            "これはペンです。",
+            request_id="req_demo",
+        )
+        PoSelfController().evaluate(kernel_result, viewer_feedback=[feedback])
+        """,
+        HEAVY_RUNTIME_MODULES + PHILOSOPHER_MODULES,
+    )
 
 
 # --------------------------------------------------------------------------- #

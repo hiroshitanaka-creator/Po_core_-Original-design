@@ -31,6 +31,10 @@ from po_core_original.self_controller.seedling_evaluator import (
     SEEDLING_ACTIVATION_THRESHOLD,
     SeedlingEvaluator,
 )
+from tests.dependency_guard import (
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
@@ -152,14 +156,25 @@ def test_deterministic_same_input_same_score():
 # 9. Evaluating a seedling never starts a self-growth loop / imports ML.
 # --------------------------------------------------------------------------- #
 def test_no_self_growth_loop_or_ml_dependency():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original.self_controller.seedling_evaluator import (
+            SeedlingEvaluator,
+        )
 
-    evaluator = SeedlingEvaluator()
-    evaluator.evaluate(request_id="req_1", blocked_trace_pressure=1.0)
-    for banned in ("torch", "sentence_transformers", "openai", "transformers"):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        SeedlingEvaluator().evaluate(
+            request_id="req_1",
+            blocked_trace_pressure=1.0,
+        )
+        """,
+        (
+            "torch",
+            "sentence_transformers",
+            "openai",
+            "transformers",
+        )
+        + PHILOSOPHER_MODULES,
+    )
 
 
 # --------------------------------------------------------------------------- #

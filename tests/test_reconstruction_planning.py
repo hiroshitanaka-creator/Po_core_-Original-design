@@ -43,6 +43,11 @@ from po_core_original.models import (
     PoSelfPrioritySummary,
     PoSelfTrigger,
 )
+from tests.dependency_guard import (
+    HEAVY_RUNTIME_MODULES,
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT_DIR / "schemas"
@@ -311,24 +316,19 @@ def test_reserved_modes_preserved_not_emitted():
 # 19. No heavy dependency required.
 # --------------------------------------------------------------------------- #
 def test_no_heavy_dependencies():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        from po_core_original import PoCoreKernel, PoSelfController
 
-    kernel = PoCoreKernel()
-    kr = kernel.process(HIGH_PRIORITY_INPUT, request_id="req_demo")
-    PoSelfController().evaluate(kr)
-    for banned in (
-        "torch",
-        "sentence_transformers",
-        "openai",
-        "transformers",
-        "numpy",
-        "dash",
-        "flask",
-        "fastapi",
-    ):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        input_text = (
+            "この判断には重大な責任がある。"
+            "安全と倫理を守るべきだ。危険な影響がある。"
+        )
+        kernel_result = PoCoreKernel().process(input_text, request_id="req_demo")
+        PoSelfController().evaluate(kernel_result)
+        """,
+        HEAVY_RUNTIME_MODULES + PHILOSOPHER_MODULES,
+    )
 
 
 # --------------------------------------------------------------------------- #
