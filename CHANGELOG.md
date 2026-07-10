@@ -31,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should migrate to `po_core.tensors`, preferably `compute_tensors()`; the
   compatibility module is scheduled for removal in v2.0.0.
 
+### Fixed (CI import isolation)
+- Dependency-boundary tests for Po_core Original Design now execute their
+  target operation in a fresh Python process and inspect only modules loaded
+  by that operation. This removes full-suite order/plugin false positives from
+  the parent pytest process's already-populated `sys.modules` table while
+  preserving detection of exact forbidden modules and their submodules.
+- Added `tests/dependency_guard.py` as the shared fresh-process guard and
+  `tests/test_dependency_guard.py` as its regression contract.
+
+### Not Changed (CI import isolation)
+- No `po_core` or `po_core_original` runtime behavior, schemas, trace events,
+  feature flags, philosopher roster, Viewer behavior, or safety gates changed.
+
 ### Added (PR-015)
 - `docs/contracts/PO_TRACE_REACTIVATION_PLAN_V1.md` — new design + runtime contract for blocked trace reactivation planning.
 - `schemas/po_trace_reactivation_plan_v1.schema.json` (`reactivation_execution_allowed`/`content_rewrite_allowed`/`state_mutation_allowed`/`safety_bypass_allowed` are all `const false`).

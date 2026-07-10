@@ -18,6 +18,11 @@ from pathlib import Path
 
 import pytest
 
+from dependency_guard import (
+    HEAVY_RUNTIME_MODULES,
+    PHILOSOPHER_MODULES,
+    assert_no_modules_loaded_by,
+)
 from po_core_original import (
     InMemoryViewerFeedbackStore,
     PoCoreKernel,
@@ -569,20 +574,19 @@ def test_has_ancestor_of_type_handles_cycles_without_hanging():
 # Extra: no heavy dependency required (LLM/ML/REST/UI/philosopher).
 # --------------------------------------------------------------------------- #
 def test_no_heavy_dependencies():
-    import sys
+    assert_no_modules_loaded_by(
+        """
+        import json
+        from pathlib import Path
 
-    doc = _load_example("trace_chain.valid.json")
-    TraceContinuityValidator(strict=True).validate(doc["events"])
-    for banned in (
-        "torch",
-        "sentence_transformers",
-        "openai",
-        "transformers",
-        "numpy",
-        "dash",
-        "flask",
-        "fastapi",
-    ):
-        assert banned not in sys.modules
-    assert "po_core.philosophers" not in sys.modules
-    assert "po_core_original.philosophers" not in sys.modules
+        doc = json.loads(
+            Path("examples/contracts/trace_chain.valid.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        from po_core_original.trace_validation import TraceContinuityValidator
+
+        TraceContinuityValidator(strict=True).validate(doc["events"])
+        """,
+        HEAVY_RUNTIME_MODULES + PHILOSOPHER_MODULES,
+    )
