@@ -30,6 +30,8 @@ def test_guard_ignores_modules_loaded_only_in_parent_process(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     parent_only_module = "po_core.philosophers"
-    monkeypatch.setitem(sys.modules, parent_only_module, types.ModuleType(parent_only_module))
+    monkeypatch.setitem(
+        sys.modules, parent_only_module, types.ModuleType(parent_only_module)
+    )
 
     assert_no_modules_loaded_by("value = 1 + 1", (parent_only_module,))
